@@ -31,7 +31,9 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string;
-  companyId?: string; // For multi-tenancy
+  companyId?: string | null; // For multi-tenancy
+  repartidorId?: string | null; // ID in repartidores table
+  vendedorId?: string | null; // ID in vendedores table
 }
 
 export type OrderStatus = 
