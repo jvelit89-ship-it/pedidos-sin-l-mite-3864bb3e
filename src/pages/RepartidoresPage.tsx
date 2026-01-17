@@ -47,10 +47,14 @@ export default function RepartidoresPage() {
           active: formData.active,
         });
         
-        // If password is provided, update it
-        if (formData.password) {
-          await updateTeamMemberPassword(selectedRepartidor.user_id!, formData.password);
-          toast.success('Contraseña actualizada');
+        // If password is provided and user has a linked auth account, update it
+        if (formData.password && selectedRepartidor.user_id) {
+          const success = await updateTeamMemberPassword(selectedRepartidor.user_id, formData.password);
+          if (success) {
+            toast.success('Contraseña actualizada');
+          }
+        } else if (formData.password && !selectedRepartidor.user_id) {
+          toast.warning('Este repartidor no tiene cuenta de usuario vinculada. La contraseña no se puede actualizar.');
         }
       } else {
         if (!formData.password) {
