@@ -42,7 +42,7 @@ interface Product {
 }
 
 export default function InventoryPage() {
-  const { products, loading, addProduct, updateProduct } = useProducts();
+  const { products, loading, addProduct, updateProduct, refetch: refetchProducts } = useProducts();
   const { history, addProduction } = useProductionHistory();
   const { formatCurrency, settings, t } = useSettings();
   const { user } = useAuth();
@@ -136,6 +136,7 @@ export default function InventoryPage() {
     const success = await addProduction(selectedProductId, productionQuantity, productionNotes);
     
     if (success) {
+      await refetchProducts();
       setIsProductionDialogOpen(false);
       setSelectedProductId('');
       setProductionQuantity(0);
