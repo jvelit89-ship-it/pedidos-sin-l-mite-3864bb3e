@@ -99,7 +99,7 @@ export default function RoutePage() {
   // Filter to only ready and in-delivery orders for repartidores
   const deliveries = orders.filter(o => {
     if (!['ready', 'delivery'].includes(o.status)) return false;
-    if (user?.role === 'repartidor' && o.repartidor_id !== user.id) return false;
+    if (user?.role === 'repartidor' && user.repartidorId && o.repartidor_id !== user.repartidorId) return false;
     return true;
   }) as DeliveryOrder[];
 

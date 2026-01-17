@@ -58,12 +58,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (profileData) {
+        const role = (roleData?.role as UserRole) || 'vendedor';
+        
+        // Fetch repartidor or vendedor ID if applicable
+        let repartidorId: string | null = null;
+        let vendedorId: string | null = null;
+        
+        if (role === 'repartidor') {
+          const { data: repartidorData } = await supabase
+            .from('repartidores')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          repartidorId = repartidorData?.id || null;
+        } else if (role === 'vendedor') {
+          const { data: vendedorData } = await supabase
+            .from('vendedores')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          vendedorId = vendedorData?.id || null;
+        }
+        
         setUser({
           id: userId,
           email: profileData.email || '',
           name: profileData.name,
-          role: (roleData?.role as UserRole) || 'vendedor',
+          role,
           companyId: profileData.company_id,
+          repartidorId,
+          vendedorId,
         });
       } else {
         // Profile doesn't exist yet - create one
@@ -92,6 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario',
               role: 'vendedor',
               companyId: null,
+              repartidorId: null,
+              vendedorId: null,
             });
           }
         }

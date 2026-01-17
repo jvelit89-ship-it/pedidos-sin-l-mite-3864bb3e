@@ -29,8 +29,8 @@ export default function DeliveriesPage() {
     );
     
     // For repartidor, only show their assigned deliveries
-    if (user?.role === 'repartidor') {
-      filtered = filtered.filter(o => o.repartidor_id === user.id);
+    if (user?.role === 'repartidor' && user.repartidorId) {
+      filtered = filtered.filter(o => o.repartidor_id === user.repartidorId);
     }
     
     // Sort: active first, then by date
