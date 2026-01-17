@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useSupabaseAuth } from '@/hooks/useAuth';
 import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Loader2, LogIn, UserPlus } from 'lucide-react';
+import { Loader2, LogIn, UserPlus, Mail } from 'lucide-react';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -36,6 +38,11 @@ export default function AuthPage() {
     name: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Forgot password state
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading && user) {
@@ -96,6 +103,39 @@ export default function AuthPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error('Ingresa tu correo electrónico');
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast.error('Error al enviar correo', {
+          description: error.message,
+        });
+      } else {
+        toast.success('Correo enviado', {
+          description: 'Revisa tu bandeja de entrada para restablecer tu contraseña',
+        });
+        setIsForgotPasswordOpen(false);
+        setResetEmail('');
+      }
+    } catch (error) {
+      toast.error('Error de conexión', {
+        description: 'Intenta nuevamente',
+      });
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -190,6 +230,55 @@ export default function AuthPage() {
               {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
             </Button>
           </form>
+
+          {isLogin && (
+            <div className="mt-4 flex justify-center">
+              <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Restablecer Contraseña</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Correo Electrónico</Label>
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="correo@ejemplo.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Te enviaremos un enlace para restablecer tu contraseña
+                      </p>
+                    </div>
+                    <Button type="submit" className="w-full gap-2" disabled={isSendingReset}>
+                      {isSendingReset ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" />
+                          Enviar Enlace
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
 
           <div className="mt-4 text-center">
             <button
