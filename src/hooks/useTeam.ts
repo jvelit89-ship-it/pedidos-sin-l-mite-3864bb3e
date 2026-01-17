@@ -295,13 +295,25 @@ export function useTeam() {
 
       if (error) {
         console.error('Error creating team user:', error);
-        toast.error(error.message || 'Error al crear usuario');
+        const errorMsg = error.message || 'Error al crear usuario';
+        // Translate common error messages
+        if (errorMsg.includes('already been registered') || errorMsg.includes('email_exists')) {
+          toast.error('Este correo electrónico ya está registrado en el sistema');
+        } else {
+          toast.error(errorMsg);
+        }
         return null;
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('Error from function:', data.error);
-        toast.error(data.error);
+        const errorMsg = data.error as string;
+        // Translate common error messages
+        if (errorMsg.includes('already been registered') || errorMsg.includes('email_exists')) {
+          toast.error('Este correo electrónico ya está registrado en el sistema');
+        } else {
+          toast.error(errorMsg);
+        }
         return null;
       }
 
@@ -317,7 +329,12 @@ export function useTeam() {
       return data.data;
     } catch (error: any) {
       console.error('Error in createTeamUser:', error);
-      toast.error(error.message || 'Error al crear usuario');
+      const errorMsg = error.message || 'Error al crear usuario';
+      if (errorMsg.includes('already been registered') || errorMsg.includes('email_exists')) {
+        toast.error('Este correo electrónico ya está registrado en el sistema');
+      } else {
+        toast.error(errorMsg);
+      }
       return null;
     }
   }, [vendedoresHook.refetch, repartidoresHook.refetch]);
