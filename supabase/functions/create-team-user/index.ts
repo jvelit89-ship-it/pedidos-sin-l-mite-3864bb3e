@@ -88,25 +88,30 @@ serve(async (req: Request) => {
     const userId = newUser.user.id;
     console.log(`User created with ID: ${userId}`);
 
-    // Create profile
+    // Update the profile (it's auto-created by handle_new_user trigger, so we update it)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        user_id: userId,
+      .update({
         name,
         email,
         phone,
         company_id: adminProfile.company_id,
-      });
+      })
+      .eq('user_id', userId);
 
     if (profileError) {
-      console.error('Error creating profile:', profileError);
+      console.error('Error updating profile:', profileError);
       // Cleanup: delete the auth user
       await supabaseAdmin.auth.admin.deleteUser(userId);
-      throw new Error('Error creating profile');
+      throw new Error('Error updating profile');
     }
 
-    // Assign role
+    // Update role (delete the auto-assigned role first, then insert the correct one)
+    await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .insert({
