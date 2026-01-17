@@ -162,6 +162,39 @@ export type Database = {
           },
         ]
       }
+      delete_otp_codes: {
+        Row: {
+          created_at: string
+          delete_all: boolean | null
+          expires_at: string
+          id: string
+          order_ids: string[] | null
+          otp_code: string
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delete_all?: boolean | null
+          expires_at: string
+          id?: string
+          order_ids?: string[] | null
+          otp_code: string
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delete_all?: boolean | null
+          expires_at?: string
+          id?: string
+          order_ids?: string[] | null
+          otp_code?: string
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       logs: {
         Row: {
           action: string
