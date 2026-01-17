@@ -7,8 +7,9 @@ const corsHeaders = {
 };
 
 interface DeleteTeamUserRequest {
-  teamMemberId: string;
-  role: 'vendedor' | 'repartidor';
+  teamMemberId?: string;
+  role?: 'vendedor' | 'repartidor';
+  orphanUserId?: string; // For cleaning up orphan auth users
 }
 
 serve(async (req: Request) => {
@@ -53,7 +54,30 @@ serve(async (req: Request) => {
       throw new Error('Only admins can delete team members');
     }
 
-    const { teamMemberId, role }: DeleteTeamUserRequest = await req.json();
+    const { teamMemberId, role, orphanUserId }: DeleteTeamUserRequest = await req.json();
+
+    // Handle orphan user cleanup (when user exists in auth but not in team tables)
+    if (orphanUserId) {
+      console.log(`Cleaning up orphan user: ${orphanUserId}`);
+      
+      // Delete user_roles
+      await supabaseAdmin.from('user_roles').delete().eq('user_id', orphanUserId);
+      // Delete profile
+      await supabaseAdmin.from('profiles').delete().eq('user_id', orphanUserId);
+      // Delete the auth user
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(orphanUserId);
+      
+      if (authDeleteError) {
+        console.error('Error deleting orphan auth user:', authDeleteError);
+        throw new Error('Error deleting orphan user');
+      }
+      
+      console.log(`Orphan user ${orphanUserId} deleted successfully`);
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log(`Deleting ${role} with ID: ${teamMemberId}`);
 
