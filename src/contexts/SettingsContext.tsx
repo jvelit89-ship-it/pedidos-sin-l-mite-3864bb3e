@@ -229,7 +229,7 @@ const SETTINGS_STORAGE_KEY = 'pedidos_settings';
 
 const defaultSettings: AppSettings = {
   language: 'es',
-  currency: 'MXN',
+  currency: 'PEN',
 };
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
