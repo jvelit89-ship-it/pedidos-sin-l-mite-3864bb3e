@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.verify-delete-otp]
 verify_jwt = false
+
+[functions.sync-erp-segurfact]
+verify_jwt = false
