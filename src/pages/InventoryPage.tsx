@@ -101,8 +101,6 @@ export default function InventoryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const companyId = user?.companyId || 'default';
-    
     if (editingProduct) {
       await updateProduct(editingProduct.id, {
         name: formData.name,
@@ -122,7 +120,6 @@ export default function InventoryPage() {
         min_stock: formData.min_stock,
         price: formData.price,
         notes: formData.notes || null,
-        company_id: companyId,
       });
     }
     
@@ -136,8 +133,7 @@ export default function InventoryPage() {
       return;
     }
     
-    const companyId = user?.companyId || 'default';
-    const success = await addProduction(selectedProductId, productionQuantity, companyId, productionNotes);
+    const success = await addProduction(selectedProductId, productionQuantity, productionNotes);
     
     if (success) {
       setIsProductionDialogOpen(false);

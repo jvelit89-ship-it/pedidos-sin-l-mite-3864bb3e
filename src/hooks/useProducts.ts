@@ -27,15 +27,34 @@ interface ProductionHistory {
   produced_at: string;
 }
 
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  
+  return profile?.company_id || null;
+}
+
 export function useProducts() {
   const { data: products, loading, error, refetch } = useRealtimeQuery<Product>('products', {
     orderBy: { column: 'name', ascending: true },
   });
 
-  const addProduct = useCallback(async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+  const addProduct = useCallback(async (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
+    const companyId = await getUserCompanyId();
+    if (!companyId) {
+      toast.error('Error: No se encontró la empresa del usuario');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('products')
-      .insert(product)
+      .insert({ ...product, company_id: companyId })
       .select()
       .single();
     
@@ -46,8 +65,9 @@ export function useProducts() {
     }
     
     toast.success('Producto creado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
     const { data, error } = await supabase
@@ -63,9 +83,9 @@ export function useProducts() {
       return null;
     }
     
-    toast.success('Producto actualizado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const deleteProduct = useCallback(async (id: string) => {
     const { error } = await supabase
@@ -80,8 +100,9 @@ export function useProducts() {
     }
     
     toast.success('Producto eliminado');
+    refetch();
     return true;
-  }, []);
+  }, [refetch]);
 
   const updateStock = useCallback(async (id: string, quantity: number) => {
     const { data, error } = await supabase
@@ -97,8 +118,9 @@ export function useProducts() {
       return null;
     }
     
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   return {
     products,
@@ -119,12 +141,19 @@ export function useProductionHistory(productId?: string) {
     orderBy: { column: 'produced_at', ascending: false },
   });
 
+  const { refetch: refetchProducts } = useProducts();
+
   const addProduction = useCallback(async (
     productId: string, 
     quantity: number, 
-    companyId: string,
     notes?: string
   ) => {
+    const companyId = await getUserCompanyId();
+    if (!companyId) {
+      toast.error('Error: No se encontró la empresa del usuario');
+      return false;
+    }
+
     // First, add production record
     const { error: historyError } = await supabase
       .from('production_history')
@@ -132,7 +161,7 @@ export function useProductionHistory(productId?: string) {
         product_id: productId,
         quantity,
         company_id: companyId,
-        notes,
+        notes: notes || null,
       });
     
     if (historyError) {
@@ -150,16 +179,21 @@ export function useProductionHistory(productId?: string) {
     
     if (product) {
       const newStock = product.stock + quantity;
-      await supabase
+      const { error: updateError } = await supabase
         .from('products')
         .update({ stock: newStock })
         .eq('id', productId);
+      
+      if (updateError) {
+        console.error('Error updating stock:', updateError);
+      }
     }
     
     toast.success('Producción registrada');
     refetch();
+    refetchProducts();
     return true;
-  }, [refetch]);
+  }, [refetch, refetchProducts]);
 
   return {
     history,
