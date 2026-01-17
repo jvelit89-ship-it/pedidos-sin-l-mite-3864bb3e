@@ -1,0 +1,302 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SyncStatusBadge } from '@/components/SyncIndicator';
+import { getItem, updateItem } from '@/lib/db';
+import { Order, OrderStatus, ORDER_STATUS_CONFIG, STATUS_CHANGE_PERMISSIONS } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { 
+  ArrowLeft, 
+  MapPin, 
+  User, 
+  Phone, 
+  Calendar,
+  Package,
+  Truck,
+  Clock,
+  RefreshCw
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+export default function OrderDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      loadOrder();
+    }
+  }, [id]);
+
+  const loadOrder = async () => {
+    setIsLoading(true);
+    try {
+      const foundOrder = await getItem('orders', id!);
+      if (foundOrder) {
+        setOrder(foundOrder);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!order || !user) return;
+    
+    setIsUpdating(true);
+    try {
+      const updatedOrder: Order = {
+        ...order,
+        status: newStatus,
+        updatedAt: new Date().toISOString(),
+        syncStatus: 'pending',
+        ...(newStatus === 'delivered' ? { deliveredAt: new Date().toISOString() } : {}),
+      };
+      
+      await updateItem('orders', updatedOrder);
+      setOrder(updatedOrder);
+      
+      toast.success('Estado actualizado', {
+        description: `Pedido marcado como "${ORDER_STATUS_CONFIG[newStatus].label}"`,
+      });
+    } catch (error) {
+      toast.error('Error al actualizar', {
+        description: 'Intenta nuevamente',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!order) return;
+    await handleStatusChange('cancelled');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="p-4 md:p-6 text-center">
+        <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+        <p className="text-lg font-medium text-muted-foreground">Pedido no encontrado</p>
+        <Button variant="outline" onClick={() => navigate(-1)} className="mt-4">
+          Volver
+        </Button>
+      </div>
+    );
+  }
+
+  const allowedStatuses = user ? STATUS_CHANGE_PERMISSIONS[user.role] : [];
+  const canChangeStatus = allowedStatuses.length > 0 && order.status !== 'delivered' && order.status !== 'cancelled';
+
+  return (
+    <div className="p-4 md:p-6 space-y-4 max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold">Pedido #{order.id.slice(0, 8)}</h1>
+            <SyncStatusBadge status={order.syncStatus} />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(order.createdAt), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
+          </p>
+        </div>
+      </div>
+
+      {/* Status Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2 ${ORDER_STATUS_CONFIG[order.status].className}`}>
+                  <span className="text-lg">{ORDER_STATUS_CONFIG[order.status].icon}</span>
+                  {ORDER_STATUS_CONFIG[order.status].label}
+                </div>
+              </div>
+              {canChangeStatus && (
+                <Select
+                  value={order.status}
+                  onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+                  disabled={isUpdating}
+                >
+                  <SelectTrigger className="w-48">
+                    {isUpdating ? (
+                      <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    <SelectValue placeholder="Cambiar estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ORDER_STATUS_CONFIG)
+                      .filter(([key]) => allowedStatuses.includes(key as OrderStatus))
+                      .map(([key, config]) => (
+                        <SelectItem key={key} value={key}>
+                          {config.icon} {config.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Customer Info */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="font-semibold">{order.customerName}</p>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{order.deliveryAddress}</span>
+            </div>
+            {order.deliveryDate && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="w-4 h-4" />
+                <span>Entrega: {format(new Date(order.deliveryDate), "d 'de' MMMM", { locale: es })}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Products */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Productos ({order.items.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {order.items.map((item, index) => (
+                <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div>
+                    <p className="font-medium">{item.productName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.quantity} × ${item.unitPrice.toFixed(2)}
+                    </p>
+                  </div>
+                  <p className="font-semibold">${item.total.toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t flex justify-between items-center">
+              <span className="text-lg font-semibold">Total</span>
+              <span className="text-2xl font-bold text-primary">${order.total.toFixed(2)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Assignment Info */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              Asignación
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Vendedor</span>
+              <span className="font-medium">{order.vendedorName}</span>
+            </div>
+            {order.repartidorName && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Repartidor</span>
+                <span className="font-medium">{order.repartidorName}</span>
+              </div>
+            )}
+            {order.deliveredAt && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Entregado</span>
+                <span className="font-medium">
+                  {format(new Date(order.deliveredAt), "d MMM, HH:mm", { locale: es })}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Notes */}
+      {order.notes && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Notas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">{order.notes}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Actions */}
+      {user?.role === 'admin' && order.status !== 'cancelled' && order.status !== 'delivered' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Button variant="destructive" className="w-full" onClick={handleCancel}>
+            Cancelar Pedido
+          </Button>
+        </motion.div>
+      )}
+    </div>
+  );
+}
