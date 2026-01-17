@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,20 +6,24 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { getAllItems, addItem, updateItem } from '@/lib/db';
-import { Company } from '@/types';
-import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
-import { Plus, Search, Building2, Edit2 } from 'lucide-react';
+import { useCompanies } from '@/hooks/useCompanies';
+import { Plus, Search, Building2, Edit2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+
+interface Company {
+  id: string;
+  name: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function CompaniesPage() {
   const { isSuperAdmin } = useAuth();
   const { t } = useSettings();
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const { companies, loading, addCompany, updateCompany } = useCompanies();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [formData, setFormData] = useState({
@@ -27,39 +31,15 @@ export default function CompaniesPage() {
     active: true,
   });
 
-  useEffect(() => {
-    loadCompanies();
-  }, []);
-
-  const loadCompanies = async () => {
-    setIsLoading(true);
-    const data = await getAllItems('companies');
-    setCompanies(data.sort((a, b) => a.name.localeCompare(b.name)));
-    setIsLoading(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString();
 
     if (selectedCompany) {
-      await updateItem('companies', {
-        ...selectedCompany,
-        ...formData,
-        updatedAt: now,
-      });
-      toast.success('Empresa actualizada');
+      await updateCompany(selectedCompany.id, formData);
     } else {
-      await addItem('companies', {
-        id: uuidv4(),
-        ...formData,
-        createdAt: now,
-        updatedAt: now,
-      });
-      toast.success('Empresa creada');
+      await addCompany(formData);
     }
 
-    await loadCompanies();
     handleCloseDialog();
   };
 
@@ -78,7 +58,7 @@ export default function CompaniesPage() {
     setIsDialogOpen(true);
   };
 
-  const filtered = companies.filter((c) =>
+  const filtered = companies.filter((c: Company) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -148,9 +128,9 @@ export default function CompaniesPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
         </div>
       ) : filtered.length === 0 ? (
         <Card>
@@ -161,7 +141,7 @@ export default function CompaniesPage() {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((c, i) => (
+          {filtered.map((c: Company, i: number) => (
             <motion.div
               key={c.id}
               initial={{ opacity: 0 }}
@@ -186,7 +166,7 @@ export default function CompaniesPage() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Creada: {new Date(c.createdAt).toLocaleDateString()}
+                        Creada: {new Date(c.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(c)}>

@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getAllItems, updateItem } from '@/lib/db';
-import { Order, ORDER_STATUS_CONFIG } from '@/types';
+import { useOrders } from '@/hooks/useOrders';
 import { MapView } from '@/components/MapView';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -15,8 +14,29 @@ import {
   CheckCircle2, 
   Truck, 
   RefreshCw,
-  ExternalLink 
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
+
+interface DeliveryOrder {
+  id: string;
+  customer_name: string;
+  delivery_address: string | null;
+  customer_latitude: number | null;
+  customer_longitude: number | null;
+  total: number;
+  status: 'pending' | 'preparation' | 'ready' | 'delivery' | 'delivered' | 'cancelled';
+  repartidor_id: string | null;
+}
+
+const ORDER_STATUS_CONFIG: Record<string, { className: string; icon: string }> = {
+  pending: { className: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
+  preparation: { className: 'bg-blue-100 text-blue-800', icon: '👨‍🍳' },
+  ready: { className: 'bg-purple-100 text-purple-800', icon: '✅' },
+  delivery: { className: 'bg-orange-100 text-orange-800', icon: '🚚' },
+  delivered: { className: 'bg-green-100 text-green-800', icon: '✓' },
+  cancelled: { className: 'bg-gray-100 text-gray-800', icon: '✗' },
+};
 
 // Simple distance calculation (Haversine formula)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -32,13 +52,13 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 // Nearest neighbor route optimization
-function optimizeRoute(orders: Order[]): Order[] {
+function optimizeRoute(orders: DeliveryOrder[]): DeliveryOrder[] {
   if (orders.length <= 1) return orders;
 
-  const ordersWithLocation = orders.filter(o => o.customerLatitude && o.customerLongitude);
+  const ordersWithLocation = orders.filter(o => o.customer_latitude && o.customer_longitude);
   if (ordersWithLocation.length <= 1) return orders;
 
-  const optimized: Order[] = [];
+  const optimized: DeliveryOrder[] = [];
   const remaining = [...ordersWithLocation];
 
   // Start from first order
@@ -51,10 +71,10 @@ function optimizeRoute(orders: Order[]): Order[] {
 
     remaining.forEach((order, idx) => {
       const dist = calculateDistance(
-        last.customerLatitude!,
-        last.customerLongitude!,
-        order.customerLatitude!,
-        order.customerLongitude!
+        last.customer_latitude!,
+        last.customer_longitude!,
+        order.customer_latitude!,
+        order.customer_longitude!
       );
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -66,37 +86,26 @@ function optimizeRoute(orders: Order[]): Order[] {
   }
 
   // Add back orders without location at the end
-  const withoutLocation = orders.filter(o => !o.customerLatitude || !o.customerLongitude);
+  const withoutLocation = orders.filter(o => !o.customer_latitude || !o.customer_longitude);
   return [...optimized, ...withoutLocation];
 }
 
 export default function RoutePage() {
   const { user } = useAuth();
   const { t, formatCurrency } = useSettings();
-  const [deliveries, setDeliveries] = useState<Order[]>([]);
-  const [optimizedDeliveries, setOptimizedDeliveries] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { orders, loading, updateOrderStatus } = useOrders();
+  const [optimizedDeliveries, setOptimizedDeliveries] = useState<DeliveryOrder[]>([]);
+
+  // Filter to only ready and in-delivery orders for repartidores
+  const deliveries = orders.filter(o => {
+    if (!['ready', 'delivery'].includes(o.status)) return false;
+    if (user?.role === 'repartidor' && o.repartidor_id !== user.id) return false;
+    return true;
+  }) as DeliveryOrder[];
 
   useEffect(() => {
-    loadDeliveries();
-  }, [user]);
-
-  const loadDeliveries = async () => {
-    setIsLoading(true);
-    let allOrders = await getAllItems('orders');
-
-    // Filter to only assigned active deliveries
-    if (user?.role === 'repartidor') {
-      allOrders = allOrders.filter(o => o.repartidorId === user.id);
-    }
-
-    // Only ready and in-delivery orders
-    allOrders = allOrders.filter(o => ['ready', 'delivery'].includes(o.status));
-
-    setDeliveries(allOrders);
-    setOptimizedDeliveries(optimizeRoute(allOrders));
-    setIsLoading(false);
-  };
+    setOptimizedDeliveries(optimizeRoute(deliveries));
+  }, [orders]);
 
   const handleOptimize = () => {
     const optimized = optimizeRoute(deliveries);
@@ -104,37 +113,28 @@ export default function RoutePage() {
     toast.success('¡Ruta optimizada!');
   };
 
-  const handleStatusUpdate = async (order: Order, newStatus: 'delivery' | 'delivered') => {
-    const updatedOrder: Order = {
-      ...order,
-      status: newStatus,
-      updatedAt: new Date().toISOString(),
-      syncStatus: navigator.onLine ? 'synced' : 'pending',
-      ...(newStatus === 'delivered' ? { deliveredAt: new Date().toISOString() } : {}),
-    };
-
-    await updateItem('orders', updatedOrder);
-    await loadDeliveries();
+  const handleStatusUpdate = async (orderId: string, newStatus: 'delivery' | 'delivered') => {
+    await updateOrderStatus(orderId, newStatus);
     toast.success(newStatus === 'delivered' ? '¡Entrega completada!' : 'En camino');
   };
 
-  const openNavigation = (order: Order) => {
-    if (order.customerLatitude && order.customerLongitude) {
+  const openNavigation = (order: DeliveryOrder) => {
+    if (order.customer_latitude && order.customer_longitude) {
       window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${order.customerLatitude},${order.customerLongitude}`,
+        `https://www.google.com/maps/dir/?api=1&destination=${order.customer_latitude},${order.customer_longitude}`,
         '_blank'
       );
-    } else {
+    } else if (order.delivery_address) {
       window.open(
-        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.deliveryAddress)}`,
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.delivery_address)}`,
         '_blank'
       );
     }
   };
 
   const routePoints = optimizedDeliveries
-    .filter(o => o.customerLatitude && o.customerLongitude)
-    .map(o => ({ lat: o.customerLatitude!, lng: o.customerLongitude! }));
+    .filter(o => o.customer_latitude && o.customer_longitude)
+    .map(o => ({ lat: o.customer_latitude!, lng: o.customer_longitude! }));
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -147,9 +147,9 @@ export default function RoutePage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
         </div>
       ) : optimizedDeliveries.length === 0 ? (
         <Card>
@@ -170,12 +170,12 @@ export default function RoutePage() {
                 showRoute={true}
                 routePoints={routePoints}
                 markers={optimizedDeliveries
-                  .filter(o => o.customerLatitude && o.customerLongitude)
+                  .filter(o => o.customer_latitude && o.customer_longitude)
                   .map((o, idx) => ({
                     id: o.id,
-                    lat: o.customerLatitude!,
-                    lng: o.customerLongitude!,
-                    label: `${idx + 1}. ${o.customerName}`,
+                    lat: o.customer_latitude!,
+                    lng: o.customer_longitude!,
+                    label: `${idx + 1}. ${o.customer_name}`,
                   }))}
                 height="350px"
               />
@@ -203,14 +203,14 @@ export default function RoutePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold truncate">{order.customerName}</p>
+                      <p className="font-semibold truncate">{order.customer_name}</p>
                       <span className={`px-2 py-0.5 text-xs rounded-full ${ORDER_STATUS_CONFIG[order.status].className}`}>
                         {ORDER_STATUS_CONFIG[order.status].icon}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                       <MapPin className="w-3.5 h-3.5" />
-                      <span className="truncate">{order.deliveryAddress}</span>
+                      <span className="truncate">{order.delivery_address || 'Sin dirección'}</span>
                     </p>
                     <p className="text-sm font-medium mt-1">{formatCurrency(order.total)}</p>
                   </div>
@@ -228,7 +228,7 @@ export default function RoutePage() {
                     {order.status === 'ready' && (
                       <Button
                         size="sm"
-                        onClick={() => handleStatusUpdate(order, 'delivery')}
+                        onClick={() => handleStatusUpdate(order.id, 'delivery')}
                         className="gap-1"
                       >
                         <Truck className="w-4 h-4" />
@@ -238,7 +238,7 @@ export default function RoutePage() {
                     {order.status === 'delivery' && (
                       <Button
                         size="sm"
-                        onClick={() => handleStatusUpdate(order, 'delivered')}
+                        onClick={() => handleStatusUpdate(order.id, 'delivered')}
                         className="gap-1 bg-status-delivered hover:bg-status-delivered/90"
                       >
                         <CheckCircle2 className="w-4 h-4" />
