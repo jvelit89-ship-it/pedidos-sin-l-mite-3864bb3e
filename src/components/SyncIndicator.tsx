@@ -30,14 +30,24 @@ export function OfflineBanner() {
 }
 
 export function SyncIndicator() {
-  const { isOnline, isSyncing, pendingSyncCount, syncNow } = useSync();
+  const { isOnline, isSyncing, pendingSyncCount, syncNow, lastSyncTime } = useSync();
 
   if (!isOnline) {
     return (
-      <div className="flex items-center gap-1.5 text-amber-500">
+      <button
+        onClick={syncNow}
+        disabled
+        className="flex items-center gap-1.5 text-amber-500"
+        title="Sin conexión a internet"
+      >
         <CloudOff className="w-4 h-4" />
         <span className="text-xs font-medium">Offline</span>
-      </div>
+        {pendingSyncCount > 0 && (
+          <span className="bg-amber-500/20 px-1.5 py-0.5 rounded text-xs">
+            {pendingSyncCount}
+          </span>
+        )}
+      </button>
     );
   }
 
@@ -55,17 +65,21 @@ export function SyncIndicator() {
       <button
         onClick={syncNow}
         className="flex items-center gap-1.5 text-amber-500 hover:text-amber-600 transition-colors"
+        title="Sincronizar cambios pendientes"
       >
-        <Cloud className="w-4 h-4" />
+        <RefreshCw className="w-4 h-4" />
         <span className="text-xs font-medium">{pendingSyncCount} pendientes</span>
       </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-1.5 text-green-500">
+    <div 
+      className="flex items-center gap-1.5 text-green-500"
+      title={lastSyncTime ? `Última sincronización: ${lastSyncTime.toLocaleTimeString()}` : 'Sincronizado'}
+    >
       <Cloud className="w-4 h-4" />
-      <span className="text-xs font-medium">Sincronizado</span>
+      <span className="text-xs font-medium">Auto-sync</span>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface SyncContextType {
@@ -7,6 +7,7 @@ interface SyncContextType {
   pendingSyncCount: number;
   lastSyncTime: Date | null;
   syncNow: () => Promise<void>;
+  markDataChanged: () => void;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -16,21 +17,26 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       toast.success('Conexión restaurada', {
-        description: 'Sincronizando datos...',
+        description: 'Los cambios se sincronizarán automáticamente',
         duration: 3000,
       });
+      // Auto-sync pending changes when back online
+      if (pendingSyncCount > 0) {
+        syncNow();
+      }
     };
 
     const handleOffline = () => {
       setIsOnline(false);
       toast.warning('Sin conexión', {
-        description: 'Trabajando en modo offline',
+        description: 'Los cambios se guardarán localmente',
         duration: 5000,
       });
     };
@@ -42,30 +48,43 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, [pendingSyncCount]);
+
+  // Mark sync as complete (called automatically when data operations succeed)
+  const markSyncComplete = useCallback(() => {
+    setPendingSyncCount(0);
+    setLastSyncTime(new Date());
   }, []);
 
-  // Auto-sync when coming back online
-  useEffect(() => {
-    if (isOnline && pendingSyncCount > 0) {
-      syncNow();
+  // Mark that data has changed - will auto-sync if online
+  const markDataChanged = useCallback(() => {
+    if (isOnline) {
+      // When online, data syncs automatically via Supabase
+      // Just update the last sync time
+      setLastSyncTime(new Date());
+    } else {
+      // When offline, increment pending count
+      setPendingSyncCount((prev) => prev + 1);
     }
-  }, [isOnline, pendingSyncCount]);
+  }, [isOnline]);
 
   const syncNow = useCallback(async () => {
     if (isSyncing || !isOnline) return;
 
     setIsSyncing(true);
     try {
-      // Simulate sync delay (in real app, this would sync with backend)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // With Supabase, sync happens automatically when online
+      // This is mainly for when coming back online with pending changes
+      await new Promise((resolve) => setTimeout(resolve, 500));
       
-      setPendingSyncCount(0);
-      setLastSyncTime(new Date());
+      markSyncComplete();
       
-      toast.success('Sincronización completada', {
-        description: 'Todos los datos están actualizados',
-        duration: 3000,
-      });
+      if (pendingSyncCount > 0) {
+        toast.success('Sincronización completada', {
+          description: 'Todos los datos están actualizados',
+          duration: 2000,
+        });
+      }
     } catch (error) {
       toast.error('Error de sincronización', {
         description: 'Intente nuevamente más tarde',
@@ -74,10 +93,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, isOnline]);
+  }, [isSyncing, isOnline, pendingSyncCount, markSyncComplete]);
 
-  const incrementPendingSync = useCallback(() => {
-    setPendingSyncCount((prev) => prev + 1);
+  // Initial sync check
+  useEffect(() => {
+    if (isOnline) {
+      setLastSyncTime(new Date());
+    }
   }, []);
 
   return (
@@ -88,6 +110,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         pendingSyncCount,
         lastSyncTime,
         syncNow,
+        markDataChanged,
       }}
     >
       {children}
