@@ -159,3 +159,27 @@ export function useRepartidores() {
     deleteRepartidor,
   };
 }
+
+// Combined hook for convenience
+export function useTeam() {
+  const vendedoresHook = useVendedores();
+  const repartidoresHook = useRepartidores();
+
+  return {
+    vendedores: vendedoresHook.vendedores,
+    repartidores: repartidoresHook.repartidores,
+    loading: vendedoresHook.loading || repartidoresHook.loading,
+    createVendedor: async (data: { name: string; email: string; phone: string; active: boolean }) => {
+      const { data: profile } = await supabase.from('profiles').select('company_id').maybeSingle();
+      return vendedoresHook.addVendedor({ ...data, company_id: profile?.company_id || '', user_id: null });
+    },
+    updateVendedor: vendedoresHook.updateVendedor,
+    deleteVendedor: vendedoresHook.deleteVendedor,
+    createRepartidor: async (data: { name: string; email: string; phone: string; zone: string | null; active: boolean }) => {
+      const { data: profile } = await supabase.from('profiles').select('company_id').maybeSingle();
+      return repartidoresHook.addRepartidor({ ...data, company_id: profile?.company_id || '', user_id: null });
+    },
+    updateRepartidor: repartidoresHook.updateRepartidor,
+    deleteRepartidor: repartidoresHook.deleteRepartidor,
+  };
+}

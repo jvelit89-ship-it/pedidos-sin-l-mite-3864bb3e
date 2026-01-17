@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SyncIndicator } from '@/components/SyncIndicator';
-import { getAllItems } from '@/lib/db';
-import { Order, OrderStatus, ORDER_STATUS_CONFIG, DashboardStats } from '@/types';
+import { useOrders } from '@/hooks/useOrders';
+import { ORDER_STATUS_CONFIG, DashboardStats } from '@/types';
+import { useSettings } from '@/contexts/SettingsContext';
+import { useState } from 'react';
 import { 
   ShoppingCart, 
   Clock, 
@@ -18,51 +20,41 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function DashboardPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    ordersToday: 0,
-    pendingOrders: 0,
-    inDeliveryOrders: 0,
-    deliveredOrders: 0,
-  });
+  const { orders, loading } = useOrders();
+  const { formatCurrency } = useSettings();
   const [dateFilter, setDateFilter] = useState('today');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    const allOrders = await getAllItems('orders');
-    setOrders(allOrders);
-    
+  const stats = useMemo<DashboardStats>(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todayOrders = allOrders.filter(o => o.createdAt.startsWith(today));
+    const todayOrders = orders.filter(o => o.created_at.startsWith(today));
     
-    setStats({
+    return {
       ordersToday: todayOrders.length,
-      pendingOrders: allOrders.filter(o => o.status === 'pending').length,
-      inDeliveryOrders: allOrders.filter(o => o.status === 'delivery').length,
-      deliveredOrders: allOrders.filter(o => o.status === 'delivered').length,
-    });
-  };
+      pendingOrders: orders.filter(o => o.status === 'pending').length,
+      inDeliveryOrders: orders.filter(o => o.status === 'delivery').length,
+      deliveredOrders: orders.filter(o => o.status === 'delivered').length,
+    };
+  }, [orders]);
 
-  const filteredOrders = orders.filter(order => {
-    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
-    
-    const orderDate = new Date(order.createdAt);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (dateFilter === 'today') {
-      return orderDate >= today;
-    } else if (dateFilter === 'week') {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return orderDate >= weekAgo;
-    }
-    return true;
-  });
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+      
+      const orderDate = new Date(order.created_at);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (dateFilter === 'today') {
+        return orderDate >= today;
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return orderDate >= weekAgo;
+      }
+      return true;
+    });
+  }, [orders, dateFilter, statusFilter]);
 
   const kpiCards = [
     { 
@@ -94,6 +86,14 @@ export default function DashboardPage() {
       bgColor: 'bg-status-delivered-bg' 
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -191,17 +191,17 @@ export default function DashboardPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium truncate">{order.customerName}</p>
+                      <p className="font-medium truncate">{order.customer_name}</p>
                       <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${ORDER_STATUS_CONFIG[order.status].className}`}>
                         {ORDER_STATUS_CONFIG[order.status].icon} {ORDER_STATUS_CONFIG[order.status].label}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground truncate">
-                      {order.items.length} producto{order.items.length !== 1 ? 's' : ''} • ${order.total.toFixed(2)}
+                      {formatCurrency(order.total)}
                     </p>
                   </div>
                   <p className="text-sm text-muted-foreground whitespace-nowrap">
-                    {format(new Date(order.createdAt), 'HH:mm')}
+                    {format(new Date(order.created_at), 'HH:mm')}
                   </p>
                 </motion.div>
               ))}

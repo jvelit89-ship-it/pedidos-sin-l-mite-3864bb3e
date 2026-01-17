@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { SyncIndicator, SyncStatusBadge } from '@/components/SyncIndicator';
-import { getAllItems, updateItem } from '@/lib/db';
-import { Order, ORDER_STATUS_CONFIG, OrderStatus } from '@/types';
+import { SyncIndicator } from '@/components/SyncIndicator';
+import { useOrders } from '@/hooks/useOrders';
+import { ORDER_STATUS_CONFIG, OrderStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { 
   Truck, 
   MapPin,
-  Phone,
   CheckCircle2,
   Package,
   Clock
@@ -20,55 +19,31 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function DeliveriesPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const [deliveries, setDeliveries] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { formatCurrency } = useSettings();
+  const { orders, loading, updateOrderStatus } = useOrders();
 
-  useEffect(() => {
-    loadDeliveries();
-  }, []);
-
-  const loadDeliveries = async () => {
-    setIsLoading(true);
-    try {
-      let allOrders = await getAllItems('orders');
-      
-      // For repartidor, only show their assigned deliveries
-      if (user?.role === 'repartidor') {
-        allOrders = allOrders.filter(o => o.repartidorId === user.id);
-      }
-      
-      // Filter to only show ready/delivery/delivered orders
-      allOrders = allOrders.filter(o => 
-        ['ready', 'delivery', 'delivered'].includes(o.status)
-      );
-      
-      // Sort: active first, then by date
-      allOrders.sort((a, b) => {
-        if (a.status === 'delivered' && b.status !== 'delivered') return 1;
-        if (a.status !== 'delivered' && b.status === 'delivered') return -1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      
-      setDeliveries(allOrders);
-    } finally {
-      setIsLoading(false);
+  const deliveries = useMemo(() => {
+    let filtered = orders.filter(o => 
+      ['ready', 'delivery', 'delivered'].includes(o.status)
+    );
+    
+    // For repartidor, only show their assigned deliveries
+    if (user?.role === 'repartidor') {
+      filtered = filtered.filter(o => o.repartidor_id === user.id);
     }
-  };
+    
+    // Sort: active first, then by date
+    return filtered.sort((a, b) => {
+      if (a.status === 'delivered' && b.status !== 'delivered') return 1;
+      if (a.status !== 'delivered' && b.status === 'delivered') return -1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [orders, user]);
 
-  const handleStatusUpdate = async (order: Order, newStatus: OrderStatus) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      const updatedOrder: Order = {
-        ...order,
-        status: newStatus,
-        updatedAt: new Date().toISOString(),
-        syncStatus: navigator.onLine ? 'synced' : 'pending',
-        ...(newStatus === 'delivered' ? { deliveredAt: new Date().toISOString() } : {}),
-      };
-      
-      await updateItem('orders', updatedOrder);
-      await loadDeliveries();
+      await updateOrderStatus(orderId, newStatus);
       
       toast.success(
         newStatus === 'delivered' ? '¡Entrega completada!' : 'Estado actualizado',
@@ -95,7 +70,7 @@ export default function DeliveriesPage() {
         <SyncIndicator />
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
         </div>
@@ -128,11 +103,10 @@ export default function DeliveriesPage() {
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-semibold">{delivery.customerName}</p>
-                              <SyncStatusBadge status={delivery.syncStatus} />
+                              <p className="font-semibold">{delivery.customer_name}</p>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              #{delivery.id.slice(0, 8)} • {delivery.items.length} productos
+                              #{delivery.id.slice(0, 8)}
                             </p>
                           </div>
                           <span className={`px-3 py-1 text-xs rounded-full font-medium ${ORDER_STATUS_CONFIG[delivery.status].className}`}>
@@ -142,16 +116,16 @@ export default function DeliveriesPage() {
 
                         <div className="flex items-start gap-2 text-sm text-muted-foreground mb-3">
                           <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                          <span>{delivery.deliveryAddress}</span>
+                          <span>{delivery.delivery_address}</span>
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <p className="font-semibold text-lg">${delivery.total.toFixed(2)}</p>
+                          <p className="font-semibold text-lg">{formatCurrency(delivery.total)}</p>
                           
                           {delivery.status === 'ready' && (
                             <Button
                               size="sm"
-                              onClick={() => handleStatusUpdate(delivery, 'delivery')}
+                              onClick={() => handleStatusUpdate(delivery.id, 'delivery')}
                               className="gap-2"
                             >
                               <Truck className="w-4 h-4" />
@@ -162,7 +136,7 @@ export default function DeliveriesPage() {
                           {delivery.status === 'delivery' && (
                             <Button
                               size="sm"
-                              onClick={() => handleStatusUpdate(delivery, 'delivered')}
+                              onClick={() => handleStatusUpdate(delivery.id, 'delivered')}
                               className="gap-2 bg-status-delivered hover:bg-status-delivered/90"
                             >
                               <CheckCircle2 className="w-4 h-4" />
@@ -197,9 +171,9 @@ export default function DeliveriesPage() {
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium">{delivery.customerName}</p>
+                            <p className="font-medium">{delivery.customer_name}</p>
                             <p className="text-xs text-muted-foreground">
-                              Entregado {delivery.deliveredAt && format(new Date(delivery.deliveredAt), 'HH:mm')}
+                              Entregado {delivery.delivered_at && format(new Date(delivery.delivered_at), 'HH:mm')}
                             </p>
                           </div>
                           <span className="status-delivered px-2 py-0.5 rounded-full text-xs">

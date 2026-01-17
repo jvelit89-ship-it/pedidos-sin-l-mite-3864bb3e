@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,22 +7,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { getAllItems, addItem, updateItem, deleteItem } from '@/lib/db';
-import { Vendedor } from '@/types';
+import { useTeam } from '@/hooks/useTeam';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 import { Plus, Search, UserCheck, Phone, Mail, Edit2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 
 export default function VendedoresPage() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { t } = useSettings();
-  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const { vendedores, loading, createVendedor, updateVendedor, deleteVendedor } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedVendedor, setSelectedVendedor] = useState<Vendedor | null>(null);
+  const [selectedVendedor, setSelectedVendedor] = useState<typeof vendedores[0] | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -30,45 +27,35 @@ export default function VendedoresPage() {
     active: true,
   });
 
-  useEffect(() => {
-    loadVendedores();
-  }, []);
-
-  const loadVendedores = async () => {
-    setIsLoading(true);
-    const data = await getAllItems('vendedores');
-    setVendedores(data.sort((a, b) => a.name.localeCompare(b.name)));
-    setIsLoading(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString();
 
-    if (selectedVendedor) {
-      await updateItem('vendedores', {
-        ...selectedVendedor,
-        ...formData,
-      });
-      toast.success('Vendedor actualizado');
-    } else {
-      await addItem('vendedores', {
-        id: uuidv4(),
-        ...formData,
-        companyId: user?.companyId,
-        createdAt: now,
-      });
-      toast.success('Vendedor creado');
+    try {
+      if (selectedVendedor) {
+        await updateVendedor(selectedVendedor.id, formData);
+        toast.success('Vendedor actualizado');
+      } else {
+        await createVendedor({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          active: formData.active,
+        });
+        toast.success('Vendedor creado');
+      }
+      handleCloseDialog();
+    } catch (error) {
+      toast.error('Error al guardar');
     }
-
-    await loadVendedores();
-    handleCloseDialog();
   };
 
-  const handleDelete = async (vendedor: Vendedor) => {
-    await deleteItem('vendedores', vendedor.id);
-    toast.success('Vendedor eliminado');
-    await loadVendedores();
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await deleteVendedor(id);
+      toast.success(`${name} eliminado`);
+    } catch (error) {
+      toast.error('Error al eliminar');
+    }
   };
 
   const handleCloseDialog = () => {
@@ -77,20 +64,20 @@ export default function VendedoresPage() {
     setFormData({ name: '', email: '', phone: '', active: true });
   };
 
-  const handleEdit = (vendedor: Vendedor) => {
+  const handleEdit = (vendedor: typeof vendedores[0]) => {
     setSelectedVendedor(vendedor);
     setFormData({
       name: vendedor.name,
-      email: vendedor.email,
-      phone: vendedor.phone,
-      active: vendedor.active,
+      email: vendedor.email || '',
+      phone: vendedor.phone || '',
+      active: vendedor.active ?? true,
     });
     setIsDialogOpen(true);
   };
 
   const filtered = vendedores.filter((v) =>
     v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (v.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
   if (!isAdmin) {
@@ -176,7 +163,7 @@ export default function VendedoresPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
         </div>
@@ -242,7 +229,7 @@ export default function VendedoresPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(v)}>
+                            <AlertDialogAction onClick={() => handleDelete(v.id, v.name)}>
                               {t.delete}
                             </AlertDialogAction>
                           </AlertDialogFooter>

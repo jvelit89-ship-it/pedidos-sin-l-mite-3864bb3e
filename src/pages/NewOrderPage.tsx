@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getAllItems, addItem, updateItem, getItem } from '@/lib/db';
-import { Customer, Product, Vendedor, Repartidor, Order, OrderItem } from '@/types';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useProducts } from '@/hooks/useProducts';
+import { useTeam } from '@/hooks/useTeam';
+import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 import { 
   ArrowLeft, 
   Plus, 
@@ -24,13 +26,13 @@ import {
 export default function NewOrderPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const { formatCurrency } = useSettings();
+  const { customers, loading: loadingCustomers } = useCustomers();
+  const { products, loading: loadingProducts, updateProduct } = useProducts();
+  const { repartidores, loading: loadingTeam } = useTeam();
+  const { createOrder } = useOrders();
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Data
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [repartidores, setRepartidores] = useState<Repartidor[]>([]);
 
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -40,31 +42,15 @@ export default function NewOrderPage() {
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const [customersData, productsData, repartidoresData] = await Promise.all([
-        getAllItems('customers'),
-        getAllItems('products'),
-        getAllItems('repartidores'),
-      ]);
-      setCustomers(customersData);
-      setProducts(productsData.filter(p => p.stock > 0));
-      setRepartidores(repartidoresData.filter(r => r.active));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = loadingCustomers || loadingProducts || loadingTeam;
+  const availableProducts = products.filter(p => p.stock > 0);
+  const activeRepartidores = repartidores.filter(r => r.active);
 
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
-      setDeliveryAddress(customer.address);
+      setDeliveryAddress(customer.address || '');
     }
   };
 
@@ -124,58 +110,51 @@ export default function NewOrderPage() {
       const repartidor = repartidores.find(r => r.id === selectedRepartidorId);
 
       // Build order items with product details
-      const items: OrderItem[] = orderItems.map(item => {
+      const items = orderItems.map(item => {
         const product = products.find(p => p.id === item.productId)!;
         return {
-          productId: item.productId,
-          productName: product.name,
+          product_id: item.productId,
+          product_name: product.name,
           quantity: item.quantity,
-          unitPrice: product.price,
+          unit_price: product.price,
           total: product.price * item.quantity,
         };
       });
 
-      const order: Order = {
-        id: uuidv4(),
-        customerId: customer.id,
-        customerName: customer.name,
-        deliveryAddress,
-        items,
+      await createOrder({
+        company_id: customer.company_id,
+        customer_id: customer.id,
+        customer_name: customer.name,
+        customer_latitude: customer.latitude,
+        customer_longitude: customer.longitude,
+        delivery_address: deliveryAddress,
         total: calculateTotal(),
         status: 'pending',
-        vendedorId: user?.id || 'v1',
-        vendedorName: user?.name || 'Vendedor',
-        repartidorId: repartidor?.id,
-        repartidorName: repartidor?.name,
-        deliveryDate,
+        vendedor_id: user?.id || null,
+        vendedor_name: user?.name || null,
+        repartidor_id: repartidor?.id || null,
+        repartidor_name: repartidor?.name || null,
+        delivery_date: deliveryDate,
         notes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        syncStatus: navigator.onLine ? 'synced' : 'pending',
-      };
+      }, items);
 
-      await addItem('orders', order);
-
-      // Deduct stock (offline-first)
+      // Deduct stock
       for (const item of orderItems) {
-        const product = await getItem('products', item.productId);
+        const product = products.find(p => p.id === item.productId);
         if (product) {
-          await updateItem('products', {
-            ...product,
+          await updateProduct(product.id, {
             stock: Math.max(0, product.stock - item.quantity),
-            updatedAt: new Date().toISOString(),
           });
         }
       }
 
-      toast.success(navigator.onLine ? 'Pedido creado' : 'Pedido guardado offline', {
-        description: navigator.onLine 
-          ? 'El pedido ha sido registrado correctamente'
-          : 'Se sincronizará cuando haya conexión',
+      toast.success('Pedido creado', {
+        description: 'El pedido ha sido registrado correctamente',
       });
 
       navigate('/orders');
     } catch (error) {
+      console.error('Error creating order:', error);
       toast.error('Error al crear pedido', {
         description: 'Intenta nuevamente',
       });
@@ -247,9 +226,9 @@ export default function NewOrderPage() {
                     <SelectValue placeholder="Seleccionar producto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map(product => (
+                    {availableProducts.map(product => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.price.toFixed(2)} (Stock: {product.stock})
+                        {product.name} - {formatCurrency(product.price)} (Stock: {product.stock})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -266,7 +245,7 @@ export default function NewOrderPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{product.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            ${product.price.toFixed(2)} c/u
+                            {formatCurrency(product.price)} c/u
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -292,7 +271,7 @@ export default function NewOrderPage() {
                           </Button>
                         </div>
                         <p className="font-semibold w-20 text-right">
-                          ${(product.price * item.quantity).toFixed(2)}
+                          {formatCurrency(product.price * item.quantity)}
                         </p>
                         <Button
                           type="button"
@@ -312,7 +291,7 @@ export default function NewOrderPage() {
               {orderItems.length > 0 && (
                 <div className="flex justify-between items-center pt-4 border-t">
                   <span className="text-lg font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary">${calculateTotal().toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-primary">{formatCurrency(calculateTotal())}</span>
                 </div>
               )}
             </CardContent>
@@ -331,7 +310,7 @@ export default function NewOrderPage() {
                       <SelectValue placeholder="Asignar repartidor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {repartidores.map(repartidor => (
+                      {activeRepartidores.map(repartidor => (
                         <SelectItem key={repartidor.id} value={repartidor.id}>
                           {repartidor.name}
                         </SelectItem>
