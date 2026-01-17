@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { useProducts, useProductionHistory } from '@/hooks/useProducts';
+import { useStockMovements, useStockReports } from '@/hooks/useStockMovements';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -24,7 +25,10 @@ import {
   Loader2,
   Pencil,
   Factory,
-  History
+  History,
+  TrendingUp,
+  TrendingDown,
+  BarChart3
 } from 'lucide-react';
 
 interface Product {
@@ -44,6 +48,8 @@ interface Product {
 export default function InventoryPage() {
   const { products, loading, addProduct, updateProduct, refetch: refetchProducts } = useProducts();
   const { history, addProduction } = useProductionHistory();
+  const { movements, loading: loadingMovements, refetch: refetchMovements } = useStockMovements();
+  const { getProductSummary } = useStockReports();
   const { formatCurrency, settings, t } = useSettings();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,6 +59,9 @@ export default function InventoryPage() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [productionQuantity, setProductionQuantity] = useState(0);
   const [productionNotes, setProductionNotes] = useState('');
+  const [reportPeriod, setReportPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [reportData, setReportData] = useState<any[]>([]);
+  const [loadingReport, setLoadingReport] = useState(false);
 
   const locale = settings.language === 'es' ? es : enUS;
 
@@ -137,12 +146,24 @@ export default function InventoryPage() {
     
     if (success) {
       await refetchProducts();
+      await refetchMovements();
       setIsProductionDialogOpen(false);
       setSelectedProductId('');
       setProductionQuantity(0);
       setProductionNotes('');
     }
   };
+
+  const loadReport = async () => {
+    setLoadingReport(true);
+    const data = await getProductSummary(reportPeriod);
+    setReportData(data || []);
+    setLoadingReport(false);
+  };
+
+  useEffect(() => {
+    loadReport();
+  }, [reportPeriod]);
 
   const getStockStatus = (product: Product) => {
     if (product.stock === 0) return { status: 'out', label: settings.language === 'es' ? 'Agotado' : 'Out of stock', className: 'stock-out' };
@@ -161,6 +182,35 @@ export default function InventoryPage() {
     normal: products.filter((p: Product) => p.stock > p.min_stock).length,
     low: products.filter((p: Product) => p.stock > 0 && p.stock <= p.min_stock).length,
     out: products.filter((p: Product) => p.stock === 0).length,
+  };
+
+  const getMovementIcon = (type: string) => {
+    switch (type) {
+      case 'production':
+        return <TrendingUp className="w-4 h-4 text-green-600" />;
+      case 'sale':
+        return <TrendingDown className="w-4 h-4 text-red-600" />;
+      default:
+        return <Package className="w-4 h-4 text-blue-600" />;
+    }
+  };
+
+  const getMovementLabel = (type: string) => {
+    const labels: Record<string, { es: string; en: string }> = {
+      production: { es: 'Producción', en: 'Production' },
+      sale: { es: 'Venta', en: 'Sale' },
+      adjustment: { es: 'Ajuste', en: 'Adjustment' },
+    };
+    return labels[type]?.[settings.language] || type;
+  };
+
+  const getPeriodLabel = (period: string) => {
+    const labels: Record<string, { es: string; en: string }> = {
+      day: { es: 'Hoy', en: 'Today' },
+      week: { es: 'Esta Semana', en: 'This Week' },
+      month: { es: 'Este Mes', en: 'This Month' },
+    };
+    return labels[period]?.[settings.language] || period;
   };
 
   return (
@@ -323,14 +373,18 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="inventory" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="inventory" className="gap-2">
             <Package className="w-4 h-4" />
-            {settings.language === 'es' ? 'Inventario' : 'Inventory'}
+            <span className="hidden sm:inline">{settings.language === 'es' ? 'Inventario' : 'Inventory'}</span>
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <History className="w-4 h-4" />
-            {settings.language === 'es' ? 'Historial' : 'History'}
+            <span className="hidden sm:inline">{settings.language === 'es' ? 'Historial' : 'History'}</span>
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">{settings.language === 'es' ? 'Reportes' : 'Reports'}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -448,27 +502,130 @@ export default function InventoryPage() {
           <Card>
             <CardContent className="p-4">
               <h3 className="font-semibold mb-4">
-                {settings.language === 'es' ? 'Historial de Producción' : 'Production History'}
+                {settings.language === 'es' ? 'Historial de Movimientos' : 'Movement History'}
               </h3>
-              {history.length === 0 ? (
+              {loadingMovements ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+                </div>
+              ) : movements.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">{t.noData}</p>
               ) : (
-                <div className="space-y-3">
-                  {history.map((item) => (
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {movements.map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div>
-                        <p className="font-medium">{item.products?.name || 'Producto'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(item.produced_at), 'PPp', { locale })}
-                        </p>
-                        {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
+                      <div className="flex items-center gap-3">
+                        {getMovementIcon(item.movement_type)}
+                        <div>
+                          <p className="font-medium">{item.products?.name || 'Producto'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {getMovementLabel(item.movement_type)} • {format(new Date(item.created_at), 'PPp', { locale })}
+                          </p>
+                          {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
+                        </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-lg font-bold text-green-600">+{item.quantity}</span>
+                        <span className={`text-lg font-bold ${item.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.quantity > 0 ? '+' : ''}{item.quantity}
+                        </span>
                         <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">
+                  {settings.language === 'es' ? 'Reporte de Inventario' : 'Inventory Report'}
+                </h3>
+                <Select value={reportPeriod} onValueChange={(v) => setReportPeriod(v as 'day' | 'week' | 'month')}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">{settings.language === 'es' ? 'Hoy' : 'Today'}</SelectItem>
+                    <SelectItem value="week">{settings.language === 'es' ? 'Esta Semana' : 'This Week'}</SelectItem>
+                    <SelectItem value="month">{settings.language === 'es' ? 'Este Mes' : 'This Month'}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="mb-4 p-3 bg-primary/10 rounded-lg">
+                <p className="text-sm font-medium text-primary">
+                  {settings.language === 'es' ? 'Período: ' : 'Period: '}{getPeriodLabel(reportPeriod)}
+                </p>
+              </div>
+
+              {loadingReport ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+                </div>
+              ) : reportData.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  {settings.language === 'es' ? 'Sin movimientos en este período' : 'No movements in this period'}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {/* Summary Header */}
+                  <div className="grid grid-cols-5 gap-2 p-3 bg-muted rounded-lg font-semibold text-sm">
+                    <div className="col-span-2">{settings.language === 'es' ? 'Producto' : 'Product'}</div>
+                    <div className="text-center text-green-600">
+                      <TrendingUp className="w-4 h-4 inline mr-1" />
+                      {settings.language === 'es' ? 'Prod.' : 'Prod.'}
+                    </div>
+                    <div className="text-center text-red-600">
+                      <TrendingDown className="w-4 h-4 inline mr-1" />
+                      {settings.language === 'es' ? 'Vend.' : 'Sold'}
+                    </div>
+                    <div className="text-center">{settings.language === 'es' ? 'Neto' : 'Net'}</div>
+                  </div>
+
+                  {/* Summary Rows */}
+                  {reportData.map((item, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="grid grid-cols-5 gap-2 p-3 bg-card border rounded-lg text-sm"
+                    >
+                      <div className="col-span-2">
+                        <p className="font-medium truncate">{item.productName}</p>
+                        <p className="text-xs text-muted-foreground">{item.productSku}</p>
+                      </div>
+                      <div className="text-center text-green-600 font-semibold">
+                        +{item.produced}
+                      </div>
+                      <div className="text-center text-red-600 font-semibold">
+                        -{item.sold}
+                      </div>
+                      <div className={`text-center font-bold ${item.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.net >= 0 ? '+' : ''}{item.net}
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {/* Totals */}
+                  <div className="grid grid-cols-5 gap-2 p-3 bg-primary/5 border-2 border-primary/20 rounded-lg font-semibold text-sm">
+                    <div className="col-span-2">{settings.language === 'es' ? 'TOTAL' : 'TOTAL'}</div>
+                    <div className="text-center text-green-600">
+                      +{reportData.reduce((acc, item) => acc + item.produced, 0)}
+                    </div>
+                    <div className="text-center text-red-600">
+                      -{reportData.reduce((acc, item) => acc + item.sold, 0)}
+                    </div>
+                    <div className={`text-center ${reportData.reduce((acc, item) => acc + item.net, 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {reportData.reduce((acc, item) => acc + item.net, 0) >= 0 ? '+' : ''}
+                      {reportData.reduce((acc, item) => acc + item.net, 0)}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
