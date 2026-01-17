@@ -98,20 +98,38 @@ export function useVendedores() {
   }, [refetch]);
 
   const deleteVendedor = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('vendedores')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      toast.error('Error al eliminar vendedor');
-      console.error('Error deleting vendedor:', error);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('No hay sesión activa');
+        return false;
+      }
+
+      // Use edge function to delete vendedor and associated auth user
+      const { data, error } = await supabase.functions.invoke('delete-team-user', {
+        body: { teamMemberId: id, role: 'vendedor' },
+      });
+
+      if (error) {
+        console.error('Error deleting vendedor:', error);
+        toast.error('Error al eliminar vendedor');
+        return false;
+      }
+
+      if (data?.error) {
+        console.error('Error from function:', data.error);
+        toast.error(data.error);
+        return false;
+      }
+
+      toast.success('Vendedor eliminado completamente');
+      refetch();
+      return true;
+    } catch (error: any) {
+      console.error('Error in deleteVendedor:', error);
+      toast.error(error.message || 'Error al eliminar vendedor');
       return false;
     }
-    
-    toast.success('Vendedor eliminado');
-    refetch();
-    return true;
   }, [refetch]);
 
   return {
@@ -174,20 +192,38 @@ export function useRepartidores() {
   }, [refetch]);
 
   const deleteRepartidor = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('repartidores')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      toast.error('Error al eliminar repartidor');
-      console.error('Error deleting repartidor:', error);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('No hay sesión activa');
+        return false;
+      }
+
+      // Use edge function to delete repartidor and associated auth user
+      const { data, error } = await supabase.functions.invoke('delete-team-user', {
+        body: { teamMemberId: id, role: 'repartidor' },
+      });
+
+      if (error) {
+        console.error('Error deleting repartidor:', error);
+        toast.error('Error al eliminar repartidor');
+        return false;
+      }
+
+      if (data?.error) {
+        console.error('Error from function:', data.error);
+        toast.error(data.error);
+        return false;
+      }
+
+      toast.success('Repartidor eliminado completamente');
+      refetch();
+      return true;
+    } catch (error: any) {
+      console.error('Error in deleteRepartidor:', error);
+      toast.error(error.message || 'Error al eliminar repartidor');
       return false;
     }
-    
-    toast.success('Repartidor eliminado');
-    refetch();
-    return true;
   }, [refetch]);
 
   return {

@@ -1,1 +1,10 @@
 project_id = "jzzpzewjowqjkewovwuj"
+
+[functions.create-team-user]
+verify_jwt = false
+
+[functions.update-user-password]
+verify_jwt = false
+
+[functions.delete-team-user]
+verify_jwt = false
