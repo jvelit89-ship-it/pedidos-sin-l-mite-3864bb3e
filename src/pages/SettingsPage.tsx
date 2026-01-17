@@ -69,7 +69,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-3">
           <div className="flex justify-between"><span className="text-muted-foreground">{t.name}</span><span className="font-medium">{user?.name}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">{t.email}</span><span className="font-medium">{user?.email}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Rol</span><span className="font-medium capitalize">{user?.role}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Rol</span><span className="font-medium capitalize">{user?.role === 'superadmin' ? 'Admin' : user?.role}</span></div>
           
           <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
             <DialogTrigger asChild>
