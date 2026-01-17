@@ -8,12 +8,25 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   canAccessRoute: (path: string) => boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  canEditCustomers: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Demo users
 const DEMO_USERS: { email: string; password: string; user: User }[] = [
+  {
+    email: 'superadmin@pedidos.com',
+    password: 'super',
+    user: {
+      id: 'su1',
+      email: 'superadmin@pedidos.com',
+      name: 'Super Administrador',
+      role: 'superadmin',
+    },
+  },
   {
     email: 'admin@pedidos.com',
     password: 'admin',
@@ -22,6 +35,7 @@ const DEMO_USERS: { email: string; password: string; user: User }[] = [
       email: 'admin@pedidos.com',
       name: 'Administrador',
       role: 'admin',
+      companyId: 'company1',
     },
   },
   {
@@ -32,6 +46,7 @@ const DEMO_USERS: { email: string; password: string; user: User }[] = [
       email: 'vendedor@pedidos.com',
       name: 'Carlos Vendedor',
       role: 'vendedor',
+      companyId: 'company1',
     },
   },
   {
@@ -42,21 +57,25 @@ const DEMO_USERS: { email: string; password: string; user: User }[] = [
       email: 'repartidor@pedidos.com',
       name: 'Pedro Repartidor',
       role: 'repartidor',
+      companyId: 'company1',
     },
   },
 ];
 
 // Route permissions by role
 const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
+  '/companies': ['superadmin'],
   '/dashboard': ['admin'],
   '/orders': ['admin', 'vendedor'],
   '/deliveries': ['admin', 'repartidor'],
+  '/route': ['repartidor'],
   '/inventory': ['admin'],
   '/products': ['admin'],
-  '/customers': ['admin', 'vendedor'],
+  '/customers': ['admin', 'vendedor', 'repartidor'],
+  '/customers-map': ['admin'],
   '/vendedores': ['admin'],
   '/repartidores': ['admin'],
-  '/settings': ['admin', 'vendedor', 'repartidor'],
+  '/settings': ['superadmin', 'admin', 'vendedor', 'repartidor'],
 };
 
 const AUTH_STORAGE_KEY = 'pedidos_auth';
@@ -127,6 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user]
   );
 
+  const isAdmin = user?.role === 'admin';
+  const isSuperAdmin = user?.role === 'superadmin';
+  const canEditCustomers = user?.role === 'admin';
+
   return (
     <AuthContext.Provider
       value={{
@@ -136,6 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         canAccessRoute,
+        isAdmin,
+        isSuperAdmin,
+        canEditCustomers,
       }}
     >
       {children}
@@ -153,6 +179,8 @@ export function useAuth() {
 
 export function getDefaultRoute(role: UserRole): string {
   switch (role) {
+    case 'superadmin':
+      return '/companies';
     case 'admin':
       return '/dashboard';
     case 'vendedor':
