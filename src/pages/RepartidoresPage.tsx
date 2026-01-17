@@ -9,9 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useTeam } from '@/hooks/useTeam';
 import { toast } from 'sonner';
-import { Plus, Search, Bike, Phone, Mail, MapPin, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Bike, Phone, Mail, MapPin, Edit2, Trash2, RefreshCw, Eye, EyeOff, Copy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { generateSecurePassword } from '@/lib/passwordGenerator';
 
 export default function RepartidoresPage() {
   const { isAdmin } = useAuth();
@@ -20,34 +21,50 @@ export default function RepartidoresPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRepartidor, setSelectedRepartidor] = useState<typeof repartidores[0] | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     zone: '',
+    password: '',
     active: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       if (selectedRepartidor) {
-        await updateRepartidor(selectedRepartidor.id, formData);
-        toast.success('Repartidor actualizado');
-      } else {
-        await createRepartidor({
+        await updateRepartidor(selectedRepartidor.id, {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
           zone: formData.zone || null,
           active: formData.active,
         });
-        toast.success('Repartidor creado');
+      } else {
+        if (!formData.password) {
+          toast.error('La contraseña es requerida');
+          setIsSubmitting(false);
+          return;
+        }
+        await createRepartidor({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          zone: formData.zone || undefined,
+          active: formData.active,
+        });
       }
       handleCloseDialog();
     } catch (error) {
       toast.error('Error al guardar');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -63,7 +80,19 @@ export default function RepartidoresPage() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setSelectedRepartidor(null);
-    setFormData({ name: '', email: '', phone: '', zone: '', active: true });
+    setFormData({ name: '', email: '', phone: '', zone: '', password: '', active: true });
+    setShowPassword(false);
+  };
+
+  const handleGeneratePassword = () => {
+    const newPassword = generateSecurePassword();
+    setFormData({ ...formData, password: newPassword });
+    setShowPassword(true);
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(formData.password);
+    toast.success('Contraseña copiada');
   };
 
   const handleEdit = (repartidor: typeof repartidores[0]) => {
@@ -73,6 +102,7 @@ export default function RepartidoresPage() {
       email: repartidor.email || '',
       phone: repartidor.phone || '',
       zone: repartidor.zone || '',
+      password: '',
       active: repartidor.active ?? true,
     });
     setIsDialogOpen(true);
@@ -151,6 +181,43 @@ export default function RepartidoresPage() {
                   placeholder="Ej: Centro, Norte, Sur..."
                 />
               </div>
+              {!selectedRepartidor && (
+                <div className="space-y-2">
+                  <Label>Contraseña *</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        minLength={8}
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" size="icon" onClick={handleGeneratePassword} title="Generar contraseña segura">
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    {formData.password && (
+                      <Button type="button" variant="outline" size="icon" onClick={handleCopyPassword} title="Copiar contraseña">
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Usa el botón de refrescar para generar una contraseña segura
+                  </p>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Label>{t.active}</Label>
                 <Switch
@@ -158,8 +225,8 @@ export default function RepartidoresPage() {
                   onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                {selectedRepartidor ? t.save : t.create}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Guardando...' : selectedRepartidor ? t.save : t.create}
               </Button>
             </form>
           </DialogContent>
