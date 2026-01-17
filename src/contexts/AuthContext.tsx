@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types';
 
 interface AuthContextType {
   user: User | null;
+  supabaseUser: SupabaseUser | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -15,53 +19,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users
-const DEMO_USERS: { email: string; password: string; user: User }[] = [
-  {
-    email: 'superadmin@pedidos.com',
-    password: 'super',
-    user: {
-      id: 'su1',
-      email: 'superadmin@pedidos.com',
-      name: 'Super Administrador',
-      role: 'superadmin',
-    },
-  },
-  {
-    email: 'admin@pedidos.com',
-    password: 'admin',
-    user: {
-      id: 'u1',
-      email: 'admin@pedidos.com',
-      name: 'Administrador',
-      role: 'admin',
-      companyId: 'company1',
-    },
-  },
-  {
-    email: 'vendedor@pedidos.com',
-    password: '123456',
-    user: {
-      id: 'v1',
-      email: 'vendedor@pedidos.com',
-      name: 'Carlos Vendedor',
-      role: 'vendedor',
-      companyId: 'company1',
-    },
-  },
-  {
-    email: 'repartidor@pedidos.com',
-    password: '123456',
-    user: {
-      id: 'r1',
-      email: 'repartidor@pedidos.com',
-      name: 'Pedro Repartidor',
-      role: 'repartidor',
-      companyId: 'company1',
-    },
-  },
-];
-
 // Route permissions by role
 const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/companies': ['superadmin'],
@@ -69,63 +26,139 @@ const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/orders': ['admin', 'vendedor'],
   '/deliveries': ['admin', 'repartidor'],
   '/route': ['repartidor'],
-  '/inventory': ['admin'],
-  '/products': ['admin'],
+  '/inventory': ['admin', 'vendedor'],
   '/customers': ['admin', 'vendedor', 'repartidor'],
   '/customers-map': ['admin'],
   '/vendedores': ['admin'],
   '/repartidores': ['admin'],
+  '/logs': ['admin'],
   '/settings': ['superadmin', 'admin', 'vendedor', 'repartidor'],
 };
 
-const AUTH_STORAGE_KEY = 'pedidos_auth';
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load auth state from localStorage on mount
-  useEffect(() => {
-    const loadAuth = () => {
-      try {
-        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.user) {
-            setUser(parsed.user);
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    try {
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // Fetch role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileData) {
+        setUser({
+          id: userId,
+          email: profileData.email || '',
+          name: profileData.name,
+          role: (roleData?.role as UserRole) || 'vendedor',
+          companyId: profileData.company_id,
+        });
+      } else {
+        // Profile doesn't exist yet - create one
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: userId,
+              name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario',
+              email: userData.user.email,
+            });
+          
+          if (!insertError) {
+            // Set default role
+            await supabase
+              .from('user_roles')
+              .insert({
+                user_id: userId,
+                role: 'vendedor',
+              });
+
+            setUser({
+              id: userId,
+              email: userData.user.email || '',
+              name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario',
+              role: 'vendedor',
+              companyId: null,
+            });
           }
         }
-      } catch (error) {
-        console.error('Error loading auth state:', error);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      } finally {
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setSupabaseUser(session?.user ?? null);
+        
+        // Defer Supabase calls with setTimeout
+        if (session?.user) {
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+        
         setIsLoading(false);
       }
-    };
-
-    loadAuth();
-  }, []);
-
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    const demoUser = DEMO_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
     );
 
-    if (demoUser) {
-      setUser(demoUser.user);
-      localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify({ user: demoUser.user, token: 'demo-token' })
-      );
-      return true;
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setSupabaseUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
+      
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchUserProfile]);
+
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Login error:', error.message);
+      return false;
     }
 
-    return false;
+    return !!data.session;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setSession(null);
+    setSupabaseUser(null);
   }, []);
 
   const canAccessRoute = useCallback(
@@ -154,8 +187,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        supabaseUser,
+        session,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!session,
         login,
         logout,
         canAccessRoute,
@@ -188,6 +223,6 @@ export function getDefaultRoute(role: UserRole): string {
     case 'repartidor':
       return '/deliveries';
     default:
-      return '/';
+      return '/dashboard';
   }
 }
