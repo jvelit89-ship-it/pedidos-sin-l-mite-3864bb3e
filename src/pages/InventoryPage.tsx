@@ -28,7 +28,10 @@ import {
   History,
   TrendingUp,
   TrendingDown,
-  BarChart3
+  BarChart3,
+  Download,
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
 
 interface Product {
@@ -213,6 +216,126 @@ export default function InventoryPage() {
     return labels[period]?.[settings.language] || period;
   };
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  // Export to CSV/XLS format
+  const exportToCSV = () => {
+    if (reportData.length === 0) {
+      toast.error(settings.language === 'es' ? 'No hay datos para exportar' : 'No data to export');
+      return;
+    }
+
+    const headers = ['Producto', 'SKU', 'Producción', 'Ventas', 'Neto'];
+    const rows = reportData.map(item => [
+      item.productName,
+      item.productSku,
+      item.produced,
+      item.sold,
+      item.net
+    ]);
+    
+    const totals = [
+      'TOTAL',
+      '',
+      reportData.reduce((acc, item) => acc + item.produced, 0),
+      reportData.reduce((acc, item) => acc + item.sold, 0),
+      reportData.reduce((acc, item) => acc + item.net, 0)
+    ];
+    
+    const csvContent = [
+      `Reporte de Inventario - ${getPeriodLabel(reportPeriod)}`,
+      '',
+      headers.join(','),
+      ...rows.map(row => row.join(',')),
+      totals.join(',')
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `inventario_${reportPeriod}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    toast.success(settings.language === 'es' ? 'Reporte XLS descargado' : 'XLS report downloaded');
+  };
+
+  // Export to PDF (using print functionality)
+  const exportToPDF = () => {
+    if (reportData.length === 0) {
+      toast.error(settings.language === 'es' ? 'No hay datos para exportar' : 'No data to export');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error(settings.language === 'es' ? 'Habilita ventanas emergentes' : 'Enable pop-ups');
+      return;
+    }
+
+    const totalProduced = reportData.reduce((acc, item) => acc + item.produced, 0);
+    const totalSold = reportData.reduce((acc, item) => acc + item.sold, 0);
+    const totalNet = reportData.reduce((acc, item) => acc + item.net, 0);
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Reporte de Inventario - ${getPeriodLabel(reportPeriod)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          h2 { color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+          th { background-color: #f5f5f5; font-weight: bold; }
+          .positive { color: green; }
+          .negative { color: red; }
+          .total-row { background-color: #f0f0f0; font-weight: bold; }
+          .header-info { margin-bottom: 20px; color: #666; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>Reporte de Inventario</h1>
+        <div class="header-info">
+          <p><strong>Período:</strong> ${getPeriodLabel(reportPeriod)}</p>
+          <p><strong>Fecha de generación:</strong> ${format(new Date(), 'PPP', { locale })}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>SKU</th>
+              <th>Producción</th>
+              <th>Ventas</th>
+              <th>Neto</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reportData.map(item => `
+              <tr>
+                <td>${item.productName}</td>
+                <td>${item.productSku}</td>
+                <td class="positive">+${item.produced}</td>
+                <td class="negative">-${item.sold}</td>
+                <td class="${item.net >= 0 ? 'positive' : 'negative'}">${item.net >= 0 ? '+' : ''}${item.net}</td>
+              </tr>
+            `).join('')}
+            <tr class="total-row">
+              <td colspan="2">TOTAL</td>
+              <td class="positive">+${totalProduced}</td>
+              <td class="negative">-${totalSold}</td>
+              <td class="${totalNet >= 0 ? 'positive' : 'negative'}">${totalNet >= 0 ? '+' : ''}${totalNet}</td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+    toast.success(settings.language === 'es' ? 'Reporte PDF generado' : 'PDF report generated');
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
@@ -373,19 +496,23 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="inventory" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
           <TabsTrigger value="inventory" className="gap-2">
             <Package className="w-4 h-4" />
             <span className="hidden sm:inline">{settings.language === 'es' ? 'Inventario' : 'Inventory'}</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <History className="w-4 h-4" />
-            <span className="hidden sm:inline">{settings.language === 'es' ? 'Historial' : 'History'}</span>
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            <span className="hidden sm:inline">{settings.language === 'es' ? 'Reportes' : 'Reports'}</span>
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="history" className="gap-2">
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">{settings.language === 'es' ? 'Historial' : 'History'}</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="reports" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">{settings.language === 'es' ? 'Reportes' : 'Reports'}</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="inventory" className="space-y-4">
@@ -498,6 +625,7 @@ export default function InventoryPage() {
           )}
         </TabsContent>
 
+        {isAdmin && (
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardContent className="p-4">
@@ -537,24 +665,36 @@ export default function InventoryPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
+        {isAdmin && (
         <TabsContent value="reports" className="space-y-4">
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <h3 className="font-semibold">
                   {settings.language === 'es' ? 'Reporte de Inventario' : 'Inventory Report'}
                 </h3>
-                <Select value={reportPeriod} onValueChange={(v) => setReportPeriod(v as 'day' | 'week' | 'month')}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="day">{settings.language === 'es' ? 'Hoy' : 'Today'}</SelectItem>
-                    <SelectItem value="week">{settings.language === 'es' ? 'Esta Semana' : 'This Week'}</SelectItem>
-                    <SelectItem value="month">{settings.language === 'es' ? 'Este Mes' : 'This Month'}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={reportPeriod} onValueChange={(v) => setReportPeriod(v as 'day' | 'week' | 'month')}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">{settings.language === 'es' ? 'Hoy' : 'Today'}</SelectItem>
+                      <SelectItem value="week">{settings.language === 'es' ? 'Esta Semana' : 'This Week'}</SelectItem>
+                      <SelectItem value="month">{settings.language === 'es' ? 'Este Mes' : 'This Month'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={exportToCSV} className="gap-1">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    XLS
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-1">
+                    <FileText className="w-4 h-4" />
+                    PDF
+                  </Button>
+                </div>
               </div>
 
               <div className="mb-4 p-3 bg-primary/10 rounded-lg">
@@ -631,6 +771,7 @@ export default function InventoryPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
       </Tabs>
     </div>
   );
