@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,9 +7,8 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { SyncProvider } from '@/contexts/SyncContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { AppLayout } from '@/components/AppLayout';
-import { initializeDemoData } from '@/lib/db';
 
-import LoginPage from './pages/LoginPage';
+import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
@@ -24,14 +22,13 @@ import RepartidoresPage from './pages/RepartidoresPage';
 import CompaniesPage from './pages/CompaniesPage';
 import RoutePage from './pages/RoutePage';
 import SettingsPage from './pages/SettingsPage';
+import AuditLogsPage from './pages/AuditLogsPage';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => <AppLayout>{children}</AppLayout>;
 
 const App = () => {
-  useEffect(() => { initializeDemoData(); }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -42,8 +39,9 @@ const App = () => {
               <Sonner position="top-center" />
               <BrowserRouter>
                 <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/" element={<Navigate to="/login" replace />} />
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/login" element={<Navigate to="/auth" replace />} />
+                  <Route path="/" element={<Navigate to="/auth" replace />} />
                   <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
                   <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
@@ -52,11 +50,11 @@ const App = () => {
                   <Route path="/deliveries" element={<ProtectedRoute><DeliveriesPage /></ProtectedRoute>} />
                   <Route path="/route" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
                   <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
-                  <Route path="/products" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
                   <Route path="/customers-map" element={<ProtectedRoute><CustomersMapPage /></ProtectedRoute>} />
                   <Route path="/vendedores" element={<ProtectedRoute><VendedoresPage /></ProtectedRoute>} />
                   <Route path="/repartidores" element={<ProtectedRoute><RepartidoresPage /></ProtectedRoute>} />
+                  <Route path="/logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

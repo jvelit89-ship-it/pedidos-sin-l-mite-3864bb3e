@@ -198,11 +198,11 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/orders', label: 'Pedidos', labelEn: 'Orders', icon: 'ShoppingCart', roles: ['admin', 'vendedor'] },
   { path: '/deliveries', label: 'Entregas', labelEn: 'Deliveries', icon: 'Truck', roles: ['admin', 'repartidor'] },
   { path: '/route', label: 'Ruta', labelEn: 'Route', icon: 'Route', roles: ['repartidor'] },
-  { path: '/inventory', label: 'Inventario', labelEn: 'Inventory', icon: 'Package', roles: ['admin'] },
-  { path: '/products', label: 'Productos', labelEn: 'Products', icon: 'Box', roles: ['admin'] },
+  { path: '/inventory', label: 'Inventario', labelEn: 'Inventory', icon: 'Package', roles: ['admin', 'vendedor'] },
   { path: '/customers', label: 'Clientes', labelEn: 'Customers', icon: 'Users', roles: ['admin', 'vendedor', 'repartidor'] },
   { path: '/customers-map', label: 'Mapa Clientes', labelEn: 'Customers Map', icon: 'Map', roles: ['admin'] },
   { path: '/vendedores', label: 'Vendedores', labelEn: 'Vendors', icon: 'UserCheck', roles: ['admin'] },
   { path: '/repartidores', label: 'Repartidores', labelEn: 'Drivers', icon: 'Bike', roles: ['admin'] },
+  { path: '/logs', label: 'Registros', labelEn: 'Audit Logs', icon: 'FileText', roles: ['admin'] },
   { path: '/settings', label: 'Ajustes', labelEn: 'Settings', icon: 'Settings', roles: ['superadmin', 'admin', 'vendedor', 'repartidor'] },
 ];

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,77 +7,108 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getAllItems, addItem, updateItem } from '@/lib/db';
-import { Customer } from '@/types';
-import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map } from 'lucide-react';
+import { useCustomers, useGeocoding } from '@/hooks/useCustomers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2 } from 'lucide-react';
+
+interface Customer {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  category: 'regular' | 'premium' | 'vip';
+  notes: string | null;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function CustomersPage() {
   const { canEditCustomers, user } = useAuth();
-  const { t } = useSettings();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { t, settings } = useSettings();
+  const { customers, loading, addCustomer, updateCustomer } = useCustomers();
+  const { searchAddress } = useGeocoding();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{ lat: string; lon: string; display_name: string }>>([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: '',
     email: '',
     notes: '',
-    category: 'regular',
-    latitude: undefined as number | undefined,
-    longitude: undefined as number | undefined,
+    category: 'regular' as 'regular' | 'premium' | 'vip',
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
+  const handleAddressSearch = async (query: string) => {
+    setFormData(prev => ({ ...prev, address: query }));
+    if (query.length >= 3) {
+      setIsSearchingAddress(true);
+      const results = await searchAddress(query);
+      setAddressSuggestions(results);
+      setIsSearchingAddress(false);
+    } else {
+      setAddressSuggestions([]);
+    }
+  };
 
-  const loadCustomers = async () => {
-    setIsLoading(true);
-    const data = await getAllItems('customers');
-    setCustomers(data.sort((a, b) => a.name.localeCompare(b.name)));
-    setIsLoading(false);
+  const handleSelectAddress = (suggestion: { lat: string; lon: string; display_name: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      address: suggestion.display_name,
+      latitude: parseFloat(suggestion.lat),
+      longitude: parseFloat(suggestion.lon),
+    }));
+    setAddressSuggestions([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString();
+    const companyId = user?.companyId || 'default';
 
     if (selectedCustomer) {
-      // Edit existing
-      await updateItem('customers', {
-        ...selectedCustomer,
-        ...formData,
-        updatedAt: now,
+      await updateCustomer(selectedCustomer.id, {
+        name: formData.name,
+        phone: formData.phone || null,
+        email: formData.email || null,
+        address: formData.address || null,
+        notes: formData.notes || null,
+        category: formData.category,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       });
-      toast.success('Cliente actualizado');
     } else {
-      // Create new
-      await addItem('customers', {
-        id: uuidv4(),
-        ...formData,
-        companyId: user?.companyId,
-        createdAt: now,
-        updatedAt: now,
+      await addCustomer({
+        name: formData.name,
+        phone: formData.phone || null,
+        email: formData.email || null,
+        address: formData.address || null,
+        notes: formData.notes || null,
+        category: formData.category,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        company_id: companyId,
       });
-      toast.success('Cliente creado');
     }
 
-    await loadCustomers();
     handleCloseDialog();
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setSelectedCustomer(null);
+    setAddressSuggestions([]);
     setFormData({
       name: '',
       phone: '',
@@ -85,8 +116,8 @@ export default function CustomersPage() {
       email: '',
       notes: '',
       category: 'regular',
-      latitude: undefined,
-      longitude: undefined,
+      latitude: null,
+      longitude: null,
     });
   };
 
@@ -94,8 +125,8 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setFormData({
       name: customer.name,
-      phone: customer.phone,
-      address: customer.address,
+      phone: customer.phone || '',
+      address: customer.address || '',
       email: customer.email || '',
       notes: customer.notes || '',
       category: customer.category || 'regular',
@@ -111,10 +142,10 @@ export default function CustomersPage() {
   };
 
   const handleLocationSelect = (lat: number, lng: number) => {
-    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
   };
 
-  const filtered = customers.filter((c) =>
+  const filtered = customers.filter((c: Customer) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -156,11 +187,31 @@ export default function CustomersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>{t.address} *</Label>
-                  <Input
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      value={formData.address}
+                      onChange={(e) => handleAddressSearch(e.target.value)}
+                      placeholder={settings.language === 'es' ? 'Buscar dirección...' : 'Search address...'}
+                      required
+                    />
+                    {isSearchingAddress && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {addressSuggestions.length > 0 && (
+                    <div className="border rounded-md bg-background max-h-40 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0"
+                          onClick={() => handleSelectAddress(suggestion)}
+                        >
+                          {suggestion.display_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -172,14 +223,12 @@ export default function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Categoría</Label>
+                    <Label>{settings.language === 'es' ? 'Categoría' : 'Category'}</Label>
                     <Select
                       value={formData.category}
-                      onValueChange={(v) => setFormData({ ...formData, category: v })}
+                      onValueChange={(v) => setFormData({ ...formData, category: v as 'regular' | 'premium' | 'vip' })}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="regular">Regular</SelectItem>
                         <SelectItem value="premium">Premium</SelectItem>
@@ -201,11 +250,13 @@ export default function CustomersPage() {
                     <Map className="w-4 h-4" /> {t.customerLocation}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Haz clic en el mapa para establecer la ubicación
+                    {settings.language === 'es' 
+                      ? 'Haz clic en el mapa para ajustar la ubicación' 
+                      : 'Click on the map to adjust the location'}
                   </p>
                   <MapView
-                    latitude={formData.latitude}
-                    longitude={formData.longitude}
+                    latitude={formData.latitude ?? undefined}
+                    longitude={formData.longitude ?? undefined}
                     onLocationSelect={handleLocationSelect}
                     editable={true}
                     height="200px"
@@ -239,9 +290,9 @@ export default function CustomersPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
         </div>
       ) : filtered.length === 0 ? (
         <Card>
@@ -252,7 +303,7 @@ export default function CustomersPage() {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((c, i) => (
+          {filtered.map((c: Customer, i: number) => (
             <motion.div
               key={c.id}
               initial={{ opacity: 0 }}
@@ -280,14 +331,18 @@ export default function CustomersPage() {
                         )}
                       </div>
                       <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5" />
-                          {c.phone}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5" />
-                          <span className="truncate">{c.address}</span>
-                        </div>
+                        {c.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-3.5 h-3.5" />
+                            {c.phone}
+                          </div>
+                        )}
+                        {c.address && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5" />
+                            <span className="truncate">{c.address}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -317,14 +372,18 @@ export default function CustomersPage() {
           {selectedCustomer && (
             <div className="space-y-4">
               <div className="grid gap-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t.phone}</span>
-                  <span>{selectedCustomer.phone}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t.address}</span>
-                  <span className="text-right">{selectedCustomer.address}</span>
-                </div>
+                {selectedCustomer.phone && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.phone}</span>
+                    <span>{selectedCustomer.phone}</span>
+                  </div>
+                )}
+                {selectedCustomer.address && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t.address}</span>
+                    <span className="text-right">{selectedCustomer.address}</span>
+                  </div>
+                )}
                 {selectedCustomer.email && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t.email}</span>
@@ -360,13 +419,13 @@ export default function CustomersPage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No hay ubicación registrada
+                  {settings.language === 'es' ? 'No hay ubicación registrada' : 'No location registered'}
                 </p>
               )}
 
               {!canEditCustomers && (
                 <p className="text-xs text-muted-foreground italic">
-                  {t.viewOnly} - Solo el administrador puede editar clientes
+                  {t.viewOnly} - {settings.language === 'es' ? 'Solo el administrador puede editar clientes' : 'Only admin can edit customers'}
                 </p>
               )}
             </div>
