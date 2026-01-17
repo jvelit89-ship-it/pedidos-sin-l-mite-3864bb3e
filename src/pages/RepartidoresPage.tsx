@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,22 +7,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { getAllItems, addItem, updateItem, deleteItem } from '@/lib/db';
-import { Repartidor } from '@/types';
+import { useTeam } from '@/hooks/useTeam';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 import { Plus, Search, Bike, Phone, Mail, MapPin, Edit2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 
 export default function RepartidoresPage() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { t } = useSettings();
-  const [repartidores, setRepartidores] = useState<Repartidor[]>([]);
+  const { repartidores, loading, createRepartidor, updateRepartidor, deleteRepartidor } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedRepartidor, setSelectedRepartidor] = useState<Repartidor | null>(null);
+  const [selectedRepartidor, setSelectedRepartidor] = useState<typeof repartidores[0] | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -31,45 +28,36 @@ export default function RepartidoresPage() {
     active: true,
   });
 
-  useEffect(() => {
-    loadRepartidores();
-  }, []);
-
-  const loadRepartidores = async () => {
-    setIsLoading(true);
-    const data = await getAllItems('repartidores');
-    setRepartidores(data.sort((a, b) => a.name.localeCompare(b.name)));
-    setIsLoading(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString();
 
-    if (selectedRepartidor) {
-      await updateItem('repartidores', {
-        ...selectedRepartidor,
-        ...formData,
-      });
-      toast.success('Repartidor actualizado');
-    } else {
-      await addItem('repartidores', {
-        id: uuidv4(),
-        ...formData,
-        companyId: user?.companyId,
-        createdAt: now,
-      });
-      toast.success('Repartidor creado');
+    try {
+      if (selectedRepartidor) {
+        await updateRepartidor(selectedRepartidor.id, formData);
+        toast.success('Repartidor actualizado');
+      } else {
+        await createRepartidor({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          zone: formData.zone || null,
+          active: formData.active,
+        });
+        toast.success('Repartidor creado');
+      }
+      handleCloseDialog();
+    } catch (error) {
+      toast.error('Error al guardar');
     }
-
-    await loadRepartidores();
-    handleCloseDialog();
   };
 
-  const handleDelete = async (repartidor: Repartidor) => {
-    await deleteItem('repartidores', repartidor.id);
-    toast.success('Repartidor eliminado');
-    await loadRepartidores();
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await deleteRepartidor(id);
+      toast.success(`${name} eliminado`);
+    } catch (error) {
+      toast.error('Error al eliminar');
+    }
   };
 
   const handleCloseDialog = () => {
@@ -78,21 +66,21 @@ export default function RepartidoresPage() {
     setFormData({ name: '', email: '', phone: '', zone: '', active: true });
   };
 
-  const handleEdit = (repartidor: Repartidor) => {
+  const handleEdit = (repartidor: typeof repartidores[0]) => {
     setSelectedRepartidor(repartidor);
     setFormData({
       name: repartidor.name,
-      email: repartidor.email,
-      phone: repartidor.phone,
+      email: repartidor.email || '',
+      phone: repartidor.phone || '',
       zone: repartidor.zone || '',
-      active: repartidor.active,
+      active: repartidor.active ?? true,
     });
     setIsDialogOpen(true);
   };
 
   const filtered = repartidores.filter((r) =>
     r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (r.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
   if (!isAdmin) {
@@ -186,7 +174,7 @@ export default function RepartidoresPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
         </div>
@@ -258,7 +246,7 @@ export default function RepartidoresPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(r)}>
+                            <AlertDialogAction onClick={() => handleDelete(r.id, r.name)}>
                               {t.delete}
                             </AlertDialogAction>
                           </AlertDialogFooter>

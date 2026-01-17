@@ -4,30 +4,37 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SyncStatusBadge } from '@/components/SyncIndicator';
-import { getItem, updateItem } from '@/lib/db';
-import { Order, OrderStatus, ORDER_STATUS_CONFIG, STATUS_CHANGE_PERMISSIONS } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { OrderStatus, ORDER_STATUS_CONFIG, STATUS_CHANGE_PERMISSIONS } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, 
   MapPin, 
   User, 
-  Phone, 
   Calendar,
   Package,
   Truck,
-  Clock,
   RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Tables } from '@/integrations/supabase/types';
+
+type Order = Tables<'orders'>;
+type OrderItem = Tables<'order_items'>;
+
+interface OrderWithItems extends Order {
+  items: OrderItem[];
+}
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [order, setOrder] = useState<Order | null>(null);
+  const { formatCurrency } = useSettings();
+  const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -40,10 +47,30 @@ export default function OrderDetailPage() {
   const loadOrder = async () => {
     setIsLoading(true);
     try {
-      const foundOrder = await getItem('orders', id!);
-      if (foundOrder) {
-        setOrder(foundOrder);
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (orderError) throw orderError;
+
+      if (orderData) {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', id);
+
+        if (itemsError) throw itemsError;
+
+        setOrder({
+          ...orderData,
+          items: itemsData || [],
+        });
       }
+    } catch (error) {
+      console.error('Error loading order:', error);
+      toast.error('Error al cargar el pedido');
     } finally {
       setIsLoading(false);
     }
@@ -54,21 +81,29 @@ export default function OrderDetailPage() {
     
     setIsUpdating(true);
     try {
-      const updatedOrder: Order = {
-        ...order,
+      const updateData: Partial<Order> = {
         status: newStatus,
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'pending',
-        ...(newStatus === 'delivered' ? { deliveredAt: new Date().toISOString() } : {}),
+        updated_at: new Date().toISOString(),
       };
-      
-      await updateItem('orders', updatedOrder);
-      setOrder(updatedOrder);
+
+      if (newStatus === 'delivered') {
+        updateData.delivered_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrder(prev => prev ? { ...prev, ...updateData } : null);
       
       toast.success('Estado actualizado', {
         description: `Pedido marcado como "${ORDER_STATUS_CONFIG[newStatus].label}"`,
       });
     } catch (error) {
+      console.error('Error updating status:', error);
       toast.error('Error al actualizar', {
         description: 'Intenta nuevamente',
       });
@@ -115,10 +150,9 @@ export default function OrderDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">Pedido #{order.id.slice(0, 8)}</h1>
-            <SyncStatusBadge status={order.syncStatus} />
           </div>
           <p className="text-sm text-muted-foreground">
-            {format(new Date(order.createdAt), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
+            {format(new Date(order.created_at), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
           </p>
         </div>
       </div>
@@ -180,16 +214,16 @@ export default function OrderDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="font-semibold">{order.customerName}</p>
+              <p className="font-semibold">{order.customer_name}</p>
             </div>
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{order.deliveryAddress}</span>
+              <span>{order.delivery_address}</span>
             </div>
-            {order.deliveryDate && (
+            {order.delivery_date && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4" />
-                <span>Entrega: {format(new Date(order.deliveryDate), "d 'de' MMMM", { locale: es })}</span>
+                <span>Entrega: {format(new Date(order.delivery_date), "d 'de' MMMM", { locale: es })}</span>
               </div>
             )}
           </CardContent>
@@ -214,18 +248,18 @@ export default function OrderDetailPage() {
               {order.items.map((item, index) => (
                 <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div>
-                    <p className="font-medium">{item.productName}</p>
+                    <p className="font-medium">{item.product_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {item.quantity} × ${item.unitPrice.toFixed(2)}
+                      {item.quantity} × {formatCurrency(item.unit_price)}
                     </p>
                   </div>
-                  <p className="font-semibold">${item.total.toFixed(2)}</p>
+                  <p className="font-semibold">{formatCurrency(item.total)}</p>
                 </div>
               ))}
             </div>
             <div className="mt-4 pt-4 border-t flex justify-between items-center">
               <span className="text-lg font-semibold">Total</span>
-              <span className="text-2xl font-bold text-primary">${order.total.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-primary">{formatCurrency(order.total)}</span>
             </div>
           </CardContent>
         </Card>
@@ -247,19 +281,19 @@ export default function OrderDetailPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Vendedor</span>
-              <span className="font-medium">{order.vendedorName}</span>
+              <span className="font-medium">{order.vendedor_name || 'No asignado'}</span>
             </div>
-            {order.repartidorName && (
+            {order.repartidor_name && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Repartidor</span>
-                <span className="font-medium">{order.repartidorName}</span>
+                <span className="font-medium">{order.repartidor_name}</span>
               </div>
             )}
-            {order.deliveredAt && (
+            {order.delivered_at && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Entregado</span>
                 <span className="font-medium">
-                  {format(new Date(order.deliveredAt), "d MMM, HH:mm", { locale: es })}
+                  {format(new Date(order.delivered_at), "d MMM, HH:mm", { locale: es })}
                 </span>
               </div>
             )}
