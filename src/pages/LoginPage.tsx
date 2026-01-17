@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Package, Eye, EyeOff, Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
@@ -16,6 +18,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Forgot password state
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +34,6 @@ export default function LoginPage() {
         toast.success('¡Bienvenido!', {
           description: 'Inicio de sesión exitoso',
         });
-        // Navigation will happen automatically via auth state change
-        // Wait a moment for the user profile to load
         setTimeout(() => {
           navigate('/dashboard');
         }, 500);
@@ -46,10 +51,41 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error('Ingresa tu correo electrónico');
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast.error('Error al enviar correo', {
+          description: error.message,
+        });
+      } else {
+        toast.success('Correo enviado', {
+          description: 'Revisa tu bandeja de entrada para restablecer tu contraseña',
+        });
+        setIsForgotPasswordOpen(false);
+        setResetEmail('');
+      }
+    } catch (error) {
+      toast.error('Error de conexión', {
+        description: 'Intenta nuevamente',
+      });
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
   const demoCredentials = [
-    { role: 'Admin', email: 'admin@pedidos.com', password: 'admin' },
-    { role: 'Vendedor', email: 'vendedor@pedidos.com', password: '123456' },
-    { role: 'Repartidor', email: 'repartidor@pedidos.com', password: '123456' },
+    { role: 'Admin', email: 'jvelit89@gmail.com', password: 'admin123' },
   ];
 
   return (
@@ -116,6 +152,54 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+              
+              <div className="flex justify-end">
+                <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Restablecer Contraseña</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email">Correo Electrónico</Label>
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          placeholder="correo@ejemplo.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Te enviaremos un enlace para restablecer tu contraseña
+                        </p>
+                      </div>
+                      <Button type="submit" className="w-full gap-2" disabled={isSendingReset}>
+                        {isSendingReset ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <Mail className="w-4 h-4" />
+                            Enviar Enlace
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full h-11"
