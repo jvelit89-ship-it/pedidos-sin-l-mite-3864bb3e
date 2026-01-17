@@ -405,7 +405,8 @@ export default function InventoryPage() {
           </Dialog>
           )}
 
-          {/* Product Dialog */}
+          {/* Product Dialog - Only for Admin */}
+          {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleOpenDialog()} className="gap-2">
@@ -493,6 +494,7 @@ export default function InventoryPage() {
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
