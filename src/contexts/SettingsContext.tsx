@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppSettings, Language, Currency, CURRENCY_CONFIG } from '@/types';
+// Settings context for language and currency preferences
 
 interface Translations {
   // Common
