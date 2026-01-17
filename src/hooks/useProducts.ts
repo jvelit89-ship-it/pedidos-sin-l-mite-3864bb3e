@@ -155,20 +155,34 @@ export function useProductionHistory(productId?: string) {
     }
 
     // First, add production record
-    const { error: historyError } = await supabase
+    const { data: productionData, error: historyError } = await supabase
       .from('production_history')
       .insert({
         product_id: productId,
         quantity,
         company_id: companyId,
         notes: notes || null,
-      });
+      })
+      .select()
+      .single();
     
     if (historyError) {
       toast.error('Error al registrar producción');
       console.error('Error adding production:', historyError);
       return false;
     }
+
+    // Add stock movement record
+    await supabase
+      .from('stock_movements')
+      .insert({
+        product_id: productId,
+        company_id: companyId,
+        movement_type: 'production',
+        quantity: quantity, // positive for production
+        reference_id: productionData?.id || null,
+        notes: notes || null,
+      });
 
     // Then, update the product stock
     const { data: product } = await supabase
