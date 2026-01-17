@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
@@ -24,15 +24,34 @@ interface NominatimResult {
   display_name: string;
 }
 
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  
+  return profile?.company_id || null;
+}
+
 export function useCustomers() {
   const { data: customers, loading, error, refetch } = useRealtimeQuery<Customer>('customers', {
     orderBy: { column: 'name', ascending: true },
   });
 
-  const addCustomer = useCallback(async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
+  const addCustomer = useCallback(async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
+    const companyId = await getUserCompanyId();
+    if (!companyId) {
+      toast.error('Error: No se encontró la empresa del usuario');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('customers')
-      .insert(customer)
+      .insert({ ...customer, company_id: companyId })
       .select()
       .single();
     
@@ -43,8 +62,9 @@ export function useCustomers() {
     }
     
     toast.success('Cliente creado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const updateCustomer = useCallback(async (id: string, updates: Partial<Customer>) => {
     const { data, error } = await supabase
@@ -61,8 +81,9 @@ export function useCustomers() {
     }
     
     toast.success('Cliente actualizado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const deleteCustomer = useCallback(async (id: string) => {
     const { error } = await supabase
@@ -77,8 +98,9 @@ export function useCustomers() {
     }
     
     toast.success('Cliente eliminado');
+    refetch();
     return true;
-  }, []);
+  }, [refetch]);
 
   return {
     customers,

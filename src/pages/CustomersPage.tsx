@@ -75,7 +75,6 @@ export default function CustomersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const companyId = user?.companyId || 'default';
 
     if (selectedCustomer) {
       await updateCustomer(selectedCustomer.id, {
@@ -98,7 +97,6 @@ export default function CustomersPage() {
         category: formData.category,
         latitude: formData.latitude,
         longitude: formData.longitude,
-        company_id: companyId,
       });
     }
 

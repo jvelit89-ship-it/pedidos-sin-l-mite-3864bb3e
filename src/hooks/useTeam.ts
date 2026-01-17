@@ -8,7 +8,7 @@ interface Vendedor {
   name: string;
   email: string | null;
   phone: string | null;
-  active: boolean;
+  active: boolean | null;
   user_id: string | null;
   company_id: string;
   created_at: string;
@@ -20,10 +20,23 @@ interface Repartidor {
   email: string | null;
   phone: string | null;
   zone: string | null;
-  active: boolean;
+  active: boolean | null;
   user_id: string | null;
   company_id: string;
   created_at: string;
+}
+
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  
+  return profile?.company_id || null;
 }
 
 export function useVendedores() {
@@ -31,10 +44,16 @@ export function useVendedores() {
     orderBy: { column: 'name', ascending: true },
   });
 
-  const addVendedor = useCallback(async (vendedor: Omit<Vendedor, 'id' | 'created_at'>) => {
+  const addVendedor = useCallback(async (vendedor: Omit<Vendedor, 'id' | 'created_at' | 'company_id'>) => {
+    const companyId = await getUserCompanyId();
+    if (!companyId) {
+      toast.error('Error: No se encontró la empresa del usuario');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('vendedores')
-      .insert(vendedor)
+      .insert({ ...vendedor, company_id: companyId })
       .select()
       .single();
     
@@ -45,8 +64,9 @@ export function useVendedores() {
     }
     
     toast.success('Vendedor creado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const updateVendedor = useCallback(async (id: string, updates: Partial<Vendedor>) => {
     const { data, error } = await supabase
@@ -63,8 +83,9 @@ export function useVendedores() {
     }
     
     toast.success('Vendedor actualizado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const deleteVendedor = useCallback(async (id: string) => {
     const { error } = await supabase
@@ -79,8 +100,9 @@ export function useVendedores() {
     }
     
     toast.success('Vendedor eliminado');
+    refetch();
     return true;
-  }, []);
+  }, [refetch]);
 
   return {
     vendedores,
@@ -98,10 +120,16 @@ export function useRepartidores() {
     orderBy: { column: 'name', ascending: true },
   });
 
-  const addRepartidor = useCallback(async (repartidor: Omit<Repartidor, 'id' | 'created_at'>) => {
+  const addRepartidor = useCallback(async (repartidor: Omit<Repartidor, 'id' | 'created_at' | 'company_id'>) => {
+    const companyId = await getUserCompanyId();
+    if (!companyId) {
+      toast.error('Error: No se encontró la empresa del usuario');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('repartidores')
-      .insert(repartidor)
+      .insert({ ...repartidor, company_id: companyId })
       .select()
       .single();
     
@@ -112,8 +140,9 @@ export function useRepartidores() {
     }
     
     toast.success('Repartidor creado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const updateRepartidor = useCallback(async (id: string, updates: Partial<Repartidor>) => {
     const { data, error } = await supabase
@@ -130,8 +159,9 @@ export function useRepartidores() {
     }
     
     toast.success('Repartidor actualizado');
+    refetch();
     return data;
-  }, []);
+  }, [refetch]);
 
   const deleteRepartidor = useCallback(async (id: string) => {
     const { error } = await supabase
@@ -146,8 +176,9 @@ export function useRepartidores() {
     }
     
     toast.success('Repartidor eliminado');
+    refetch();
     return true;
-  }, []);
+  }, [refetch]);
 
   return {
     repartidores,
@@ -170,14 +201,12 @@ export function useTeam() {
     repartidores: repartidoresHook.repartidores,
     loading: vendedoresHook.loading || repartidoresHook.loading,
     createVendedor: async (data: { name: string; email: string; phone: string; active: boolean }) => {
-      const { data: profile } = await supabase.from('profiles').select('company_id').maybeSingle();
-      return vendedoresHook.addVendedor({ ...data, company_id: profile?.company_id || '', user_id: null });
+      return vendedoresHook.addVendedor({ ...data, user_id: null });
     },
     updateVendedor: vendedoresHook.updateVendedor,
     deleteVendedor: vendedoresHook.deleteVendedor,
     createRepartidor: async (data: { name: string; email: string; phone: string; zone: string | null; active: boolean }) => {
-      const { data: profile } = await supabase.from('profiles').select('company_id').maybeSingle();
-      return repartidoresHook.addRepartidor({ ...data, company_id: profile?.company_id || '', user_id: null });
+      return repartidoresHook.addRepartidor({ ...data, user_id: null });
     },
     updateRepartidor: repartidoresHook.updateRepartidor,
     deleteRepartidor: repartidoresHook.deleteRepartidor,
