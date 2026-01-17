@@ -1,40 +1,26 @@
-import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getAllItems } from '@/lib/db';
-import { Customer, Order } from '@/types';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useOrders } from '@/hooks/useOrders';
 import { MapView } from '@/components/MapView';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Map, Filter } from 'lucide-react';
+import { Map, Filter, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 export default function CustomersMapPage() {
   const { isAdmin } = useAuth();
   const { t } = useSettings();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { customers, loading: loadingCustomers } = useCustomers();
+  const { orders, loading: loadingOrders } = useOrders();
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [volumeFilter, setVolumeFilter] = useState<string>('all');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    const [customersData, ordersData] = await Promise.all([
-      getAllItems('customers'),
-      getAllItems('orders'),
-    ]);
-    setCustomers(customersData);
-    setOrders(ordersData);
-    setIsLoading(false);
-  };
+  const isLoading = loadingCustomers || loadingOrders;
 
   // Calculate order count per customer
   const customerOrderCounts = customers.reduce((acc, customer) => {
-    acc[customer.id] = orders.filter((o) => o.customerId === customer.id).length;
+    acc[customer.id] = orders.filter((o) => o.customer_id === customer.id).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -122,7 +108,7 @@ export default function CustomersMapPage() {
 
       {isLoading ? (
         <div className="text-center py-12">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
         </div>
       ) : filteredCustomers.length === 0 ? (
         <Card>
@@ -154,6 +140,10 @@ export default function CustomersMapPage() {
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
               <span>Premium</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-purple-500"></div>
+              <span>VIP</span>
             </div>
           </div>
         </CardContent>

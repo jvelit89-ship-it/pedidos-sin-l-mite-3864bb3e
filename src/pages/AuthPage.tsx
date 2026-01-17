@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSupabaseAuth } from '@/hooks/useAuth';
+import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Loader2, LogIn, UserPlus } from 'lucide-react';
@@ -25,6 +26,7 @@ const signUpSchema = authSchema.extend({
 export default function AuthPage() {
   const navigate = useNavigate();
   const { signIn, signUp, isAuthenticated, loading: authLoading } = useSupabaseAuth();
+  const { user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,10 +38,10 @@ export default function AuthPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      navigate('/dashboard');
+    if (isAuthenticated && !authLoading && user) {
+      navigate(getDefaultRoute(user.role));
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +69,7 @@ export default function AuthPage() {
           }
         } else {
           toast.success('Bienvenido');
-          navigate('/dashboard');
+          // Navigate will happen via useEffect when user is loaded
         }
       } else {
         const result = signUpSchema.safeParse(formData);
@@ -89,7 +91,7 @@ export default function AuthPage() {
           }
         } else {
           toast.success('Cuenta creada. ¡Bienvenido!');
-          navigate('/dashboard');
+          // Navigate will happen via useEffect when user is loaded
         }
       }
     } finally {

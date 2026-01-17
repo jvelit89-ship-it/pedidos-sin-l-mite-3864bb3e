@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,12 +27,11 @@ export default function LoginPage() {
         toast.success('¡Bienvenido!', {
           description: 'Inicio de sesión exitoso',
         });
-        // Get user role and redirect
-        const stored = localStorage.getItem('pedidos_auth');
-        if (stored) {
-          const { user } = JSON.parse(stored);
-          navigate(getDefaultRoute(user.role));
-        }
+        // Navigation will happen automatically via auth state change
+        // Wait a moment for the user profile to load
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 500);
       } else {
         toast.error('Credenciales incorrectas', {
           description: 'Verifica tu email y contraseña',
