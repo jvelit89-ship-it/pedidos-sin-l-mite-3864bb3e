@@ -23,6 +23,7 @@ import CompaniesPage from './pages/CompaniesPage';
 import RoutePage from './pages/RoutePage';
 import SettingsPage from './pages/SettingsPage';
 import AuditLogsPage from './pages/AuditLogsPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => {
                 <Routes>
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/login" element={<Navigate to="/auth" replace />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/" element={<Navigate to="/auth" replace />} />
                   <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

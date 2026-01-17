@@ -201,6 +201,81 @@ export function useRepartidores() {
   };
 }
 
+// Hook for updating team member passwords
+export function useUpdateTeamMemberPassword() {
+  const updatePassword = useCallback(async (userId: string, newPassword: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('No hay sesión activa');
+        return false;
+      }
+
+      const { data, error } = await supabase.functions.invoke('update-user-password', {
+        body: { userId, newPassword },
+      });
+
+      if (error) {
+        console.error('Error updating password:', error);
+        toast.error(error.message || 'Error al actualizar contraseña');
+        return false;
+      }
+
+      if (data.error) {
+        console.error('Error from function:', data.error);
+        toast.error(data.error);
+        return false;
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error('Error in updatePassword:', error);
+      toast.error(error.message || 'Error al actualizar contraseña');
+      return false;
+    }
+  }, []);
+
+  return { updatePassword };
+}
+
+// Hook for updating own password (admin)
+export function useUpdateOwnPassword() {
+  const updateOwnPassword = useCallback(async (newPassword: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('No hay sesión activa');
+        return false;
+      }
+
+      const { data, error } = await supabase.functions.invoke('update-user-password', {
+        body: { newPassword, updateOwnPassword: true },
+      });
+
+      if (error) {
+        console.error('Error updating password:', error);
+        toast.error(error.message || 'Error al actualizar contraseña');
+        return false;
+      }
+
+      if (data.error) {
+        console.error('Error from function:', data.error);
+        toast.error(data.error);
+        return false;
+      }
+
+      toast.success('Contraseña actualizada exitosamente');
+      return true;
+    } catch (error: any) {
+      console.error('Error in updateOwnPassword:', error);
+      toast.error(error.message || 'Error al actualizar contraseña');
+      return false;
+    }
+  }, []);
+
+  return { updateOwnPassword };
+}
+
 // Combined hook for convenience
 export function useTeam() {
   const vendedoresHook = useVendedores();

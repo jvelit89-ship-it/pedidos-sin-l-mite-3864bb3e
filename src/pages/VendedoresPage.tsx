@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useTeam } from '@/hooks/useTeam';
+import { useTeam, useUpdateTeamMemberPassword } from '@/hooks/useTeam';
 import { toast } from 'sonner';
 import { Plus, Search, UserCheck, Phone, Mail, Edit2, Trash2, RefreshCw, Eye, EyeOff, Copy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,7 @@ export default function VendedoresPage() {
   const { isAdmin } = useAuth();
   const { t } = useSettings();
   const { vendedores, loading, createVendedor, updateVendedor, deleteVendedor } = useTeam();
+  const { updatePassword: updateTeamMemberPassword } = useUpdateTeamMemberPassword();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedVendedor, setSelectedVendedor] = useState<typeof vendedores[0] | null>(null);
@@ -43,6 +44,12 @@ export default function VendedoresPage() {
           phone: formData.phone,
           active: formData.active,
         });
+        
+        // If password is provided, update it
+        if (formData.password) {
+          await updateTeamMemberPassword(selectedVendedor.user_id!, formData.password);
+          toast.success('Contraseña actualizada');
+        }
       } else {
         if (!formData.password) {
           toast.error('La contraseña es requerida');
@@ -169,43 +176,41 @@ export default function VendedoresPage() {
                   required
                 />
               </div>
-              {!selectedVendedor && (
-                <div className="space-y-2">
-                  <Label>Contraseña *</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required
-                        minLength={8}
-                        placeholder="Mínimo 8 caracteres"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    <Button type="button" variant="outline" size="icon" onClick={handleGeneratePassword} title="Generar contraseña segura">
-                      <RefreshCw className="w-4 h-4" />
+              <div className="space-y-2">
+                <Label>{selectedVendedor ? 'Nueva Contraseña (opcional)' : 'Contraseña *'}</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required={!selectedVendedor}
+                      minLength={8}
+                      placeholder={selectedVendedor ? 'Dejar vacío para no cambiar' : 'Mínimo 8 caracteres'}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
-                    {formData.password && (
-                      <Button type="button" variant="outline" size="icon" onClick={handleCopyPassword} title="Copiar contraseña">
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Usa el botón de refrescar para generar una contraseña segura
-                  </p>
+                  <Button type="button" variant="outline" size="icon" onClick={handleGeneratePassword} title="Generar contraseña segura">
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                  {formData.password && (
+                    <Button type="button" variant="outline" size="icon" onClick={handleCopyPassword} title="Copiar contraseña">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  {selectedVendedor ? 'Ingresa una nueva contraseña solo si deseas cambiarla' : 'Usa el botón de refrescar para generar una contraseña segura'}
+                </p>
+              </div>
               <div className="flex items-center justify-between">
                 <Label>{t.active}</Label>
                 <Switch
