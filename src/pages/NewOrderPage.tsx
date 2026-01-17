@@ -121,6 +121,8 @@ export default function NewOrderPage() {
         };
       });
 
+      // Note: vendedor_id should reference vendedores table, not auth.users
+      // For now, we don't assign vendedor_id since the current user may not be a vendedor
       await createOrder({
         company_id: customer.company_id,
         customer_id: customer.id,
@@ -130,7 +132,7 @@ export default function NewOrderPage() {
         delivery_address: deliveryAddress,
         total: calculateTotal(),
         status: 'pending',
-        vendedor_id: user?.id || null,
+        vendedor_id: null,
         vendedor_name: user?.name || null,
         repartidor_id: repartidor?.id || null,
         repartidor_name: repartidor?.name || null,
