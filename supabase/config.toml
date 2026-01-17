@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.delete-team-user]
 verify_jwt = false
+
+[functions.send-delete-otp]
+verify_jwt = false
+
+[functions.verify-delete-otp]
+verify_jwt = false
