@@ -347,7 +347,8 @@ export default function InventoryPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <SyncIndicator />
           
-          {/* Production Dialog */}
+          {/* Production Dialog - Only for Admin */}
+          {isAdmin && (
           <Dialog open={isProductionDialogOpen} onOpenChange={setIsProductionDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -402,6 +403,7 @@ export default function InventoryPage() {
               </div>
             </DialogContent>
           </Dialog>
+          )}
 
           {/* Product Dialog */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
