@@ -1,0 +1,18 @@
+{
+  "name": "Sistema de Pedidos",
+  "short_name": "Pedidos",
+  "description": "Sistema de gestión de pedidos, inventario y entregas",
+  "theme_color": "#1e40af",
+  "background_color": "#f5f7fa",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
