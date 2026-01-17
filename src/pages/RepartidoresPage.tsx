@@ -99,7 +99,13 @@ export default function RepartidoresPage() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">{t.repartidores}</h1>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) handleCloseDialog();
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="w-4 h-4" /> {t.newRepartidor}

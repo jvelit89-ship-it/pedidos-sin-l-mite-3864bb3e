@@ -152,7 +152,13 @@ export default function CustomersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">{t.customers}</h1>
         {canEditCustomers && (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) handleCloseDialog();
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" /> {t.newCustomer}
