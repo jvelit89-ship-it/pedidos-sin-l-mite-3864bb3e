@@ -56,6 +56,8 @@ export default function NewOrderPage() {
     nombre: string | null;
     razon_social: string | null;
     direccion: string;
+    estado?: string;
+    condicion?: string;
     verified: boolean;
   } | null>(null);
 
@@ -92,6 +94,8 @@ export default function NewOrderPage() {
         return;
       }
 
+      console.log('Query document response:', data);
+      
       if (data?.success && data?.data) {
         const displayName = data.data.razon_social || data.data.nombre || '';
         
@@ -99,6 +103,8 @@ export default function NewOrderPage() {
           nombre: data.data.nombre,
           razon_social: data.data.razon_social,
           direccion: data.data.direccion || '',
+          estado: data.data.estado,
+          condicion: data.data.condicion,
           verified: true
         });
         
@@ -516,6 +522,22 @@ export default function NewOrderPage() {
                     )}
                     {documentData.direccion && (
                       <p><span className="font-medium">Dirección:</span> {documentData.direccion}</p>
+                    )}
+                    {documentType === 'ruc' && documentData.estado && (
+                      <p>
+                        <span className="font-medium">Estado:</span>{' '}
+                        <span className={documentData.estado === 'ACTIVO' ? 'text-green-600' : 'text-red-600'}>
+                          {documentData.estado}
+                        </span>
+                        {documentData.condicion && (
+                          <span className="ml-2">
+                            | <span className="font-medium">Condición:</span>{' '}
+                            <span className={documentData.condicion === 'HABIDO' ? 'text-green-600' : 'text-orange-600'}>
+                              {documentData.condicion}
+                            </span>
+                          </span>
+                        )}
+                      </p>
                     )}
                   </div>
                 </div>
