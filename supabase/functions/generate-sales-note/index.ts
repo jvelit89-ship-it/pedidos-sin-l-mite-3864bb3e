@@ -168,10 +168,19 @@ serve(async (req) => {
       border-top: 1px dashed #000;
       margin: 3mm 0;
     }
-    .logo {
-      max-width: 50mm;
-      height: auto;
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
       margin-bottom: 2mm;
+    }
+    .logo {
+      max-width: 40mm;
+      max-height: 20mm;
+      height: auto;
+      display: block;
+      margin: 0 auto;
     }
     .company-name {
       font-size: 13px;
@@ -297,7 +306,9 @@ serve(async (req) => {
 </head>
 <body>
   <div class="center">
-    <img src="${companyData.logo_url}" alt="Logo" class="logo" onerror="this.style.display='none'">
+    <div class="logo-container">
+      <img src="${companyData.logo_url}" alt="Logo" class="logo" onerror="this.style.display='none'">
+    </div>
     <div class="company-name">SANTA MARIA</div>
     <div class="header-info">INDUSTRIAS NACIONALES</div>
   </div>
