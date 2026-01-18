@@ -27,6 +27,10 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import NotFound from './pages/NotFound';
 
+// Public pages (no auth required)
+import OrderTrackingPage from './pages/OrderTrackingPage';
+import CustomerPortalPage from './pages/CustomerPortalPage';
+
 const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => <AppLayout>{children}</AppLayout>;
 
@@ -41,10 +45,17 @@ const App = () => {
               <Sonner position="top-center" />
               <BrowserRouter>
                 <Routes>
+                  {/* Public routes - Customer Portal */}
+                  <Route path="/track" element={<CustomerPortalPage />} />
+                  <Route path="/track/:trackingCode" element={<OrderTrackingPage />} />
+                  
+                  {/* Auth routes */}
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/login" element={<Navigate to="/auth" replace />} />
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/" element={<Navigate to="/auth" replace />} />
+                  
+                  {/* Protected routes */}
                   <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
                   <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
