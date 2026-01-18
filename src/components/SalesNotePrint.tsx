@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, Download, Loader2, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -40,35 +40,66 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     
     setIsDownloading(true);
     try {
-      // Crear un contenedor temporal optimizado para 80mm
+      // Crear un contenedor temporal optimizado para 80mm (302px = 80mm * 3.78)
       const container = document.createElement('div');
       container.innerHTML = html;
-      container.style.width = '80mm';
-      container.style.maxWidth = '80mm';
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
+      container.style.cssText = `
+        width: 302px;
+        max-width: 302px;
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: white;
+        font-family: Arial, sans-serif;
+      `;
       document.body.appendChild(container);
 
       // Esperar a que las imágenes carguen
-      await new Promise(resolve => setTimeout(resolve, 100));
+      const images = container.querySelectorAll('img');
+      if (images.length > 0) {
+        await Promise.all(
+          Array.from(images).map(
+            (img) =>
+              new Promise((resolve) => {
+                if (img.complete) {
+                  resolve(true);
+                } else {
+                  img.onload = () => resolve(true);
+                  img.onerror = () => resolve(true);
+                }
+              })
+          )
+        );
+      }
+      
+      // Pequeño delay adicional para asegurar render completo
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Calcular altura del contenido
+      const contentHeight = container.scrollHeight;
+      const heightInMM = Math.ceil(contentHeight / 3.78) + 5; // Agregar margen
 
       const options = {
         margin: 0,
         filename: `nota-venta-${noteNumber}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 0.92 },
         html2canvas: { 
-          scale: 3, // Mayor escala para mejor calidad
+          scale: 2,
           useCORS: true,
           logging: false,
-          width: 302, // 80mm en pixeles (80 * 3.78)
+          width: 302,
           windowWidth: 302,
+          scrollY: 0,
+          scrollX: 0,
         },
         jsPDF: { 
           unit: 'mm', 
-          format: [80, 297] as [number, number], // 80mm de ancho para ticketera
+          format: [80, heightInMM] as [number, number],
           orientation: 'portrait' as const,
-          compress: true
-        }
+          compress: true,
+          hotfixes: ['px_scaling']
+        },
+        pagebreak: { mode: 'avoid-all' }
       };
 
       await html2pdf().set(options).from(container).save();
@@ -99,23 +130,52 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     toast.success('HTML descargado');
   };
 
+  // Agregar estilos de impresión al HTML
+  const printOptimizedHtml = html ? `
+    <html>
+      <head>
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          @media print {
+            body {
+              width: 80mm;
+              margin: 0;
+              padding: 2mm;
+            }
+          }
+          body {
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 2mm;
+            font-family: Arial, sans-serif;
+          }
+        </style>
+      </head>
+      <body>${html}</body>
+    </html>
+  ` : null;
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-4 border-b shrink-0">
+        <div className="p-4 border-b shrink-0">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg">Nota de Venta {noteNumber}</DialogTitle>
+            <h2 className="text-lg font-semibold">Nota de Venta {noteNumber}</h2>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="w-4 h-4" />
             </Button>
           </div>
-        </DialogHeader>
+        </div>
         
         <div className="flex-1 overflow-hidden bg-muted/50 p-2">
-          {html ? (
+          {printOptimizedHtml ? (
             <iframe
               ref={iframeRef}
-              srcDoc={html}
+              srcDoc={printOptimizedHtml}
               className="w-full h-[60vh] bg-white border rounded shadow-sm"
               title="Vista previa de nota de venta"
             />
@@ -138,7 +198,7 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
               ) : (
                 <FileText className="w-4 h-4" />
               )}
-              Descargar PDF
+              Descargar PDF (80mm)
             </Button>
             <Button 
               onClick={handlePrint} 
