@@ -53,7 +53,8 @@ export default function NewOrderPage() {
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [documentNumber, setDocumentNumber] = useState('');
   const [documentData, setDocumentData] = useState<{
-    nombre: string;
+    nombre: string | null;
+    razon_social: string | null;
     direccion: string;
     verified: boolean;
   } | null>(null);
@@ -92,9 +93,12 @@ export default function NewOrderPage() {
       }
 
       if (data?.success && data?.data) {
+        const displayName = data.data.razon_social || data.data.nombre || '';
+        
         setDocumentData({
           nombre: data.data.nombre,
-          direccion: data.data.direccion,
+          razon_social: data.data.razon_social,
+          direccion: data.data.direccion || '',
           verified: true
         });
         
@@ -104,7 +108,7 @@ export default function NewOrderPage() {
         }
 
         toast.success('Documento verificado', {
-          description: `${documentType.toUpperCase()}: ${data.data.nombre}`
+          description: `${documentType === 'ruc' ? 'Razón Social' : 'Nombre'}: ${displayName}`
         });
       } else {
         toast.error('Documento no encontrado', {
@@ -260,11 +264,15 @@ export default function NewOrderPage() {
         }
 
         // Generar nota de venta automáticamente
+        // Usar razón social o nombre del documento verificado, o el nombre del cliente como fallback
+        const customerDisplayName = documentData?.razon_social || documentData?.nombre || customer.name;
+        const customerDocAddress = documentData?.direccion || deliveryAddress;
+
         await generateSalesNote({
           order_id: orderData.id,
-          customer_name: customer.name,
+          customer_name: customerDisplayName,
           customer_ruc: documentNumber,
-          customer_address: deliveryAddress,
+          customer_address: customerDocAddress,
           order_items: items.map(item => ({
             product_name: item.product_name,
             quantity: item.quantity,
@@ -500,7 +508,12 @@ export default function NewOrderPage() {
                     <span className="font-medium text-sm">Documento verificado</span>
                   </div>
                   <div className="text-sm space-y-1">
-                    <p><span className="font-medium">Nombre:</span> {documentData.nombre}</p>
+                    {documentType === 'ruc' && documentData.razon_social && (
+                      <p><span className="font-medium">Razón Social:</span> {documentData.razon_social}</p>
+                    )}
+                    {documentType === 'dni' && documentData.nombre && (
+                      <p><span className="font-medium">Nombre:</span> {documentData.nombre}</p>
+                    )}
                     {documentData.direccion && (
                       <p><span className="font-medium">Dirección:</span> {documentData.direccion}</p>
                     )}
