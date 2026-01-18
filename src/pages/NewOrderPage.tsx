@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { useOrders } from '@/hooks/useOrders';
 import { useSalesNote } from '@/hooks/useSalesNote';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { SalesNotePrint } from '@/components/SalesNotePrint';
 import { 
@@ -23,7 +24,9 @@ import {
   Minus,
   Trash2,
   ShoppingCart,
-  Loader2
+  Loader2,
+  Search,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function NewOrderPage() {
@@ -37,6 +40,7 @@ export default function NewOrderPage() {
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isQueryingDocument, setIsQueryingDocument] = useState(false);
 
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -48,11 +52,72 @@ export default function NewOrderPage() {
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [documentNumber, setDocumentNumber] = useState('');
+  const [documentData, setDocumentData] = useState<{
+    nombre: string;
+    direccion: string;
+    verified: boolean;
+  } | null>(null);
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
   const availableProducts = products.filter(p => p.stock > 0);
   const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
+
+  const queryDocument = useCallback(async () => {
+    const expectedLength = documentType === 'dni' ? 8 : 11;
+    if (documentNumber.length !== expectedLength) {
+      toast.error(`${documentType.toUpperCase()} inválido`, {
+        description: `Debe tener ${expectedLength} dígitos`
+      });
+      return;
+    }
+
+    setIsQueryingDocument(true);
+    setDocumentData(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('query-document', {
+        body: {
+          document_type: documentType,
+          document_number: documentNumber
+        }
+      });
+
+      if (error) {
+        console.error('Error querying document:', error);
+        toast.error('Error al consultar documento', {
+          description: error.message
+        });
+        return;
+      }
+
+      if (data?.success && data?.data) {
+        setDocumentData({
+          nombre: data.data.nombre,
+          direccion: data.data.direccion,
+          verified: true
+        });
+        
+        // Auto-llenar la dirección si está vacía
+        if (data.data.direccion && !deliveryAddress) {
+          setDeliveryAddress(data.data.direccion);
+        }
+
+        toast.success('Documento verificado', {
+          description: `${documentType.toUpperCase()}: ${data.data.nombre}`
+        });
+      } else {
+        toast.error('Documento no encontrado', {
+          description: data?.error || 'No se pudo verificar el documento'
+        });
+      }
+    } catch (error) {
+      console.error('Error querying document:', error);
+      toast.error('Error al consultar documento');
+    } finally {
+      setIsQueryingDocument(false);
+    }
+  }, [documentType, documentNumber, deliveryAddress]);
 
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
@@ -374,6 +439,7 @@ export default function NewOrderPage() {
                   onValueChange={(value) => {
                     setDocumentType(value as 'dni' | 'ruc');
                     setDocumentNumber('');
+                    setDocumentData(null);
                   }}
                   className="flex gap-4"
                 >
@@ -390,23 +456,57 @@ export default function NewOrderPage() {
 
               <div className="space-y-2">
                 <Label>{documentType.toUpperCase()} *</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  value={documentNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    const maxLength = documentType === 'dni' ? 8 : 11;
-                    setDocumentNumber(value.slice(0, maxLength));
-                  }}
-                  placeholder={documentType === 'dni' ? '12345678' : '20123456789'}
-                  maxLength={documentType === 'dni' ? 8 : 11}
-                  required
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={documentNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      const maxLength = documentType === 'dni' ? 8 : 11;
+                      setDocumentNumber(value.slice(0, maxLength));
+                      setDocumentData(null);
+                    }}
+                    placeholder={documentType === 'dni' ? '12345678' : '20123456789'}
+                    maxLength={documentType === 'dni' ? 8 : 11}
+                    className="flex-1"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={queryDocument}
+                    disabled={isQueryingDocument || documentNumber.length !== (documentType === 'dni' ? 8 : 11)}
+                    className="gap-2"
+                  >
+                    {isQueryingDocument ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                    Consultar
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {documentType === 'dni' ? '8 dígitos' : '11 dígitos'}
+                  {documentType === 'dni' ? '8 dígitos' : '11 dígitos'} - Presiona Consultar para verificar
                 </p>
               </div>
+
+              {/* Document verification result */}
+              {documentData?.verified && (
+                <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="font-medium text-sm">Documento verificado</span>
+                  </div>
+                  <div className="text-sm space-y-1">
+                    <p><span className="font-medium">Nombre:</span> {documentData.nombre}</p>
+                    {documentData.direccion && (
+                      <p><span className="font-medium">Dirección:</span> {documentData.direccion}</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

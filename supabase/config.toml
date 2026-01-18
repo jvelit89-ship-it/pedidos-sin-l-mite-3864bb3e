@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.generate-sales-note]
 verify_jwt = false
+
+[functions.query-document]
+verify_jwt = false
