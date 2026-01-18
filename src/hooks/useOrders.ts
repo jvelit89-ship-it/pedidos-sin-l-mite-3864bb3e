@@ -22,6 +22,7 @@ interface Order {
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
+  tracking_code: string | null;
 }
 
 interface OrderItem {
@@ -60,7 +61,7 @@ export function useOrders() {
   }, []);
 
   const createOrder = useCallback(async (
-    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at'>,
+    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code'>,
     items: Omit<OrderItem, 'id' | 'order_id'>[]
   ) => {
     // Insert order

@@ -20,13 +20,16 @@ import {
   Truck,
   RefreshCw,
   FileText,
-  Loader2
+  Loader2,
+  Share2,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tables } from '@/integrations/supabase/types';
 
-type Order = Tables<'orders'>;
+type Order = Tables<'orders'> & { tracking_code?: string | null };
 type OrderItem = Tables<'order_items'>;
 
 interface OrderWithItems extends Order {
@@ -362,11 +365,69 @@ export default function OrderDetailPage() {
         </motion.div>
       )}
 
+      {/* Share Tracking Link */}
+      {order.tracking_code && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Código de seguimiento</p>
+                  <p className="font-mono font-bold text-lg">{order.tracking_code}</p>
+                </div>
+                <ExternalLink className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    const url = `${window.location.origin}/track/${order.tracking_code}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success('Link copiado al portapapeles');
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                  Copiar Link
+                </Button>
+                <Button 
+                  className="flex-1 gap-2"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/track/${order.tracking_code}`;
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: `Seguimiento de Pedido - ${order.tracking_code}`,
+                          text: `Sigue el estado de tu pedido en tiempo real: ${order.customer_name}`,
+                          url,
+                        });
+                      } catch (e) {
+                        // User cancelled
+                      }
+                    } else {
+                      navigator.clipboard.writeText(url);
+                      toast.success('Link copiado al portapapeles');
+                    }
+                  }}
+                >
+                  <Share2 className="w-4 h-4" />
+                  Compartir
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Sales Note Button */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.6 }}
       >
         <Button 
           onClick={handleRegenerateSalesNote} 
@@ -388,7 +449,7 @@ export default function OrderDetailPage() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.7 }}
         >
           <Button variant="destructive" className="w-full" onClick={handleCancel}>
             Cancelar Pedido
