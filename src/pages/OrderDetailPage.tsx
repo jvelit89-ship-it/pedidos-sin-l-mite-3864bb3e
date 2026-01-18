@@ -23,7 +23,8 @@ import {
   Loader2,
   Share2,
   Copy,
-  ExternalLink
+  ExternalLink,
+  MessageCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -399,41 +400,56 @@ export default function OrderDetailPage() {
                 </div>
                 <ExternalLink className="w-5 h-5 text-primary" />
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={() => {
-                    const url = `${window.location.origin}/track/${order.tracking_code}`;
-                    navigator.clipboard.writeText(url);
-                    toast.success('Link copiado al portapapeles');
-                  }}
-                >
-                  <Copy className="w-4 h-4" />
-                  Copiar Link
-                </Button>
-                <Button 
-                  className="flex-1 gap-2"
-                  onClick={async () => {
-                    const url = `${window.location.origin}/track/${order.tracking_code}`;
-                    if (navigator.share) {
-                      try {
-                        await navigator.share({
-                          title: `Seguimiento de Pedido - ${order.tracking_code}`,
-                          text: `Sigue el estado de tu pedido en tiempo real: ${order.customer_name}`,
-                          url,
-                        });
-                      } catch (e) {
-                        // User cancelled
-                      }
-                    } else {
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      const url = `${window.location.origin}/track/${order.tracking_code}`;
                       navigator.clipboard.writeText(url);
                       toast.success('Link copiado al portapapeles');
-                    }
+                    }}
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copiar
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={async () => {
+                      const url = `${window.location.origin}/track/${order.tracking_code}`;
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: `Seguimiento de Pedido - ${order.tracking_code}`,
+                            text: `Sigue el estado de tu pedido en tiempo real: ${order.customer_name}`,
+                            url,
+                          });
+                        } catch (e) {
+                          // User cancelled
+                        }
+                      } else {
+                        navigator.clipboard.writeText(url);
+                        toast.success('Link copiado al portapapeles');
+                      }
+                    }}
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Compartir
+                  </Button>
+                </div>
+                <Button 
+                  className="w-full gap-2 bg-[#25D366] hover:bg-[#22c35e] text-white"
+                  onClick={() => {
+                    const url = `${window.location.origin}/track/${order.tracking_code}`;
+                    const message = `¡Hola ${order.customer_name}! 👋\n\n📦 Tu pedido está en camino.\n\n🔗 Puedes seguir el estado de tu pedido en tiempo real aquí:\n${url}\n\nCódigo de seguimiento: *${order.tracking_code}*\n\n¡Gracias por tu compra!`;
+                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                    window.open(whatsappUrl, '_blank');
                   }}
                 >
-                  <Share2 className="w-4 h-4" />
-                  Compartir
+                  <MessageCircle className="w-4 h-4" />
+                  Enviar por WhatsApp
                 </Button>
               </div>
             </CardContent>
