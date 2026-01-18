@@ -119,46 +119,6 @@ export function useOrders() {
       }
     }
 
-    // Sync with Segurfact ERP (fire and forget - don't block order creation)
-    try {
-      console.log('Syncing order with Segurfact ERP...');
-      supabase.functions.invoke('sync-erp-segurfact', {
-        body: {
-          order_id: orderData.id,
-          customer_name: order.customer_name,
-          customer_address: order.delivery_address || '',
-          order_items: items.map(item => ({
-            product_name: item.product_name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total: item.total,
-          })),
-          total: order.total,
-          delivery_date: order.delivery_date,
-          notes: order.notes,
-        },
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('Error syncing with ERP:', error);
-          toast.error('Pedido creado, pero no se pudo sincronizar con ERP', {
-            description: 'El pedido se creó localmente. La sincronización con Segurfact falló.',
-          });
-        } else if (data?.success) {
-          console.log('ERP sync successful:', data);
-          toast.success('Sincronizado con ERP', {
-            description: 'Nota de venta creada en Segurfact',
-          });
-        } else {
-          console.warn('ERP sync returned error:', data);
-          toast.warning('Sincronización ERP pendiente', {
-            description: data?.error || 'No se pudo conectar con Segurfact',
-          });
-        }
-      });
-    } catch (erpError) {
-      console.error('Error initiating ERP sync:', erpError);
-      // Don't show error to user - order was created successfully
-    }
     
     toast.success('Pedido creado');
     return orderData;

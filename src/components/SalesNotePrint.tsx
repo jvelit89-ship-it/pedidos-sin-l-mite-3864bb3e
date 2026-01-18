@@ -40,33 +40,41 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     
     setIsDownloading(true);
     try {
-      // Crear un contenedor temporal
+      // Crear un contenedor temporal optimizado para 80mm
       const container = document.createElement('div');
       container.innerHTML = html;
       container.style.width = '80mm';
+      container.style.maxWidth = '80mm';
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
       document.body.appendChild(container);
+
+      // Esperar a que las imágenes carguen
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const options = {
         margin: 0,
         filename: `nota-venta-${noteNumber}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
-          scale: 2,
+          scale: 3, // Mayor escala para mejor calidad
           useCORS: true,
           logging: false,
           width: 302, // 80mm en pixeles (80 * 3.78)
+          windowWidth: 302,
         },
         jsPDF: { 
           unit: 'mm', 
-          format: [80, 297] as [number, number], // 80mm de ancho, altura automática
-          orientation: 'portrait' as const
+          format: [80, 297] as [number, number], // 80mm de ancho para ticketera
+          orientation: 'portrait' as const,
+          compress: true
         }
       };
 
       await html2pdf().set(options).from(container).save();
       
       document.body.removeChild(container);
-      toast.success('PDF descargado correctamente');
+      toast.success('PDF descargado (80mm)');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Error al generar PDF');
