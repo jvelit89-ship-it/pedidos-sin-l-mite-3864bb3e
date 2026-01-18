@@ -44,6 +44,32 @@ export function useCustomers() {
     orderBy: { column: 'name', ascending: true },
   });
 
+  const uploadFacadePhoto = async (customerId: string, file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${customerId}-${Date.now()}.${fileExt}`;
+      const filePath = `facades/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('customer-photos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('customer-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      return null;
+    }
+  };
+
   const addCustomer = useCallback(async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
     const companyId = await getUserCompanyId();
     if (!companyId) {
@@ -112,6 +138,7 @@ export function useCustomers() {
     addCustomer,
     updateCustomer,
     deleteCustomer,
+    uploadFacadePhoto,
   };
 }
 
