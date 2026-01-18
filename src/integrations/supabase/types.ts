@@ -323,6 +323,20 @@ export type Database = {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "customer_order_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_tracking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -352,6 +366,7 @@ export type Database = {
           repartidor_name: string | null
           status: Database["public"]["Enums"]["order_status"]
           total: number
+          tracking_code: string | null
           updated_at: string
           vendedor_id: string | null
           vendedor_name: string | null
@@ -372,6 +387,7 @@ export type Database = {
           repartidor_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
+          tracking_code?: string | null
           updated_at?: string
           vendedor_id?: string | null
           vendedor_name?: string | null
@@ -392,6 +408,7 @@ export type Database = {
           repartidor_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
+          tracking_code?: string | null
           updated_at?: string
           vendedor_id?: string | null
           vendedor_name?: string | null
@@ -716,7 +733,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customer_order_history: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivered_at: string | null
+          id: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          total: number | null
+          tracking_code: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_tracking: {
+        Row: {
+          created_at: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivered_at: string | null
+          delivery_address: string | null
+          id: string | null
+          repartidor_name: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          total: number | null
+          tracking_code: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
