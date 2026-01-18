@@ -11,9 +11,11 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts } from '@/hooks/useProducts';
 import { useTeam } from '@/hooks/useTeam';
 import { useOrders } from '@/hooks/useOrders';
+import { useSalesNote } from '@/hooks/useSalesNote';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
+import { SalesNotePrint } from '@/components/SalesNotePrint';
 import { 
   ArrowLeft, 
   Plus, 
@@ -31,6 +33,7 @@ export default function NewOrderPage() {
   const { products, loading: loadingProducts, updateProduct } = useProducts();
   const { repartidores, loading: loadingTeam } = useTeam();
   const { createOrder } = useOrders();
+  const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -123,7 +126,7 @@ export default function NewOrderPage() {
 
       // Note: vendedor_id should reference vendedores table, not auth.users
       // For now, we don't assign vendedor_id since the current user may not be a vendedor
-      await createOrder({
+      const orderData = await createOrder({
         company_id: customer.company_id,
         customer_id: customer.id,
         customer_name: customer.name,
@@ -140,21 +143,39 @@ export default function NewOrderPage() {
         notes,
       }, items);
 
-      // Deduct stock
-      for (const item of orderItems) {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          await updateProduct(product.id, {
-            stock: Math.max(0, product.stock - item.quantity),
-          });
+      if (orderData) {
+        // Deduct stock
+        for (const item of orderItems) {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            await updateProduct(product.id, {
+              stock: Math.max(0, product.stock - item.quantity),
+            });
+          }
         }
+
+        // Generar nota de venta automáticamente
+        await generateSalesNote({
+          order_id: orderData.id,
+          customer_name: customer.name,
+          customer_address: deliveryAddress,
+          order_items: items.map(item => ({
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total: item.total,
+          })),
+          total: calculateTotal(),
+          delivery_date: deliveryDate,
+          notes,
+          vendedor_name: user?.name || undefined,
+          payment_method: 'Contado'
+        });
+
+        toast.success('Pedido creado', {
+          description: 'El pedido ha sido registrado correctamente',
+        });
       }
-
-      toast.success('Pedido creado', {
-        description: 'El pedido ha sido registrado correctamente',
-      });
-
-      navigate('/orders');
     } catch (error) {
       console.error('Error creating order:', error);
       toast.error('Error al crear pedido', {
@@ -359,6 +380,17 @@ export default function NewOrderPage() {
           Crear Pedido
         </Button>
       </form>
+
+      {/* Sales Note Print Dialog */}
+      <SalesNotePrint 
+        html={salesNoteHtml}
+        noteNumber={noteNumber}
+        open={isDialogOpen}
+        onClose={() => {
+          closeDialog();
+          navigate('/orders');
+        }}
+      />
     </div>
   );
 }

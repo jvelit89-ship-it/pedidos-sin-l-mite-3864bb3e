@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.sync-erp-segurfact]
 verify_jwt = false
+
+[functions.generate-sales-note]
+verify_jwt = false
