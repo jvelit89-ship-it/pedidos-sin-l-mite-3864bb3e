@@ -27,6 +27,7 @@ import { HealthIndicators } from '@/components/dashboard/HealthIndicators';
 import { OperationalInsights } from '@/components/dashboard/OperationalInsights';
 import { AllRepartidoresLoad } from '@/components/dashboard/RepartidorLoadSummary';
 import { NewOrderBadge } from '@/components/dashboard/NewOrderBadge';
+import { DailyClosing } from '@/components/dashboard/DailyClosing';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -129,7 +130,10 @@ export default function DashboardPage() {
           </div>
           <NewOrderBadge count={newOrdersCount} />
         </div>
-        <SyncIndicator />
+        <div className="flex items-center gap-2">
+          <DailyClosing />
+          <SyncIndicator />
+        </div>
       </div>
 
       {/* KPI Cards */}

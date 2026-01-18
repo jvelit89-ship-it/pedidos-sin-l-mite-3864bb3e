@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { RepartidorLoadSummary } from '@/components/dashboard/RepartidorLoadSummary';
+import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { 
   Truck, 
   MapPin,
@@ -185,7 +186,10 @@ export default function DeliveriesPage() {
             </motion.div>
           )}
         </div>
-        <SyncIndicator />
+        <div className="flex items-center gap-2">
+          <DailyClosing />
+          <SyncIndicator />
+        </div>
       </div>
 
       {/* Repartidor Load Summary */}

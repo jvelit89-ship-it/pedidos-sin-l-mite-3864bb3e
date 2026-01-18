@@ -1,7 +1,7 @@
 {
-  "name": "Sistema de Pedidos",
-  "short_name": "Pedidos",
-  "description": "Sistema de gestión de pedidos, inventario y entregas",
+  "name": "Sistema de Pedidos y Entregas en Tiempo Real",
+  "short_name": "Pedidos RT",
+  "description": "Sistema de gestión de pedidos, inventario y entregas en tiempo real",
   "theme_color": "#1e40af",
   "background_color": "#f5f7fa",
   "display": "standalone",

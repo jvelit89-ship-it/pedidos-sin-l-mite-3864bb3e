@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { DeleteOrdersDialog } from '@/components/DeleteOrdersDialog';
+import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -130,6 +131,7 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <DailyClosing />
           <SyncIndicator />
           {isAdmin && (
             <Button 

@@ -29,10 +29,28 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tables } from '@/integrations/supabase/types';
 
-type Order = Tables<'orders'> & { tracking_code?: string | null };
 type OrderItem = Tables<'order_items'>;
 
-interface OrderWithItems extends Order {
+interface OrderWithItems {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  delivery_address: string | null;
+  customer_latitude: number | null;
+  customer_longitude: number | null;
+  total: number;
+  status: 'pending' | 'preparation' | 'ready' | 'delivery' | 'delivered' | 'cancelled';
+  vendedor_id: string | null;
+  vendedor_name: string | null;
+  repartidor_id: string | null;
+  repartidor_name: string | null;
+  delivery_date: string | null;
+  notes: string | null;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+  delivered_at: string | null;
+  tracking_code: string | null;
   items: OrderItem[];
 }
 
@@ -89,7 +107,7 @@ export default function OrderDetailPage() {
     
     setIsUpdating(true);
     try {
-      const updateData: Partial<Order> = {
+      const updateData: Partial<OrderWithItems> = {
         status: newStatus,
         updated_at: new Date().toISOString(),
       };
