@@ -46,56 +46,29 @@ serve(async (req) => {
       );
     }
 
-    // Probar múltiples endpoints de Decolecta API
-    const endpoints = document_type === 'dni' 
-      ? [
-          `https://api.decolecta.com/dni/${document_number}`,
-          `https://api.decolecta.com/v1/dni/${document_number}`,
-          `https://api.decolecta.com/api/dni/${document_number}`,
-          `https://api.decolecta.com/consulta/dni/${document_number}`
-        ]
-      : [
-          `https://api.decolecta.com/ruc/${document_number}`,
-          `https://api.decolecta.com/v1/ruc/${document_number}`,
-          `https://api.decolecta.com/api/ruc/${document_number}`,
-          `https://api.decolecta.com/consulta/ruc/${document_number}`
-        ];
+    // Endpoints correctos según documentación de Decolecta
+    // DNI: https://api.decolecta.com/v1/reniec/dni?numero={DNI}
+    // RUC: https://api.decolecta.com/v1/sunat/ruc?numero={RUC}
+    const endpoint = document_type === 'dni' 
+      ? `https://api.decolecta.com/v1/reniec/dni?numero=${document_number}`
+      : `https://api.decolecta.com/v1/sunat/ruc?numero=${document_number}`;
 
-    let responseData = null;
-    let lastError = null;
+    console.log(`Calling Decolecta API: ${endpoint}`);
 
-    for (const endpoint of endpoints) {
-      console.log(`Trying endpoint: ${endpoint}`);
-      
-      try {
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${DECOLECTA_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
-
-        console.log(`Response status for ${endpoint}: ${response.status}`);
-
-        if (response.ok) {
-          responseData = await response.json();
-          console.log('API response data:', JSON.stringify(responseData));
-          break;
-        } else {
-          const errorText = await response.text();
-          console.log(`Error from ${endpoint}: ${errorText}`);
-          lastError = errorText;
-        }
-      } catch (fetchError) {
-        console.log(`Fetch error for ${endpoint}:`, fetchError);
-        lastError = fetchError instanceof Error ? fetchError.message : 'Error de conexión';
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${DECOLECTA_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       }
-    }
+    });
 
-    if (!responseData) {
-      console.error('All endpoints failed. Last error:', lastError);
+    console.log(`Response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API error:', errorText);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -105,67 +78,74 @@ serve(async (req) => {
       );
     }
 
+    const responseData = await response.json();
+    console.log('API response data:', JSON.stringify(responseData));
+
     // Procesar respuesta según el tipo de documento
     let result;
 
     if (document_type === 'dni') {
-      // Posibles campos para DNI
-      const nombre = responseData.nombre_completo || 
-                     responseData.nombreCompleto ||
-                     responseData.nombre ||
+      // Campos para DNI según documentación:
+      // first_name, first_last_name, second_last_name, full_name, document_number
+      const nombre = responseData.full_name || 
                      [
-                       responseData.nombres || responseData.name,
-                       responseData.apellidoPaterno || responseData.apellido_paterno || responseData.paterno,
-                       responseData.apellidoMaterno || responseData.apellido_materno || responseData.materno
+                       responseData.first_name,
+                       responseData.first_last_name,
+                       responseData.second_last_name
                      ].filter(Boolean).join(' ') ||
                      '';
       
-      const direccion = responseData.direccion || 
-                        responseData.address || 
-                        responseData.domicilio ||
-                        '';
+      // DNI no retorna dirección según la documentación
+      const direccion = responseData.direccion || '';
       
       result = {
         success: true,
         data: {
           document_type: 'dni',
-          document_number,
+          document_number: responseData.document_number || document_number,
           nombre: nombre.trim(),
           razon_social: null,
           direccion: direccion.trim()
         }
       };
     } else {
-      // Posibles campos para RUC
-      const razonSocial = responseData.razon_social || 
-                          responseData.razonSocial ||
-                          responseData.nombre_o_razon_social ||
-                          responseData.nombre ||
-                          responseData.name ||
-                          '';
+      // Campos para RUC según documentación:
+      // razon_social, numero_documento, estado, condicion, direccion, 
+      // ubigeo, via_tipo, via_nombre, distrito, provincia, departamento, etc.
+      const razonSocial = responseData.razon_social || '';
       
-      const direccion = responseData.direccion || 
-                        responseData.direccion_fiscal ||
-                        responseData.domicilio_fiscal ||
-                        responseData.address ||
-                        [
-                          responseData.direccion,
-                          responseData.distrito,
-                          responseData.provincia,
-                          responseData.departamento
-                        ].filter(Boolean).join(', ') ||
-                        '';
+      // Construir dirección completa
+      let direccion = responseData.direccion || '';
+      
+      // Si no hay dirección directa, construirla de los componentes
+      if (!direccion && (responseData.distrito || responseData.provincia || responseData.departamento)) {
+        direccion = [
+          responseData.via_tipo,
+          responseData.via_nombre,
+          responseData.numero ? `NRO. ${responseData.numero}` : '',
+          responseData.interior ? `INT. ${responseData.interior}` : '',
+          responseData.zona_codigo,
+          responseData.zona_tipo,
+          responseData.distrito,
+          responseData.provincia,
+          responseData.departamento
+        ].filter(Boolean).join(' ');
+      }
       
       result = {
         success: true,
         data: {
           document_type: 'ruc',
-          document_number,
+          document_number: responseData.numero_documento || document_number,
           nombre: null,
           razon_social: razonSocial.trim(),
           direccion: direccion.trim(),
-          estado: responseData.estado || responseData.state,
-          condicion: responseData.condicion || responseData.condition
+          estado: responseData.estado,
+          condicion: responseData.condicion,
+          // Datos adicionales
+          departamento: responseData.departamento,
+          provincia: responseData.provincia,
+          distrito: responseData.distrito
         }
       };
     }
