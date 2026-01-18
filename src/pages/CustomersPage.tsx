@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCustomers, useGeocoding } from '@/hooks/useCustomers';
+import { useVendedores } from '@/hooks/useTeam';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, Upload, X, Image } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -34,13 +37,19 @@ export default function CustomersPage() {
   const { canEditCustomers, user } = useAuth();
   const { t, settings } = useSettings();
   const { customers, loading, addCustomer, updateCustomer } = useCustomers();
-  const { searchAddress } = useGeocoding();
+  const { vendedores } = useVendedores();
+  const { searchAddress, reverseGeocode } = useGeocoding();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{ lat: string; lon: string; display_name: string }>>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -51,7 +60,54 @@ export default function CustomersPage() {
     category: 'regular' as 'regular' | 'premium' | 'vip',
     latitude: null as number | null,
     longitude: null as number | null,
+    vendedor_id: '' as string,
+    facade_photo_url: null as string | null,
   });
+
+  // Check if we're on mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // Auto-detect location on dialog open for new customers on mobile
+  useEffect(() => {
+    if (isDialogOpen && !selectedCustomer && isMobile && !formData.latitude) {
+      handleGetCurrentLocation();
+    }
+  }, [isDialogOpen, selectedCustomer, isMobile]);
+
+  const handleGetCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      toast.error('Tu navegador no soporta geolocalización');
+      return;
+    }
+
+    setIsGettingLocation(true);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setFormData(prev => ({ ...prev, latitude, longitude }));
+        
+        // Try to get address from coordinates
+        const address = await reverseGeocode(latitude, longitude);
+        if (address) {
+          setFormData(prev => ({ ...prev, address }));
+        }
+        
+        toast.success('Ubicación detectada');
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        let message = 'No se pudo obtener la ubicación';
+        if (error.code === error.PERMISSION_DENIED) {
+          message = 'Permiso de ubicación denegado';
+        }
+        toast.error(message);
+        setIsGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const handleAddressSearch = async (query: string) => {
     setFormData(prev => ({ ...prev, address: query }));
@@ -75,10 +131,84 @@ export default function CustomersPage() {
     setAddressSuggestions([]);
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten imágenes');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no puede superar 5MB');
+      return;
+    }
+
+    setPhotoFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setFormData(prev => ({ ...prev, facade_photo_url: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadPhoto = async (customerId: string): Promise<string | null> => {
+    if (!photoFile) return formData.facade_photo_url;
+
+    setIsUploadingPhoto(true);
+    try {
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${customerId}-${Date.now()}.${fileExt}`;
+      const filePath = `facades/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('customer-photos')
+        .upload(filePath, photoFile, { upsert: true });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error('Error al subir la foto');
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('customer-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      toast.error('Error al subir la foto');
+      return null;
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (selectedCustomer) {
+      // Upload new photo if selected
+      let photoUrl = formData.facade_photo_url;
+      if (photoFile) {
+        photoUrl = await uploadPhoto(selectedCustomer.id);
+      }
+
       await updateCustomer(selectedCustomer.id, {
         name: formData.name,
         phone: formData.phone || null,
@@ -88,9 +218,12 @@ export default function CustomersPage() {
         category: formData.category,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        vendedor_id: formData.vendedor_id || null,
+        facade_photo_url: photoUrl,
       });
     } else {
-      await addCustomer({
+      // Create customer first to get ID, then upload photo
+      const newCustomer = await addCustomer({
         name: formData.name,
         phone: formData.phone || null,
         email: formData.email || null,
@@ -99,9 +232,17 @@ export default function CustomersPage() {
         category: formData.category,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        vendedor_id: formData.vendedor_id || null,
         facade_photo_url: null,
-        vendedor_id: null,
       });
+
+      // Upload photo if selected
+      if (newCustomer && photoFile) {
+        const photoUrl = await uploadPhoto(newCustomer.id);
+        if (photoUrl) {
+          await updateCustomer(newCustomer.id, { facade_photo_url: photoUrl });
+        }
+      }
     }
 
     handleCloseDialog();
@@ -111,6 +252,8 @@ export default function CustomersPage() {
     setIsDialogOpen(false);
     setSelectedCustomer(null);
     setAddressSuggestions([]);
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setFormData({
       name: '',
       phone: '',
@@ -120,6 +263,8 @@ export default function CustomersPage() {
       category: 'regular',
       latitude: null,
       longitude: null,
+      vendedor_id: '',
+      facade_photo_url: null,
     });
   };
 
@@ -134,7 +279,12 @@ export default function CustomersPage() {
       category: customer.category || 'regular',
       latitude: customer.latitude,
       longitude: customer.longitude,
+      vendedor_id: customer.vendedor_id || '',
+      facade_photo_url: customer.facade_photo_url,
     });
+    if (customer.facade_photo_url) {
+      setPhotoPreview(customer.facade_photo_url);
+    }
     setIsDialogOpen(true);
   };
 
@@ -145,6 +295,12 @@ export default function CustomersPage() {
 
   const handleLocationSelect = (lat: number, lng: number) => {
     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+  };
+
+  const getVendedorName = (vendedorId: string | null) => {
+    if (!vendedorId) return null;
+    const vendedor = vendedores.find(v => v.id === vendedorId);
+    return vendedor?.name || null;
   };
 
   const filtered = customers.filter((c: Customer) =>
@@ -193,21 +349,38 @@ export default function CustomersPage() {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label>{t.address} *</Label>
-                  <div className="relative">
-                    <Input
-                      value={formData.address}
-                      onChange={(e) => handleAddressSearch(e.target.value)}
-                      placeholder={settings.language === 'es' ? 'Buscar dirección...' : 'Search address...'}
-                      required
-                    />
-                    {isSearchingAddress && (
-                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
-                    )}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        value={formData.address}
+                        onChange={(e) => handleAddressSearch(e.target.value)}
+                        placeholder={settings.language === 'es' ? 'Buscar dirección...' : 'Search address...'}
+                        required
+                      />
+                      {isSearchingAddress && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleGetCurrentLocation}
+                      disabled={isGettingLocation}
+                      title="Usar mi ubicación actual"
+                    >
+                      {isGettingLocation ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <MapPinned className="w-4 h-4" />
+                      )}
+                    </Button>
                   </div>
                   {addressSuggestions.length > 0 && (
-                    <div className="border rounded-md bg-background max-h-40 overflow-y-auto">
+                    <div className="border rounded-md bg-background max-h-40 overflow-y-auto z-50">
                       {addressSuggestions.map((suggestion, idx) => (
                         <button
                           key={idx}
@@ -221,6 +394,7 @@ export default function CustomersPage() {
                     </div>
                   )}
                 </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>{t.email}</Label>
@@ -245,6 +419,80 @@ export default function CustomersPage() {
                     </Select>
                   </div>
                 </div>
+
+                {/* Vendedor Selector */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    {settings.language === 'es' ? 'Vendedor Asignado' : 'Assigned Vendor'}
+                  </Label>
+                  <Select
+                    value={formData.vendedor_id}
+                    onValueChange={(v) => setFormData({ ...formData, vendedor_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={settings.language === 'es' ? 'Seleccionar vendedor...' : 'Select vendor...'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">
+                        {settings.language === 'es' ? 'Sin asignar' : 'Unassigned'}
+                      </SelectItem>
+                      {vendedores.filter(v => v.active).map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Facade Photo */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Camera className="w-4 h-4" />
+                    {settings.language === 'es' ? 'Foto de Fachada' : 'Facade Photo'}
+                  </Label>
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+
+                  {photoPreview ? (
+                    <div className="relative">
+                      <img
+                        src={photoPreview}
+                        alt="Fachada"
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 w-6 h-6"
+                        onClick={handleRemovePhoto}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
+                    >
+                      <Image className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        {isMobile
+                          ? (settings.language === 'es' ? 'Toca para tomar foto' : 'Tap to take photo')
+                          : (settings.language === 'es' ? 'Clic para subir imagen' : 'Click to upload image')
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>{t.notes}</Label>
                   <Textarea
@@ -253,6 +501,7 @@ export default function CustomersPage() {
                     rows={2}
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Map className="w-4 h-4" /> {t.customerLocation}
@@ -275,8 +524,16 @@ export default function CustomersPage() {
                     </p>
                   )}
                 </div>
-                <Button type="submit" className="w-full">
-                  {selectedCustomer ? t.save : t.create}
+
+                <Button type="submit" className="w-full" disabled={isUploadingPhoto}>
+                  {isUploadingPhoto ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Subiendo foto...
+                    </>
+                  ) : (
+                    selectedCustomer ? t.save : t.create
+                  )}
                 </Button>
               </form>
             </DialogContent>
@@ -320,7 +577,20 @@ export default function CustomersPage() {
             >
               <Card className="card-interactive">
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    {/* Thumbnail */}
+                    {c.facade_photo_url ? (
+                      <img
+                        src={c.facade_photo_url}
+                        alt="Fachada"
+                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                        <Users className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold truncate">{c.name}</p>
@@ -338,7 +608,7 @@ export default function CustomersPage() {
                           </span>
                         )}
                       </div>
-                      <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      <div className="mt-1 space-y-1 text-sm text-muted-foreground">
                         {c.phone && (
                           <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5" />
@@ -351,9 +621,16 @@ export default function CustomersPage() {
                             <span className="truncate">{c.address}</span>
                           </div>
                         )}
+                        {c.vendedor_id && (
+                          <div className="flex items-center gap-2">
+                            <User className="w-3.5 h-3.5" />
+                            <span className="truncate text-primary">{getVendedorName(c.vendedor_id)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="flex gap-1">
+                    
+                    <div className="flex gap-1 flex-shrink-0">
                       <Button variant="ghost" size="icon" onClick={() => handleView(c)}>
                         <Eye className="w-4 h-4" />
                       </Button>
@@ -373,12 +650,27 @@ export default function CustomersPage() {
 
       {/* View Customer Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedCustomer?.name}</DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-4">
+              {/* Facade Photo */}
+              {selectedCustomer.facade_photo_url && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Camera className="w-4 h-4" />
+                    {settings.language === 'es' ? 'Foto de Fachada' : 'Facade Photo'}
+                  </Label>
+                  <img
+                    src={selectedCustomer.facade_photo_url}
+                    alt="Fachada del cliente"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+
               <div className="grid gap-2 text-sm">
                 {selectedCustomer.phone && (
                   <div className="flex justify-between">
@@ -389,7 +681,7 @@ export default function CustomersPage() {
                 {selectedCustomer.address && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t.address}</span>
-                    <span className="text-right">{selectedCustomer.address}</span>
+                    <span className="text-right max-w-[60%]">{selectedCustomer.address}</span>
                   </div>
                 )}
                 {selectedCustomer.email && (
@@ -398,10 +690,18 @@ export default function CustomersPage() {
                     <span>{selectedCustomer.email}</span>
                   </div>
                 )}
+                {selectedCustomer.vendedor_id && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {settings.language === 'es' ? 'Vendedor Asignado' : 'Assigned Vendor'}
+                    </span>
+                    <span className="text-primary font-medium">{getVendedorName(selectedCustomer.vendedor_id)}</span>
+                  </div>
+                )}
                 {selectedCustomer.notes && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t.notes}</span>
-                    <span className="text-right">{selectedCustomer.notes}</span>
+                    <span className="text-right max-w-[60%]">{selectedCustomer.notes}</span>
                   </div>
                 )}
               </div>
@@ -433,7 +733,7 @@ export default function CustomersPage() {
 
               {!canEditCustomers && (
                 <p className="text-xs text-muted-foreground italic">
-                  {t.viewOnly} - {settings.language === 'es' ? 'Solo el administrador puede editar clientes' : 'Only admin can edit customers'}
+                  {t.viewOnly} - {settings.language === 'es' ? 'Solo el administrador o vendedor puede editar clientes' : 'Only admin or vendor can edit customers'}
                 </p>
               )}
             </div>
