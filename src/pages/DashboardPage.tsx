@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { useOrders } from '@/hooks/useOrders';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useAuth } from '@/contexts/AuthContext';
 import { ORDER_STATUS_CONFIG, DashboardStats } from '@/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useState } from 'react';
@@ -19,11 +21,30 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+// Dashboard components
+import { SmartAlerts } from '@/components/dashboard/SmartAlerts';
+import { HealthIndicators } from '@/components/dashboard/HealthIndicators';
+import { OperationalInsights } from '@/components/dashboard/OperationalInsights';
+import { AllRepartidoresLoad } from '@/components/dashboard/RepartidorLoadSummary';
+import { NewOrderBadge } from '@/components/dashboard/NewOrderBadge';
+
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
+  const { user } = useAuth();
   const { formatCurrency } = useSettings();
   const [dateFilter, setDateFilter] = useState('today');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const {
+    smartAlerts,
+    healthIndicators,
+    operationalInsights,
+    allRepartidoresLoad,
+    newOrdersCount,
+    ALERT_THRESHOLD_MINUTES,
+  } = useDashboardStats();
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const stats = useMemo<DashboardStats>(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -68,22 +89,22 @@ export default function DashboardPage() {
       title: 'Pendientes', 
       value: stats.pendingOrders, 
       icon: Clock, 
-      color: 'text-status-pending',
-      bgColor: 'bg-status-pending-bg' 
+      color: 'text-[hsl(var(--status-pending))]',
+      bgColor: 'bg-[hsl(var(--status-pending-bg))]' 
     },
     { 
       title: 'En Camino', 
       value: stats.inDeliveryOrders, 
       icon: Truck, 
-      color: 'text-status-delivery',
-      bgColor: 'bg-status-delivery-bg' 
+      color: 'text-[hsl(var(--status-delivery))]',
+      bgColor: 'bg-[hsl(var(--status-delivery-bg))]' 
     },
     { 
       title: 'Entregados', 
       value: stats.deliveredOrders, 
       icon: CheckCircle2, 
-      color: 'text-status-delivered',
-      bgColor: 'bg-status-delivered-bg' 
+      color: 'text-[hsl(var(--status-delivered))]',
+      bgColor: 'bg-[hsl(var(--status-delivered-bg))]' 
     },
   ];
 
@@ -96,14 +117,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 pb-safe">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            {format(new Date(), "EEEE, d 'de' MMMM", { locale: es })}
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground">
+              {format(new Date(), "EEEE, d 'de' MMMM", { locale: es })}
+            </p>
+          </div>
+          <NewOrderBadge count={newOrdersCount} />
         </div>
         <SyncIndicator />
       </div>
@@ -133,6 +157,23 @@ export default function DashboardPage() {
           </motion.div>
         ))}
       </div>
+
+      {/* Admin-only sections */}
+      {isAdmin && (
+        <>
+          {/* Smart Alerts & Health Indicators */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SmartAlerts alerts={smartAlerts} thresholdMinutes={ALERT_THRESHOLD_MINUTES} />
+            <HealthIndicators {...healthIndicators} />
+          </div>
+
+          {/* Operational Insights & Load Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <OperationalInsights insights={operationalInsights} />
+            <AllRepartidoresLoad loads={allRepartidoresLoad} />
+          </div>
+        </>
+      )}
 
       {/* Filters */}
       <Card>
