@@ -427,14 +427,14 @@ export default function CustomersPage() {
                     {settings.language === 'es' ? 'Vendedor Asignado' : 'Assigned Vendor'}
                   </Label>
                   <Select
-                    value={formData.vendedor_id}
-                    onValueChange={(v) => setFormData({ ...formData, vendedor_id: v })}
+                    value={formData.vendedor_id || "none"}
+                    onValueChange={(v) => setFormData({ ...formData, vendedor_id: v === "none" ? "" : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={settings.language === 'es' ? 'Seleccionar vendedor...' : 'Select vendor...'} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">
+                      <SelectItem value="none">
                         {settings.language === 'es' ? 'Sin asignar' : 'Unassigned'}
                       </SelectItem>
                       {vendedores.filter(v => v.active).map(v => (
