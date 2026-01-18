@@ -8,7 +8,7 @@ interface CreateTeamUserParams {
   password: string;
   name: string;
   phone: string;
-  role: 'vendedor' | 'repartidor';
+  role: 'vendedor' | 'repartidor' | 'operario';
   zone?: string;
   active: boolean;
 }
@@ -30,6 +30,17 @@ interface Repartidor {
   email: string | null;
   phone: string | null;
   zone: string | null;
+  active: boolean | null;
+  user_id: string | null;
+  company_id: string;
+  created_at: string;
+}
+
+interface Operario {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
   active: boolean | null;
   user_id: string | null;
   company_id: string;
@@ -234,6 +245,136 @@ export function useRepartidores() {
     addRepartidor,
     updateRepartidor,
     deleteRepartidor,
+  };
+}
+
+// Operarios hook
+export function useOperarios() {
+  const { data: operarios, loading, error, refetch } = useRealtimeQuery<Operario>('operarios', {
+    orderBy: { column: 'name', ascending: true },
+  });
+
+  const addOperario = useCallback(async (operario: Omit<Operario, 'id' | 'created_at' | 'company_id'>) => {
+    const companyId = await getUserCompanyId();
+    if (!companyId) {
+      toast.error('Error: No se encontró la empresa del usuario');
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('operarios')
+      .insert({ ...operario, company_id: companyId })
+      .select()
+      .single();
+    
+    if (error) {
+      toast.error('Error al crear operario');
+      console.error('Error creating operario:', error);
+      return null;
+    }
+    
+    toast.success('Operario creado');
+    refetch();
+    return data;
+  }, [refetch]);
+
+  const updateOperario = useCallback(async (id: string, updates: Partial<Operario>) => {
+    const { data, error } = await supabase
+      .from('operarios')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      toast.error('Error al actualizar operario');
+      console.error('Error updating operario:', error);
+      return null;
+    }
+    
+    toast.success('Operario actualizado');
+    refetch();
+    return data;
+  }, [refetch]);
+
+  const deleteOperario = useCallback(async (id: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('No hay sesión activa');
+        return false;
+      }
+
+      const { data, error } = await supabase.functions.invoke('delete-team-user', {
+        body: { teamMemberId: id, role: 'operario' },
+      });
+
+      if (error) {
+        console.error('Error deleting operario:', error);
+        toast.error('Error al eliminar operario');
+        return false;
+      }
+
+      if (data?.error) {
+        console.error('Error from function:', data.error);
+        toast.error(data.error);
+        return false;
+      }
+
+      toast.success('Operario eliminado completamente');
+      refetch();
+      return true;
+    } catch (error: any) {
+      console.error('Error in deleteOperario:', error);
+      toast.error(error.message || 'Error al eliminar operario');
+      return false;
+    }
+  }, [refetch]);
+
+  return {
+    operarios,
+    loading,
+    error,
+    refetch,
+    addOperario,
+    updateOperario,
+    deleteOperario,
+    createOperario: async (data: { name: string; email: string; phone: string; password: string; active: boolean }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('No hay sesión activa');
+        return null;
+      }
+
+      const response = await supabase.functions.invoke('create-team-user', {
+        body: { ...data, role: 'operario' },
+      });
+
+      if (response.error) {
+        console.error('Error creating operario:', response.error);
+        const errorMsg = response.error.message || 'Error al crear usuario';
+        if (errorMsg.includes('already been registered') || errorMsg.includes('email_exists')) {
+          toast.error('Este correo electrónico ya está registrado en el sistema');
+        } else {
+          toast.error(errorMsg);
+        }
+        return null;
+      }
+
+      if (response.data?.error) {
+        const errorMsg = response.data.error as string;
+        if (errorMsg.includes('already been registered') || errorMsg.includes('email_exists')) {
+          toast.error('Este correo electrónico ya está registrado en el sistema');
+        } else {
+          toast.error(errorMsg);
+        }
+        return null;
+      }
+
+      toast.success('Operario creado exitosamente');
+      refetch();
+      return response.data.data;
+    },
   };
 }
 

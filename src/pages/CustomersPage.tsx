@@ -24,6 +24,8 @@ interface Customer {
   category: 'regular' | 'premium' | 'vip';
   notes: string | null;
   company_id: string;
+  facade_photo_url: string | null;
+  vendedor_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +99,8 @@ export default function CustomersPage() {
         category: formData.category,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        facade_photo_url: null,
+        vendedor_id: null,
       });
     }
 

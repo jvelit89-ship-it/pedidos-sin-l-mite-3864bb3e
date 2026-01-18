@@ -50,9 +50,18 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
         left: -9999px;
         top: 0;
         background: white;
-        font-family: Arial, sans-serif;
+        color: black;
+        font-family: 'Courier New', monospace;
       `;
       document.body.appendChild(container);
+
+      // Forzar estilos de texto negro para todos los elementos
+      const allElements = container.querySelectorAll('*');
+      allElements.forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.style.color = 'black';
+        }
+      });
 
       // Esperar a que las imágenes carguen
       const images = container.querySelectorAll('img');
@@ -65,39 +74,42 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
                   resolve(true);
                 } else {
                   img.onload = () => resolve(true);
-                  img.onerror = () => resolve(true);
+                  img.onerror = () => {
+                    img.style.display = 'none';
+                    resolve(true);
+                  };
                 }
               })
           )
         );
       }
       
-      // Pequeño delay adicional para asegurar render completo
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Delay para asegurar render completo
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Calcular altura del contenido
       const contentHeight = container.scrollHeight;
-      const heightInMM = Math.ceil(contentHeight / 3.78) + 5; // Agregar margen
+      const heightInMM = Math.ceil(contentHeight / 3.78) + 10; // Agregar margen
 
       const options = {
-        margin: 0,
+        margin: [2, 2, 2, 2] as [number, number, number, number],
         filename: `nota-venta-${noteNumber}.pdf`,
-        image: { type: 'jpeg', quality: 0.92 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
           width: 302,
           windowWidth: 302,
           scrollY: 0,
           scrollX: 0,
+          backgroundColor: '#ffffff',
         },
         jsPDF: { 
           unit: 'mm', 
           format: [80, heightInMM] as [number, number],
           orientation: 'portrait' as const,
           compress: true,
-          hotfixes: ['px_scaling']
         },
         pagebreak: { mode: 'avoid-all' }
       };

@@ -14,6 +14,8 @@ interface Customer {
   category: 'regular' | 'premium' | 'vip';
   notes: string | null;
   company_id: string;
+  facade_photo_url: string | null;
+  vendedor_id: string | null;
   created_at: string;
   updated_at: string;
 }

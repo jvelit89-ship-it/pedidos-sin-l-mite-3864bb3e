@@ -26,13 +26,14 @@ const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/orders': ['admin', 'vendedor'],
   '/deliveries': ['admin', 'repartidor'],
   '/route': ['repartidor'],
-  '/inventory': ['admin', 'vendedor'],
+  '/inventory': ['admin', 'vendedor', 'operario'],
   '/customers': ['admin', 'vendedor', 'repartidor'],
   '/customers-map': ['admin'],
   '/vendedores': ['admin'],
   '/repartidores': ['admin'],
+  '/operarios': ['admin'],
   '/logs': ['admin'],
-  '/settings': ['superadmin', 'admin', 'vendedor', 'repartidor'],
+  '/settings': ['superadmin', 'admin', 'vendedor', 'repartidor', 'operario'],
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -207,7 +208,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.role === 'admin';
   const isSuperAdmin = user?.role === 'superadmin';
-  const canEditCustomers = user?.role === 'admin';
+  const isOperario = user?.role === 'operario';
+  const canEditCustomers = user?.role === 'admin' || user?.role === 'vendedor';
 
   return (
     <AuthContext.Provider
