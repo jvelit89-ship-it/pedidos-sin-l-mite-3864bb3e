@@ -24,6 +24,7 @@ interface SalesNoteData {
   notes?: string;
   vendedor_name?: string;
   payment_method?: string;
+  document_type?: 'dni' | 'ruc';
 }
 
 // Función para convertir número a texto en español
@@ -333,7 +334,7 @@ serve(async (req) => {
 
   <div class="customer-section">
     <p><span class="info-label">Cliente:</span> ${data.customer_name}</p>
-    ${data.customer_ruc ? `<p><span class="info-label">RUC:</span> ${data.customer_ruc}</p>` : ''}
+    ${data.customer_ruc ? `<p><span class="info-label">${data.document_type === 'ruc' ? 'RUC' : 'DNI'}:</span> ${data.customer_ruc}</p>` : ''}
     <p><span class="info-label">Dirección:</span> ${data.customer_address}</p>
   </div>
 

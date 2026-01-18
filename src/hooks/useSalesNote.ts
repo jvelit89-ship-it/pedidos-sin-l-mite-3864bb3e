@@ -20,6 +20,7 @@ interface SalesNoteData {
   notes?: string;
   vendedor_name?: string;
   payment_method?: string;
+  document_type?: 'dni' | 'ruc';
 }
 
 interface SalesNoteResult {
