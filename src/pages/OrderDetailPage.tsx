@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { OrderStatus, ORDER_STATUS_CONFIG, STATUS_CHANGE_PERMISSIONS } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useSalesNote } from '@/hooks/useSalesNote';
+import { SalesNotePrint } from '@/components/SalesNotePrint';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, 
@@ -16,7 +18,9 @@ import {
   Calendar,
   Package,
   Truck,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,6 +38,7 @@ export default function OrderDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
+  const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -115,6 +120,44 @@ export default function OrderDetailPage() {
   const handleCancel = async () => {
     if (!order) return;
     await handleStatusChange('cancelled');
+  };
+
+  const handleRegenerateSalesNote = async () => {
+    if (!order) return;
+
+    // Extraer DNI/RUC de las notas si existe
+    let documentNumber = '';
+    let documentType: 'dni' | 'ruc' = 'dni';
+    if (order.notes) {
+      const dniMatch = order.notes.match(/DNI:\s*(\d{8})/);
+      const rucMatch = order.notes.match(/RUC:\s*(\d{11})/);
+      if (rucMatch) {
+        documentNumber = rucMatch[1];
+        documentType = 'ruc';
+      } else if (dniMatch) {
+        documentNumber = dniMatch[1];
+        documentType = 'dni';
+      }
+    }
+
+    await generateSalesNote({
+      order_id: order.id,
+      customer_name: order.customer_name,
+      customer_ruc: documentNumber || undefined,
+      customer_address: order.delivery_address || '',
+      order_items: order.items.map(item => ({
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total,
+      })),
+      total: order.total,
+      delivery_date: order.delivery_date || undefined,
+      notes: order.notes?.replace(/^(DNI|RUC):\s*\d+\s*\|\s*/, '') || undefined,
+      vendedor_name: order.vendedor_name || undefined,
+      payment_method: 'Contado',
+      document_type: documentType,
+    });
   };
 
   if (isLoading) {
@@ -319,18 +362,47 @@ export default function OrderDetailPage() {
         </motion.div>
       )}
 
+      {/* Sales Note Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Button 
+          onClick={handleRegenerateSalesNote} 
+          variant="outline" 
+          className="w-full gap-2"
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <FileText className="w-4 h-4" />
+          )}
+          Descargar Nota de Venta
+        </Button>
+      </motion.div>
+
       {/* Actions */}
       {user?.role === 'admin' && order.status !== 'cancelled' && order.status !== 'delivered' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.6 }}
         >
           <Button variant="destructive" className="w-full" onClick={handleCancel}>
             Cancelar Pedido
           </Button>
         </motion.div>
       )}
+
+      {/* Sales Note Print Dialog */}
+      <SalesNotePrint 
+        html={salesNoteHtml}
+        noteNumber={noteNumber}
+        open={isDialogOpen}
+        onClose={closeDialog}
+      />
     </div>
   );
 }

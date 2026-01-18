@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, Download, Loader2, X } from 'lucide-react';
+import { Printer, Download, Loader2, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import html2pdf from 'html2pdf.js';
 
 interface SalesNotePrintProps {
   html: string | null;
@@ -14,6 +15,7 @@ interface SalesNotePrintProps {
 export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePrintProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handlePrint = async () => {
     if (!iframeRef.current) return;
@@ -33,7 +35,47 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     }
   };
 
-  const handleDownload = () => {
+  const handleDownloadPDF = async () => {
+    if (!html) return;
+    
+    setIsDownloading(true);
+    try {
+      // Crear un contenedor temporal
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      container.style.width = '80mm';
+      document.body.appendChild(container);
+
+      const options = {
+        margin: 0,
+        filename: `nota-venta-${noteNumber}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          width: 302, // 80mm en pixeles (80 * 3.78)
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: [80, 297] as [number, number], // 80mm de ancho, altura automática
+          orientation: 'portrait' as const
+        }
+      };
+
+      await html2pdf().set(options).from(container).save();
+      
+      document.body.removeChild(container);
+      toast.success('PDF descargado correctamente');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Error al generar PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadHTML = () => {
     if (!html) return;
     
     const blob = new Blob([html], { type: 'text/html' });
@@ -46,7 +88,7 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success('Nota de venta descargada');
+    toast.success('HTML descargado');
   };
 
   return (
@@ -76,27 +118,42 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
           )}
         </div>
         
-        <div className="p-4 border-t flex gap-2 shrink-0">
+        <div className="p-4 border-t space-y-2 shrink-0">
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleDownloadPDF} 
+              className="flex-1 gap-2"
+              disabled={!html || isDownloading}
+            >
+              {isDownloading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              Descargar PDF
+            </Button>
+            <Button 
+              onClick={handlePrint} 
+              variant="outline"
+              className="gap-2"
+              disabled={!html || isPrinting}
+            >
+              {isPrinting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Printer className="w-4 h-4" />
+              )}
+              Imprimir
+            </Button>
+          </div>
           <Button 
-            onClick={handlePrint} 
-            className="flex-1 gap-2"
-            disabled={!html || isPrinting}
-          >
-            {isPrinting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Printer className="w-4 h-4" />
-            )}
-            Imprimir (80mm)
-          </Button>
-          <Button 
-            onClick={handleDownload} 
-            variant="outline"
-            className="gap-2"
+            onClick={handleDownloadHTML} 
+            variant="ghost"
+            className="w-full gap-2 text-muted-foreground"
             disabled={!html}
           >
             <Download className="w-4 h-4" />
-            Descargar
+            Descargar HTML
           </Button>
         </div>
       </DialogContent>

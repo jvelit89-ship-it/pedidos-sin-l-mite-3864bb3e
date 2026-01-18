@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts } from '@/hooks/useProducts';
 import { useTeam } from '@/hooks/useTeam';
@@ -31,7 +32,7 @@ export default function NewOrderPage() {
   const { formatCurrency } = useSettings();
   const { customers, loading: loadingCustomers } = useCustomers();
   const { products, loading: loadingProducts, updateProduct } = useProducts();
-  const { repartidores, loading: loadingTeam } = useTeam();
+  const { vendedores, repartidores, loading: loadingTeam } = useTeam();
   const { createOrder } = useOrders();
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   
@@ -40,13 +41,17 @@ export default function NewOrderPage() {
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [selectedVendedorId, setSelectedVendedorId] = useState('');
   const [selectedRepartidorId, setSelectedRepartidorId] = useState('');
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
+  const [documentNumber, setDocumentNumber] = useState('');
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
   const availableProducts = products.filter(p => p.stock > 0);
+  const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
 
   const handleCustomerChange = (customerId: string) => {
@@ -107,10 +112,47 @@ export default function NewOrderPage() {
       return;
     }
 
+    if (!selectedVendedorId) {
+      toast.error('Vendedor requerido', {
+        description: 'Debes seleccionar un vendedor para el pedido',
+      });
+      return;
+    }
+
+    if (!selectedRepartidorId) {
+      toast.error('Repartidor requerido', {
+        description: 'Debes asignar un repartidor para la entrega',
+      });
+      return;
+    }
+
+    if (!documentNumber) {
+      toast.error('Documento requerido', {
+        description: `Debes ingresar el ${documentType.toUpperCase()} del cliente`,
+      });
+      return;
+    }
+
+    // Validar formato de documento
+    if (documentType === 'dni' && documentNumber.length !== 8) {
+      toast.error('DNI inválido', {
+        description: 'El DNI debe tener 8 dígitos',
+      });
+      return;
+    }
+
+    if (documentType === 'ruc' && documentNumber.length !== 11) {
+      toast.error('RUC inválido', {
+        description: 'El RUC debe tener 11 dígitos',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const customer = customers.find(c => c.id === selectedCustomerId)!;
-      const repartidor = repartidores.find(r => r.id === selectedRepartidorId);
+      const vendedor = vendedores.find(v => v.id === selectedVendedorId)!;
+      const repartidor = repartidores.find(r => r.id === selectedRepartidorId)!;
 
       // Build order items with product details
       const items = orderItems.map(item => {
@@ -124,8 +166,6 @@ export default function NewOrderPage() {
         };
       });
 
-      // Note: vendedor_id should reference vendedores table, not auth.users
-      // For now, we don't assign vendedor_id since the current user may not be a vendedor
       const orderData = await createOrder({
         company_id: customer.company_id,
         customer_id: customer.id,
@@ -135,12 +175,12 @@ export default function NewOrderPage() {
         delivery_address: deliveryAddress,
         total: calculateTotal(),
         status: 'pending',
-        vendedor_id: null,
-        vendedor_name: user?.name || null,
-        repartidor_id: repartidor?.id || null,
-        repartidor_name: repartidor?.name || null,
+        vendedor_id: vendedor.id,
+        vendedor_name: vendedor.name,
+        repartidor_id: repartidor.id,
+        repartidor_name: repartidor.name,
         delivery_date: deliveryDate,
-        notes,
+        notes: `${documentType.toUpperCase()}: ${documentNumber}${notes ? ` | ${notes}` : ''}`,
       }, items);
 
       if (orderData) {
@@ -158,6 +198,7 @@ export default function NewOrderPage() {
         await generateSalesNote({
           order_id: orderData.id,
           customer_name: customer.name,
+          customer_ruc: documentNumber,
           customer_address: deliveryAddress,
           order_items: items.map(item => ({
             product_name: item.product_name,
@@ -168,8 +209,9 @@ export default function NewOrderPage() {
           total: calculateTotal(),
           delivery_date: deliveryDate,
           notes,
-          vendedor_name: user?.name || undefined,
-          payment_method: 'Contado'
+          vendedor_name: vendedor.name,
+          payment_method: 'Contado',
+          document_type: documentType,
         });
 
         toast.success('Pedido creado', {
@@ -321,13 +363,77 @@ export default function NewOrderPage() {
           </Card>
         </motion.div>
 
+        {/* Document Info (DNI/RUC) */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-3">
+                <Label>Tipo de Documento *</Label>
+                <RadioGroup
+                  value={documentType}
+                  onValueChange={(value) => {
+                    setDocumentType(value as 'dni' | 'ruc');
+                    setDocumentNumber('');
+                  }}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dni" id="dni" />
+                    <Label htmlFor="dni" className="font-normal cursor-pointer">DNI</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="ruc" id="ruc" />
+                    <Label htmlFor="ruc" className="font-normal cursor-pointer">RUC</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{documentType.toUpperCase()} *</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={documentNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    const maxLength = documentType === 'dni' ? 8 : 11;
+                    setDocumentNumber(value.slice(0, maxLength));
+                  }}
+                  placeholder={documentType === 'dni' ? '12345678' : '20123456789'}
+                  maxLength={documentType === 'dni' ? 8 : 11}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  {documentType === 'dni' ? '8 dígitos' : '11 dígitos'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Assignment */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Repartidor</Label>
+                  <Label>Vendedor *</Label>
+                  <Select value={selectedVendedorId} onValueChange={setSelectedVendedorId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar vendedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeVendedores.map(vendedor => (
+                        <SelectItem key={vendedor.id} value={vendedor.id}>
+                          {vendedor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Repartidor *</Label>
                   <Select value={selectedRepartidorId} onValueChange={setSelectedRepartidorId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Asignar repartidor" />
@@ -341,16 +447,16 @@ export default function NewOrderPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label>Fecha de Entrega</Label>
-                  <Input
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Fecha de Entrega</Label>
+                <Input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
               </div>
 
               <div className="space-y-2">
@@ -370,7 +476,7 @@ export default function NewOrderPage() {
         <Button
           type="submit"
           className="w-full h-12 gap-2"
-          disabled={isSubmitting || !selectedCustomerId || orderItems.length === 0}
+          disabled={isSubmitting || !selectedCustomerId || orderItems.length === 0 || !selectedVendedorId || !selectedRepartidorId || !documentNumber}
         >
           {isSubmitting ? (
             <Loader2 className="w-5 h-5 animate-spin" />
