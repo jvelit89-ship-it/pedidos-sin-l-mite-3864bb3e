@@ -11,7 +11,7 @@ interface CreateTeamUserRequest {
   password: string;
   name: string;
   phone: string;
-  role: 'vendedor' | 'repartidor';
+  role: 'vendedor' | 'repartidor' | 'operario';
   zone?: string;
   active: boolean;
 }
@@ -153,7 +153,7 @@ serve(async (req: Request) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    } else {
+    } else if (role === 'repartidor') {
       const { data: repartidor, error: repartidorError } = await supabaseAdmin
         .from('repartidores')
         .insert({
@@ -177,6 +177,33 @@ serve(async (req: Request) => {
       console.log(`Repartidor created successfully: ${repartidor.id}`);
       
       return new Response(JSON.stringify({ success: true, data: repartidor }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } else {
+      // operario
+      const { data: operario, error: operarioError } = await supabaseAdmin
+        .from('operarios')
+        .insert({
+          user_id: userId,
+          name,
+          email,
+          phone,
+          active,
+          company_id: adminProfile.company_id,
+        })
+        .select()
+        .single();
+
+      if (operarioError) {
+        console.error('Error creating operario:', operarioError);
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        throw new Error('Error creating operario record');
+      }
+
+      console.log(`Operario created successfully: ${operario.id}`);
+      
+      return new Response(JSON.stringify({ success: true, data: operario }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

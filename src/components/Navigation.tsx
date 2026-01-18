@@ -15,12 +15,13 @@ import {
   Building2,
   Map,
   Route,
-  FileText
+  FileText,
+  Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, ShoppingCart, Truck, Package, Box, Users, UserCheck, Bike, Settings, Building2, Map, Route, FileText,
+  LayoutDashboard, ShoppingCart, Truck, Package, Box, Users, UserCheck, Bike, Settings, Building2, Map, Route, FileText, Wrench,
 };
 
 export function BottomNavigation() {

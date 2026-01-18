@@ -116,6 +116,7 @@ export type Database = {
           company_id: string
           created_at: string
           email: string | null
+          facade_photo_url: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -123,6 +124,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           updated_at: string
+          vendedor_id: string | null
         }
         Insert: {
           address?: string | null
@@ -130,6 +132,7 @@ export type Database = {
           company_id: string
           created_at?: string
           email?: string | null
+          facade_photo_url?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -137,6 +140,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           updated_at?: string
+          vendedor_id?: string | null
         }
         Update: {
           address?: string | null
@@ -144,6 +148,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           email?: string | null
+          facade_photo_url?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -151,6 +156,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           updated_at?: string
+          vendedor_id?: string | null
         }
         Relationships: [
           {
@@ -158,6 +164,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores"
             referencedColumns: ["id"]
           },
         ]
@@ -229,6 +242,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operarios: {
+        Row: {
+          active: boolean | null
+          company_id: string
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          company_id: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operarios_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -687,7 +741,7 @@ export type Database = {
         | "delivery"
         | "delivered"
         | "cancelled"
-      user_role: "superadmin" | "admin" | "vendedor" | "repartidor"
+      user_role: "superadmin" | "admin" | "vendedor" | "repartidor" | "operario"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -824,7 +878,7 @@ export const Constants = {
         "delivered",
         "cancelled",
       ],
-      user_role: ["superadmin", "admin", "vendedor", "repartidor"],
+      user_role: ["superadmin", "admin", "vendedor", "repartidor", "operario"],
     },
   },
 } as const

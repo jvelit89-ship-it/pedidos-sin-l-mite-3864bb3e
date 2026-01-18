@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface DeleteTeamUserRequest {
   teamMemberId?: string;
-  role?: 'vendedor' | 'repartidor';
+  role?: 'vendedor' | 'repartidor' | 'operario';
   orphanUserId?: string; // For cleaning up orphan auth users
 }
 
@@ -82,7 +82,7 @@ serve(async (req: Request) => {
     console.log(`Deleting ${role} with ID: ${teamMemberId}`);
 
     // Get the team member record to find the user_id
-    const tableName = role === 'vendedor' ? 'vendedores' : 'repartidores';
+    const tableName = role === 'vendedor' ? 'vendedores' : role === 'repartidor' ? 'repartidores' : 'operarios';
     const { data: teamMember, error: fetchError } = await supabaseAdmin
       .from(tableName)
       .select('user_id, name')

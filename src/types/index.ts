@@ -1,6 +1,6 @@
 // Core data types for the order management system
 
-export type UserRole = 'superadmin' | 'admin' | 'vendedor' | 'repartidor';
+export type UserRole = 'superadmin' | 'admin' | 'vendedor' | 'repartidor' | 'operario';
 
 export type Language = 'es' | 'en';
 export type Currency = 'PEN' | 'USD' | 'MXN';
@@ -89,6 +89,16 @@ export interface Repartidor {
   email: string;
   phone: string;
   zone?: string;
+  active: boolean;
+  companyId?: string;
+  createdAt: string;
+}
+
+export interface Operario {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
   active: boolean;
   companyId?: string;
   createdAt: string;
@@ -183,6 +193,7 @@ export const STATUS_CHANGE_PERMISSIONS: Record<UserRole, OrderStatus[]> = {
   admin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
   vendedor: ['pending', 'preparation', 'ready'],
   repartidor: ['delivery', 'delivered'],
+  operario: [],
 };
 
 // Navigation items per role
@@ -200,11 +211,12 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/orders', label: 'Pedidos', labelEn: 'Orders', icon: 'ShoppingCart', roles: ['admin', 'vendedor'] },
   { path: '/deliveries', label: 'Entregas', labelEn: 'Deliveries', icon: 'Truck', roles: ['admin', 'repartidor'] },
   { path: '/route', label: 'Ruta', labelEn: 'Route', icon: 'Route', roles: ['repartidor'] },
-  { path: '/inventory', label: 'Inventario', labelEn: 'Inventory', icon: 'Package', roles: ['admin', 'vendedor'] },
+  { path: '/inventory', label: 'Inventario', labelEn: 'Inventory', icon: 'Package', roles: ['admin', 'vendedor', 'operario'] },
   { path: '/customers', label: 'Clientes', labelEn: 'Customers', icon: 'Users', roles: ['admin', 'vendedor', 'repartidor'] },
   { path: '/customers-map', label: 'Mapa Clientes', labelEn: 'Customers Map', icon: 'Map', roles: ['admin'] },
   { path: '/vendedores', label: 'Vendedores', labelEn: 'Vendors', icon: 'UserCheck', roles: ['admin'] },
   { path: '/repartidores', label: 'Repartidores', labelEn: 'Drivers', icon: 'Bike', roles: ['admin'] },
+  { path: '/operarios', label: 'Operarios', labelEn: 'Operators', icon: 'Wrench', roles: ['admin'] },
   { path: '/logs', label: 'Registros', labelEn: 'Audit Logs', icon: 'FileText', roles: ['admin'] },
-  { path: '/settings', label: 'Ajustes', labelEn: 'Settings', icon: 'Settings', roles: ['superadmin', 'admin', 'vendedor', 'repartidor'] },
+  { path: '/settings', label: 'Ajustes', labelEn: 'Settings', icon: 'Settings', roles: ['superadmin', 'admin', 'vendedor', 'repartidor', 'operario'] },
 ];

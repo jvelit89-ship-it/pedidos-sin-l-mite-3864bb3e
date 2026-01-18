@@ -19,6 +19,7 @@ import CustomersPage from './pages/CustomersPage';
 import CustomersMapPage from './pages/CustomersMapPage';
 import VendedoresPage from './pages/VendedoresPage';
 import RepartidoresPage from './pages/RepartidoresPage';
+import OperariosPage from './pages/OperariosPage';
 import CompaniesPage from './pages/CompaniesPage';
 import RoutePage from './pages/RoutePage';
 import SettingsPage from './pages/SettingsPage';
@@ -56,6 +57,7 @@ const App = () => {
                   <Route path="/customers-map" element={<ProtectedRoute><CustomersMapPage /></ProtectedRoute>} />
                   <Route path="/vendedores" element={<ProtectedRoute><VendedoresPage /></ProtectedRoute>} />
                   <Route path="/repartidores" element={<ProtectedRoute><RepartidoresPage /></ProtectedRoute>} />
+                  <Route path="/operarios" element={<ProtectedRoute><OperariosPage /></ProtectedRoute>} />
                   <Route path="/logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
