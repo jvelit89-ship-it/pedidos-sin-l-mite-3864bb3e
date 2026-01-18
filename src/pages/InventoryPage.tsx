@@ -217,6 +217,9 @@ export default function InventoryPage() {
   };
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isOperario = user?.role === 'operario';
+  const canViewHistory = isAdmin || isOperario;
+  const canRegisterProduction = isAdmin || isOperario;
 
   // Export to CSV/XLS format
   const exportToCSV = () => {
@@ -347,8 +350,8 @@ export default function InventoryPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <SyncIndicator />
           
-          {/* Production Dialog - Only for Admin */}
-          {isAdmin && (
+          {/* Production Dialog - For Admin and Operario */}
+          {canRegisterProduction && (
           <Dialog open={isProductionDialogOpen} onOpenChange={setIsProductionDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -500,12 +503,12 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="inventory" className="w-full">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : canViewHistory ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <TabsTrigger value="inventory" className="gap-2">
             <Package className="w-4 h-4" />
             <span className="hidden sm:inline">{settings.language === 'es' ? 'Inventario' : 'Inventory'}</span>
           </TabsTrigger>
-          {isAdmin && (
+          {canViewHistory && (
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4" />
               <span className="hidden sm:inline">{settings.language === 'es' ? 'Historial' : 'History'}</span>
@@ -593,14 +596,16 @@ export default function InventoryPage() {
                             <p className="font-semibold truncate">{product.name}</p>
                             <p className="text-xs text-muted-foreground">{product.sku}</p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleOpenDialog(product)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleOpenDialog(product)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                         
                         <div className="flex items-center justify-between mt-3">
@@ -629,7 +634,7 @@ export default function InventoryPage() {
           )}
         </TabsContent>
 
-        {isAdmin && (
+        {canViewHistory && (
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardContent className="p-4">
