@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, Download, Loader2, X, FileText } from 'lucide-react';
+import { Printer, Download, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
-import html2pdf from 'html2pdf.js';
 
 interface SalesNotePrintProps {
   html: string | null;
@@ -15,7 +14,6 @@ interface SalesNotePrintProps {
 export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePrintProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
 
   const handlePrint = async () => {
     if (!iframeRef.current) return;
@@ -35,101 +33,47 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!html) return;
-    
-    setIsDownloading(true);
-    try {
-      // Crear un contenedor temporal optimizado para 80mm (302px = 80mm * 3.78)
-      const container = document.createElement('div');
-      container.innerHTML = html;
-      container.style.cssText = `
-        width: 302px;
-        max-width: 302px;
-        position: absolute;
-        left: -9999px;
-        top: 0;
-        background: white;
-        color: black;
-        font-family: 'Courier New', monospace;
-      `;
-      document.body.appendChild(container);
-
-      // Forzar estilos de texto negro para todos los elementos
-      const allElements = container.querySelectorAll('*');
-      allElements.forEach((el) => {
-        if (el instanceof HTMLElement) {
-          el.style.color = 'black';
-        }
-      });
-
-      // Esperar a que las imágenes carguen
-      const images = container.querySelectorAll('img');
-      if (images.length > 0) {
-        await Promise.all(
-          Array.from(images).map(
-            (img) =>
-              new Promise((resolve) => {
-                if (img.complete) {
-                  resolve(true);
-                } else {
-                  img.onload = () => resolve(true);
-                  img.onerror = () => {
-                    img.style.display = 'none';
-                    resolve(true);
-                  };
-                }
-              })
-          )
-        );
-      }
-      
-      // Delay para asegurar render completo
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Calcular altura del contenido
-      const contentHeight = container.scrollHeight;
-      const heightInMM = Math.ceil(contentHeight / 3.78) + 10; // Agregar margen
-
-      const options = {
-        margin: [2, 2, 2, 2] as [number, number, number, number],
-        filename: `nota-venta-${noteNumber}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { 
-          scale: 3,
-          useCORS: true,
-          logging: false,
-          width: 302,
-          windowWidth: 302,
-          scrollY: 0,
-          scrollX: 0,
-          backgroundColor: '#ffffff',
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: [80, heightInMM] as [number, number],
-          orientation: 'portrait' as const,
-          compress: true,
-        },
-        pagebreak: { mode: 'avoid-all' }
-      };
-
-      await html2pdf().set(options).from(container).save();
-      
-      document.body.removeChild(container);
-      toast.success('PDF descargado (80mm)');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Error al generar PDF');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const handleDownloadHTML = () => {
     if (!html) return;
     
-    const blob = new Blob([html], { type: 'text/html' });
+    // Create a complete HTML document with print styles optimized for 80mm thermal printer
+    const fullHtmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Nota de Venta ${noteNumber}</title>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+    @media print {
+      body {
+        width: 80mm;
+        margin: 0;
+        padding: 2mm;
+      }
+    }
+    body {
+      width: 80mm;
+      max-width: 80mm;
+      margin: 0 auto;
+      padding: 2mm;
+      font-family: 'Courier New', monospace;
+      background: white;
+      color: black;
+    }
+    * {
+      color: black !important;
+    }
+  </style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+    
+    const blob = new Blob([fullHtmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -139,10 +83,10 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success('HTML descargado');
+    toast.success('HTML descargado - Abrir e imprimir como PDF');
   };
 
-  // Agregar estilos de impresión al HTML
+  // Create print-optimized HTML for the iframe
   const printOptimizedHtml = html ? `
     <html>
       <head>
@@ -201,21 +145,8 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
         <div className="p-4 border-t space-y-2 shrink-0">
           <div className="flex gap-2">
             <Button 
-              onClick={handleDownloadPDF} 
-              className="flex-1 gap-2"
-              disabled={!html || isDownloading}
-            >
-              {isDownloading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4" />
-              )}
-              Descargar PDF (80mm)
-            </Button>
-            <Button 
               onClick={handlePrint} 
-              variant="outline"
-              className="gap-2"
+              className="flex-1 gap-2"
               disabled={!html || isPrinting}
             >
               {isPrinting ? (
@@ -223,18 +154,21 @@ export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePri
               ) : (
                 <Printer className="w-4 h-4" />
               )}
-              Imprimir
+              Imprimir (80mm)
             </Button>
           </div>
           <Button 
             onClick={handleDownloadHTML} 
-            variant="ghost"
-            className="w-full gap-2 text-muted-foreground"
+            variant="outline"
+            className="w-full gap-2"
             disabled={!html}
           >
             <Download className="w-4 h-4" />
             Descargar HTML
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Tip: Para PDF, usa "Imprimir" y selecciona "Guardar como PDF"
+          </p>
         </div>
       </DialogContent>
     </Dialog>
