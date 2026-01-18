@@ -10,25 +10,6 @@ interface DocumentQueryRequest {
   document_number: string;
 }
 
-interface PersonData {
-  nombres?: string;
-  apellidoPaterno?: string;
-  apellidoMaterno?: string;
-  nombre_completo?: string;
-  direccion?: string;
-}
-
-interface CompanyData {
-  razon_social?: string;
-  nombre_comercial?: string;
-  direccion?: string;
-  estado?: string;
-  condicion?: string;
-  departamento?: string;
-  provincia?: string;
-  distrito?: string;
-}
-
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -65,91 +46,131 @@ serve(async (req) => {
       );
     }
 
-    // Endpoints de Decolecta API
-    const endpoint = document_type === 'dni' 
-      ? `https://api.decolecta.com/v1/dni/${document_number}`
-      : `https://api.decolecta.com/v1/ruc/${document_number}`;
+    // Probar múltiples endpoints de Decolecta API
+    const endpoints = document_type === 'dni' 
+      ? [
+          `https://api.decolecta.com/dni/${document_number}`,
+          `https://api.decolecta.com/v1/dni/${document_number}`,
+          `https://api.decolecta.com/api/dni/${document_number}`,
+          `https://api.decolecta.com/consulta/dni/${document_number}`
+        ]
+      : [
+          `https://api.decolecta.com/ruc/${document_number}`,
+          `https://api.decolecta.com/v1/ruc/${document_number}`,
+          `https://api.decolecta.com/api/ruc/${document_number}`,
+          `https://api.decolecta.com/consulta/ruc/${document_number}`
+        ];
 
-    console.log(`Calling Decolecta API: ${endpoint}`);
+    let responseData = null;
+    let lastError = null;
 
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${DECOLECTA_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    console.log(`Decolecta API response status: ${response.status}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Decolecta API error: ${errorText}`);
+    for (const endpoint of endpoints) {
+      console.log(`Trying endpoint: ${endpoint}`);
       
-      if (response.status === 404) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `${document_type.toUpperCase()} no encontrado` 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        );
+      try {
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${DECOLECTA_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log(`Response status for ${endpoint}: ${response.status}`);
+
+        if (response.ok) {
+          responseData = await response.json();
+          console.log('API response data:', JSON.stringify(responseData));
+          break;
+        } else {
+          const errorText = await response.text();
+          console.log(`Error from ${endpoint}: ${errorText}`);
+          lastError = errorText;
+        }
+      } catch (fetchError) {
+        console.log(`Fetch error for ${endpoint}:`, fetchError);
+        lastError = fetchError instanceof Error ? fetchError.message : 'Error de conexión';
       }
-      
+    }
+
+    if (!responseData) {
+      console.error('All endpoints failed. Last error:', lastError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Error al consultar documento' 
+          error: `No se pudo consultar el ${document_type.toUpperCase()}. Verifica el número ingresado.`
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
 
-    const data = await response.json();
-    console.log('Decolecta API response:', JSON.stringify(data));
-
+    // Procesar respuesta según el tipo de documento
     let result;
 
     if (document_type === 'dni') {
-      // Formatear respuesta de DNI
-      const personData = data as PersonData;
-      const nombreCompleto = personData.nombre_completo || 
-        [personData.nombres, personData.apellidoPaterno, personData.apellidoMaterno]
-          .filter(Boolean)
-          .join(' ');
+      // Posibles campos para DNI
+      const nombre = responseData.nombre_completo || 
+                     responseData.nombreCompleto ||
+                     responseData.nombre ||
+                     [
+                       responseData.nombres || responseData.name,
+                       responseData.apellidoPaterno || responseData.apellido_paterno || responseData.paterno,
+                       responseData.apellidoMaterno || responseData.apellido_materno || responseData.materno
+                     ].filter(Boolean).join(' ') ||
+                     '';
+      
+      const direccion = responseData.direccion || 
+                        responseData.address || 
+                        responseData.domicilio ||
+                        '';
       
       result = {
         success: true,
         data: {
           document_type: 'dni',
           document_number,
-          nombre: nombreCompleto,
-          direccion: personData.direccion || ''
+          nombre: nombre.trim(),
+          razon_social: null,
+          direccion: direccion.trim()
         }
       };
     } else {
-      // Formatear respuesta de RUC
-      const companyData = data as CompanyData;
-      const direccionCompleta = companyData.direccion || 
-        [companyData.direccion, companyData.distrito, companyData.provincia, companyData.departamento]
-          .filter(Boolean)
-          .join(', ');
+      // Posibles campos para RUC
+      const razonSocial = responseData.razon_social || 
+                          responseData.razonSocial ||
+                          responseData.nombre_o_razon_social ||
+                          responseData.nombre ||
+                          responseData.name ||
+                          '';
+      
+      const direccion = responseData.direccion || 
+                        responseData.direccion_fiscal ||
+                        responseData.domicilio_fiscal ||
+                        responseData.address ||
+                        [
+                          responseData.direccion,
+                          responseData.distrito,
+                          responseData.provincia,
+                          responseData.departamento
+                        ].filter(Boolean).join(', ') ||
+                        '';
       
       result = {
         success: true,
         data: {
           document_type: 'ruc',
           document_number,
-          nombre: companyData.razon_social || companyData.nombre_comercial || '',
-          direccion: direccionCompleta,
-          estado: companyData.estado,
-          condicion: companyData.condicion
+          nombre: null,
+          razon_social: razonSocial.trim(),
+          direccion: direccion.trim(),
+          estado: responseData.estado || responseData.state,
+          condicion: responseData.condicion || responseData.condition
         }
       };
     }
 
-    console.log('Query result:', JSON.stringify(result));
+    console.log('Final result:', JSON.stringify(result));
 
     return new Response(
       JSON.stringify(result),
