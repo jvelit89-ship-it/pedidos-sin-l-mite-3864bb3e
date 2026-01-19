@@ -4,12 +4,22 @@ export type UserRole = 'superadmin' | 'admin' | 'vendedor' | 'repartidor' | 'ope
 
 export type Language = 'es' | 'en';
 export type Currency = 'PEN' | 'USD' | 'MXN';
+export type Timezone = 'America/Lima' | 'America/Mexico_City' | 'America/New_York' | 'America/Los_Angeles' | 'UTC';
 
 export interface AppSettings {
   language: Language;
   currency: Currency;
+  timezone: Timezone;
   companyId?: string;
 }
+
+export const TIMEZONE_CONFIG: Record<Timezone, { label: string; offset: string }> = {
+  'America/Lima': { label: 'Lima, Perú', offset: 'UTC-5' },
+  'America/Mexico_City': { label: 'Ciudad de México', offset: 'UTC-6' },
+  'America/New_York': { label: 'Nueva York', offset: 'UTC-5/-4' },
+  'America/Los_Angeles': { label: 'Los Ángeles', offset: 'UTC-8/-7' },
+  'UTC': { label: 'UTC (Universal)', offset: 'UTC+0' },
+};
 
 export const CURRENCY_CONFIG: Record<Currency, { symbol: string; name: string }> = {
   PEN: { symbol: 'S/', name: 'Soles' },
