@@ -177,6 +177,22 @@ export default function NewOrderPage() {
     );
   };
 
+  const handleQuantitySet = (productId: string, newQuantity: number) => {
+    const product = products.find(p => p.id === productId);
+    const maxStock = product?.stock || 999;
+    
+    setOrderItems(items =>
+      items
+        .map(item => {
+          if (item.productId === productId) {
+            const qty = Math.max(1, Math.min(newQuantity, maxStock));
+            return { ...item, quantity: qty };
+          }
+          return item;
+        })
+    );
+  };
+
   const handleRemoveProduct = (productId: string) => {
     setOrderItems(items => items.filter(item => item.productId !== productId));
   };
@@ -490,7 +506,14 @@ export default function NewOrderPage() {
                             >
                               <Minus className="w-3 h-3" />
                             </Button>
-                            <span className="w-8 text-center font-semibold text-sm">{item.quantity}</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={product.stock}
+                              value={item.quantity}
+                              onChange={(e) => handleQuantitySet(item.productId, parseInt(e.target.value) || 1)}
+                              className="w-14 h-7 text-center font-semibold text-sm px-1"
+                            />
                             <Button
                               type="button"
                               variant="outline"
