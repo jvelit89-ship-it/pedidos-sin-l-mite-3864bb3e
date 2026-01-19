@@ -12,6 +12,7 @@ import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useVendedores } from '@/hooks/useTeam';
 import { ORDER_STATUS_CONFIG, OrderStatus } from '@/types';
 import { 
   Plus, 
@@ -59,8 +60,10 @@ export default function OrdersPage() {
   const { user } = useAuth();
   const { settings, formatCurrency, t } = useSettings();
   const { orders, loading, refetch } = useOrders();
+  const { vendedores } = useVendedores();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [vendedorFilter, setVendedorFilter] = useState<string>('all');
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
@@ -82,7 +85,8 @@ export default function OrdersPage() {
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesVendedor = vendedorFilter === 'all' || order.vendedor_id === vendedorFilter;
+    return matchesSearch && matchesStatus && matchesVendedor;
   });
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
@@ -196,7 +200,7 @@ export default function OrdersPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger className="w-full sm:w-40">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder={t.status} />
               </SelectTrigger>
@@ -207,6 +211,21 @@ export default function OrdersPage() {
                 {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
                   <SelectItem key={key} value={key}>
                     {config.icon} {settings.language === 'es' ? config.label : config.labelEn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder={settings.language === 'es' ? 'Vendedor' : 'Vendor'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  {settings.language === 'es' ? 'Todos los vendedores' : 'All vendors'}
+                </SelectItem>
+                {vendedores.filter(v => v.active).map(v => (
+                  <SelectItem key={v.id} value={v.id}>
+                    🧑‍💼 {v.name}
                   </SelectItem>
                 ))}
               </SelectContent>
