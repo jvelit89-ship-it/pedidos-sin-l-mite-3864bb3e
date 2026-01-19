@@ -63,8 +63,8 @@ export function useImpersonation() {
       }
 
       if (data?.session) {
-        // Sign out current user first
-        await supabase.auth.signOut();
+        // Sign out current user locally (do not revoke admin tokens)
+        await supabase.auth.signOut({ scope: 'local' });
         
         // Mark that we're impersonating
         sessionStorage.setItem(IMPERSONATION_KEY, 'true');
@@ -113,15 +113,15 @@ export function useImpersonation() {
         toast.error('No se encontró la sesión del administrador');
         // Clean up and redirect to login
         sessionStorage.removeItem(IMPERSONATION_KEY);
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         window.location.href = '/auth';
         return;
       }
 
       const storedSession: StoredSession = JSON.parse(storedSessionStr);
       
-      // Sign out current impersonated user
-      await supabase.auth.signOut();
+      // Sign out current impersonated user locally
+      await supabase.auth.signOut({ scope: 'local' });
       
       // Restore admin session
       const { error: setSessionError } = await supabase.auth.setSession({
