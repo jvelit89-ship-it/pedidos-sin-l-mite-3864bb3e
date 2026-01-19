@@ -82,14 +82,13 @@ export function useImpersonation() {
   const returnToAdmin = useCallback(async () => {
     setLoading(true);
     try {
-      // Clear impersonation flag
+      // Mark that we're returning from impersonation (keep admin_email for pre-fill)
+      sessionStorage.setItem('returning_from_impersonation', 'true');
       sessionStorage.removeItem(IMPERSONATION_KEY);
-      sessionStorage.removeItem('admin_email');
       
       // Sign out and redirect to login
       await supabase.auth.signOut();
       
-      toast.info('Sesión cerrada. Inicia sesión como administrador.');
       window.location.href = '/auth';
     } catch (error) {
       console.error('Return to admin error:', error);
