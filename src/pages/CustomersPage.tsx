@@ -29,7 +29,7 @@ interface Customer {
   latitude: number | null;
   longitude: number | null;
   category: 'regular' | 'premium' | 'vip';
-  customer_type: 'minorista' | 'mayorista';
+  customer_type: 'minorista' | 'mayorista' | 'distribuidor';
   notes: string | null;
   company_id: string;
   facade_photo_url: string | null;
@@ -67,7 +67,7 @@ export default function CustomersPage() {
     email: '',
     notes: '',
     category: 'regular' as 'regular' | 'premium' | 'vip',
-    customer_type: 'minorista' as 'minorista' | 'mayorista',
+    customer_type: 'minorista' as 'minorista' | 'mayorista' | 'distribuidor',
     latitude: null as number | null,
     longitude: null as number | null,
     vendedor_id: '' as string,
@@ -486,7 +486,7 @@ export default function CustomersPage() {
         address: formData.address || null,
         notes: formData.notes || null,
         category: formData.category,
-        customer_type: formData.customer_type,
+        customer_type: formData.customer_type as 'minorista' | 'mayorista',
         latitude: formData.latitude,
         longitude: formData.longitude,
         vendedor_id: formData.vendedor_id || null,
@@ -502,7 +502,7 @@ export default function CustomersPage() {
         address: formData.address || null,
         notes: formData.notes || null,
         category: formData.category,
-        customer_type: formData.customer_type,
+        customer_type: formData.customer_type as 'minorista' | 'mayorista',
         latitude: formData.latitude,
         longitude: formData.longitude,
         vendedor_id: formData.vendedor_id || null,
