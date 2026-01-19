@@ -12,8 +12,10 @@ import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { useVendedores } from '@/hooks/useTeam';
+import { useVendedores, useRepartidores } from '@/hooks/useTeam';
+import { supabase } from '@/integrations/supabase/client';
 import { ORDER_STATUS_CONFIG, OrderStatus } from '@/types';
+import { toast } from 'sonner';
 import { 
   Plus, 
   Search, 
@@ -22,7 +24,10 @@ import {
   ChevronRight,
   Loader2,
   Trash2,
-  X
+  X,
+  RefreshCw,
+  User,
+  Truck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -61,12 +66,14 @@ export default function OrdersPage() {
   const { settings, formatCurrency, t } = useSettings();
   const { orders, loading, refetch } = useOrders();
   const { vendedores } = useVendedores();
+  const { repartidores } = useRepartidores();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [vendedorFilter, setVendedorFilter] = useState<string>('all');
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -125,6 +132,101 @@ export default function OrdersPage() {
     setSelectedOrders([]);
   };
 
+  // Bulk update handlers for admin
+  const handleBulkStatusChange = async (newStatus: OrderStatus) => {
+    if (selectedOrders.length === 0) return;
+    
+    setIsBulkUpdating(true);
+    try {
+      const updateData: { status: OrderStatus; updated_at: string; delivered_at?: string } = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (newStatus === 'delivered') {
+        updateData.delivered_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .in('id', selectedOrders);
+
+      if (error) throw error;
+
+      toast.success(`${selectedOrders.length} pedido(s) actualizado(s) a "${ORDER_STATUS_CONFIG[newStatus].label}"`);
+      setSelectedOrders([]);
+      refetch();
+    } catch (error) {
+      console.error('Error bulk updating status:', error);
+      toast.error('Error al actualizar estados');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkVendedorChange = async (vendedorId: string) => {
+    if (selectedOrders.length === 0) return;
+    
+    const vendedor = vendedores.find(v => v.id === vendedorId);
+    if (!vendedor) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          vendedor_id: vendedorId,
+          vendedor_name: vendedor.name,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', selectedOrders);
+
+      if (error) throw error;
+
+      toast.success(`${selectedOrders.length} pedido(s) asignado(s) a ${vendedor.name}`);
+      setSelectedOrders([]);
+      refetch();
+    } catch (error) {
+      console.error('Error bulk updating vendedor:', error);
+      toast.error('Error al asignar vendedor');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkRepartidorChange = async (repartidorId: string) => {
+    if (selectedOrders.length === 0) return;
+    
+    const repartidor = repartidores.find(r => r.id === repartidorId);
+    if (!repartidor) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          repartidor_id: repartidorId,
+          repartidor_name: repartidor.name,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', selectedOrders);
+
+      if (error) throw error;
+
+      toast.success(`${selectedOrders.length} pedido(s) asignado(s) a ${repartidor.name}`);
+      setSelectedOrders([]);
+      refetch();
+    } catch (error) {
+      console.error('Error bulk updating repartidor:', error);
+      toast.error('Error al asignar repartidor');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const activeVendedores = vendedores.filter(v => v.active);
+  const activeRepartidores = repartidores.filter(r => r.active);
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
@@ -161,21 +263,73 @@ export default function OrdersPage() {
 
       {/* Selection toolbar - shown when orders are selected */}
       {isAdmin && selectedOrders.length > 0 && (
-        <Card className="border-primary">
-          <CardContent className="p-3">
+        <Card className="border-primary bg-primary/5">
+          <CardContent className="p-3 space-y-3">
+            {/* Header row */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={clearSelection}>
+                <Button variant="ghost" size="icon" onClick={clearSelection} disabled={isBulkUpdating}>
                   <X className="w-4 h-4" />
                 </Button>
                 <span className="text-sm font-medium">
                   {selectedOrders.length} {settings.language === 'es' ? 'seleccionado(s)' : 'selected'}
                 </span>
+                {isBulkUpdating && <RefreshCw className="w-4 h-4 animate-spin" />}
               </div>
-              <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2">
+              <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2" disabled={isBulkUpdating}>
                 <Trash2 className="w-4 h-4" />
-                {settings.language === 'es' ? 'Eliminar seleccionados' : 'Delete selected'}
+                <span className="hidden sm:inline">
+                  {settings.language === 'es' ? 'Eliminar' : 'Delete'}
+                </span>
               </Button>
+            </div>
+            
+            {/* Bulk actions row */}
+            <div className="flex flex-wrap gap-2">
+              {/* Bulk Status Change */}
+              <Select onValueChange={(value) => handleBulkStatusChange(value as OrderStatus)} disabled={isBulkUpdating}>
+                <SelectTrigger className="w-auto min-w-[160px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <span className="text-sm">Cambiar estado</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      {config.icon} {config.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Bulk Vendedor Change */}
+              <Select onValueChange={handleBulkVendedorChange} disabled={isBulkUpdating}>
+                <SelectTrigger className="w-auto min-w-[160px]">
+                  <User className="w-4 h-4 mr-2" />
+                  <span className="text-sm">Asignar vendedor</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {activeVendedores.map(v => (
+                    <SelectItem key={v.id} value={v.id}>
+                      🧑‍💼 {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Bulk Repartidor Change */}
+              <Select onValueChange={handleBulkRepartidorChange} disabled={isBulkUpdating}>
+                <SelectTrigger className="w-auto min-w-[160px]">
+                  <Truck className="w-4 h-4 mr-2" />
+                  <span className="text-sm">Asignar repartidor</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {activeRepartidores.map(r => (
+                    <SelectItem key={r.id} value={r.id}>
+                      🚚 {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
