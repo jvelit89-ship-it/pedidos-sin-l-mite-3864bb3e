@@ -264,12 +264,18 @@ export default function OrdersPage() {
                             {ORDER_STATUS_CONFIG[order.status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[order.status].label : ORDER_STATUS_CONFIG[order.status].labelEn}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
                           <span>#{order.id.slice(0, 8)}</span>
                           <span>•</span>
                           <span>{order.order_items?.length || 0} {settings.language === 'es' ? 'producto' : 'product'}{(order.order_items?.length || 0) !== 1 ? 's' : ''}</span>
                           <span>•</span>
                           <span className="font-medium text-foreground">{formatCurrency(order.total)}</span>
+                          {order.vendedor_name && (
+                            <>
+                              <span>•</span>
+                              <span className="text-primary font-medium">🧑‍💼 {order.vendedor_name}</span>
+                            </>
+                          )}
                         </div>
                         {order.delivery_address && (
                           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">

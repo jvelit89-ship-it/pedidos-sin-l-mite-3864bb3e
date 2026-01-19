@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Badge } from '@/components/ui/badge';
 import { useTeam } from '@/hooks/useTeam';
 import { useProducts } from '@/hooks/useProducts';
@@ -270,16 +270,20 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent 
+        className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="p-4 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="w-5 h-5" />
             Editar Pedido
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          <form onSubmit={handleSubmit} className="space-y-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-4">
+          <div className="space-y-4 pb-2">
             {/* Products Section */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
@@ -423,30 +427,34 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                 rows={2}
               />
             </div>
+          </div>
+        </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={isSubmitting || isLoading || orderItems.length === 0}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : null}
-                Guardar
-              </Button>
-            </div>
-          </form>
-        </ScrollArea>
+        {/* Fixed footer with buttons */}
+        <div className="shrink-0 border-t bg-background p-4">
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={isSubmitting || isLoading || orderItems.length === 0}
+              onClick={handleSubmit}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Guardar
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
