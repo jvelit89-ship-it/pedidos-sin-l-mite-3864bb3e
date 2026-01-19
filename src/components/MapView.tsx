@@ -10,17 +10,26 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+interface MarkerData {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+  category?: string;
+  hasPendingOrders?: boolean;
+  pendingOrdersCount?: number;
+  phone?: string;
+  address?: string;
+  totalOrders?: number;
+  customerType?: string;
+}
+
 interface MapViewProps {
   latitude?: number;
   longitude?: number;
-  markers?: Array<{
-    id: string;
-    lat: number;
-    lng: number;
-    label: string;
-    category?: string;
-  }>;
+  markers?: MarkerData[];
   onLocationSelect?: (lat: number, lng: number) => void;
+  onMarkerClick?: (markerId: string) => void;
   editable?: boolean;
   height?: string;
   showRoute?: boolean;
@@ -32,6 +41,7 @@ export function MapView({
   longitude,
   markers,
   onLocationSelect,
+  onMarkerClick,
   editable = false,
   height = '300px',
   showRoute = false,
@@ -101,17 +111,62 @@ export function MapView({
       const bounds: L.LatLngBoundsExpression = [];
       
       markers.forEach((marker) => {
+        // Determine marker color based on category and pending orders
+        let bgColor = 'bg-primary';
+        let borderStyle = '';
+        
+        if (marker.hasPendingOrders) {
+          borderStyle = 'ring-2 ring-orange-500 ring-offset-2';
+        }
+        
+        if (marker.category === 'vip') {
+          bgColor = 'bg-purple-500';
+        } else if (marker.category === 'premium') {
+          bgColor = 'bg-yellow-500';
+        }
+
         const customIcon = L.divIcon({
           className: 'custom-marker',
-          html: `<div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
-            marker.category === 'premium' ? 'bg-yellow-500' : 'bg-primary'
-          }">${marker.label.charAt(0)}</div>`,
+          html: `<div class="relative">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${bgColor} ${borderStyle}">${marker.label.charAt(0)}</div>
+            ${marker.hasPendingOrders ? `<div class="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">${marker.pendingOrdersCount}</div>` : ''}
+          </div>`,
           iconSize: [32, 32],
           iconAnchor: [16, 32],
         });
 
+        // Build popup content
+        const pendingBadge = marker.hasPendingOrders 
+          ? `<span class="inline-block px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800 mb-1">🔔 ${marker.pendingOrdersCount} pedido(s) pendiente(s)</span><br/>`
+          : '';
+        
+        const typeBadge = marker.customerType === 'mayorista'
+          ? `<span class="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">Mayorista</span> `
+          : '';
+        
+        const categoryBadge = marker.category && marker.category !== 'regular'
+          ? `<span class="inline-block px-2 py-0.5 text-xs rounded-full ${marker.category === 'premium' ? 'bg-yellow-100 text-yellow-800' : 'bg-purple-100 text-purple-800'}">${marker.category}</span>`
+          : '';
+
+        const popupContent = `
+          <div class="min-w-[200px]">
+            <strong class="text-base">${marker.label}</strong><br/>
+            ${pendingBadge}
+            <div class="flex gap-1 flex-wrap my-1">${typeBadge}${categoryBadge}</div>
+            ${marker.phone ? `<div class="text-sm text-gray-600">📞 ${marker.phone}</div>` : ''}
+            ${marker.address ? `<div class="text-sm text-gray-600 truncate max-w-[200px]">📍 ${marker.address}</div>` : ''}
+            <div class="text-sm text-gray-600">📦 ${marker.totalOrders || 0} pedidos totales</div>
+            <button 
+              onclick="window.dispatchEvent(new CustomEvent('map-marker-click', { detail: '${marker.id}' }))"
+              class="mt-2 w-full px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Ver historial
+            </button>
+          </div>
+        `;
+
         const m = L.marker([marker.lat, marker.lng], { icon: customIcon })
-          .bindPopup(`<strong>${marker.label}</strong><br/>${marker.category || ''}`)
+          .bindPopup(popupContent, { maxWidth: 250 })
           .addTo(markersLayerRef.current!);
         
         bounds.push([marker.lat, marker.lng]);
@@ -124,6 +179,18 @@ export function MapView({
       }
     }
   }, [markers]);
+
+  // Listen for marker click events
+  useEffect(() => {
+    const handleMarkerClick = (e: CustomEvent) => {
+      onMarkerClick?.(e.detail);
+    };
+
+    window.addEventListener('map-marker-click', handleMarkerClick as EventListener);
+    return () => {
+      window.removeEventListener('map-marker-click', handleMarkerClick as EventListener);
+    };
+  }, [onMarkerClick]);
 
   // Handle route display
   useEffect(() => {
