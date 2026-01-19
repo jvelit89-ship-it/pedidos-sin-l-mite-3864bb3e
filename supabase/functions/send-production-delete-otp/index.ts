@@ -60,18 +60,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { productionIds, deleteAll }: SendOtpRequest = await req.json();
 
+    console.log("Received request:", { productionIds, deleteAll });
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
 
-    // Store OTP in database - using delete_otp_codes table with a different format
-    // We'll use order_ids field to store production_ids and add a marker
+    // Store OTP in the new production_delete_otp_codes table
     const { error: otpError } = await supabase
-      .from("delete_otp_codes")
+      .from("production_delete_otp_codes")
       .insert({
         user_id: user.id,
         otp_code: otp,
-        order_ids: productionIds.map(id => `production:${id}`), // Mark as production IDs
+        production_ids: deleteAll ? null : productionIds,
         delete_all: deleteAll || false,
         expires_at: expiresAt.toISOString(),
       });

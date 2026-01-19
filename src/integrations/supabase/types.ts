@@ -695,6 +695,39 @@ export type Database = {
           },
         ]
       }
+      production_delete_otp_codes: {
+        Row: {
+          created_at: string
+          delete_all: boolean | null
+          expires_at: string
+          id: string
+          otp_code: string
+          production_ids: string[] | null
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delete_all?: boolean | null
+          expires_at: string
+          id?: string
+          otp_code: string
+          production_ids?: string[] | null
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delete_all?: boolean | null
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          production_ids?: string[] | null
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       production_history: {
         Row: {
           company_id: string
