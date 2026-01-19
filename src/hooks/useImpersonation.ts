@@ -63,9 +63,6 @@ export function useImpersonation() {
       }
 
       if (data?.session) {
-        // Sign out current user locally (do not revoke admin tokens)
-        await supabase.auth.signOut({ scope: 'local' });
-        
         // Mark that we're impersonating
         sessionStorage.setItem(IMPERSONATION_KEY, 'true');
         
@@ -80,6 +77,15 @@ export function useImpersonation() {
           sessionStorage.removeItem(IMPERSONATION_KEY);
           sessionStorage.removeItem(ADMIN_SESSION_KEY);
           toast.error('Error al establecer la sesión');
+          return false;
+        }
+
+        // Verify session is really set before navigating
+        const { data: { session: newSession } } = await supabase.auth.getSession();
+        if (!newSession?.user) {
+          sessionStorage.removeItem(IMPERSONATION_KEY);
+          sessionStorage.removeItem(ADMIN_SESSION_KEY);
+          toast.error('No se pudo iniciar sesión como el usuario');
           return false;
         }
         
@@ -113,17 +119,14 @@ export function useImpersonation() {
         toast.error('No se encontró la sesión del administrador');
         // Clean up and redirect to login
         sessionStorage.removeItem(IMPERSONATION_KEY);
-        await supabase.auth.signOut({ scope: 'local' });
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
         window.location.href = '/auth';
         return;
       }
 
       const storedSession: StoredSession = JSON.parse(storedSessionStr);
-      
-      // Sign out current impersonated user locally
-      await supabase.auth.signOut({ scope: 'local' });
-      
-      // Restore admin session
+
+      // Restore admin session (do not sign out globally to avoid revoking tokens)
       const { error: setSessionError } = await supabase.auth.setSession({
         access_token: storedSession.access_token,
         refresh_token: storedSession.refresh_token,
@@ -135,6 +138,16 @@ export function useImpersonation() {
         sessionStorage.removeItem(IMPERSONATION_KEY);
         sessionStorage.removeItem(ADMIN_SESSION_KEY);
         toast.error('Sesión expirada. Inicia sesión nuevamente.');
+        window.location.href = '/auth';
+        return;
+      }
+
+      // Verify session is really restored before navigating
+      const { data: { session: restored } } = await supabase.auth.getSession();
+      if (!restored?.user) {
+        sessionStorage.removeItem(IMPERSONATION_KEY);
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        toast.error('No se pudo restaurar la sesión de admin');
         window.location.href = '/auth';
         return;
       }
