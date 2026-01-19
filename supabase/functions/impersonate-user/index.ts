@@ -76,7 +76,9 @@ serve(async (req) => {
       );
     }
 
-    // Generate magic link for the target user
+    console.log('Creating session for user:', targetUser.user.email);
+
+    // Generate a magic link and extract the token parts
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: targetUser.user.email,
@@ -90,22 +92,52 @@ serve(async (req) => {
       );
     }
 
-    // Extract the hashed token from properties
-    const token = linkData.properties?.hashed_token;
+    // The action_link contains the full URL with the token
+    const actionLink = linkData.properties?.action_link;
+    console.log('Generated action link');
     
-    if (!token) {
-      console.error('No token in link data:', linkData);
+    if (!actionLink) {
+      console.error('No action link in response');
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate action link' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse the URL to extract token_hash and type
+    const url = new URL(actionLink);
+    const tokenHash = url.searchParams.get('token');
+    const type = url.searchParams.get('type');
+
+    if (!tokenHash || !type) {
+      console.error('Could not extract token from link');
       return new Response(
         JSON.stringify({ error: 'Failed to extract token' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Verify the OTP on the server side to get the session
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'magiclink',
+    });
+
+    if (sessionError || !sessionData.session) {
+      console.error('Error verifying OTP:', sessionError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create session' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Session created successfully for:', targetUser.user.email);
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        token: token,
-        email: targetUser.user.email
+        session: sessionData.session,
+        user_email: targetUser.user.email
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
