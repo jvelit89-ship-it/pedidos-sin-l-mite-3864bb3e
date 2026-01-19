@@ -5,6 +5,12 @@ import { toast } from 'sonner';
 const ADMIN_SESSION_KEY = 'admin_original_session';
 const IMPERSONATION_KEY = 'is_impersonating';
 
+interface StoredSession {
+  access_token: string;
+  refresh_token: string;
+  email: string;
+}
+
 export function useImpersonation() {
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [originalAdminEmail, setOriginalAdminEmail] = useState<string | null>(null);
@@ -13,21 +19,36 @@ export function useImpersonation() {
   useEffect(() => {
     // Check if we're currently impersonating
     const impersonating = sessionStorage.getItem(IMPERSONATION_KEY);
-    const adminEmail = sessionStorage.getItem('admin_email');
-    if (impersonating === 'true') {
+    const storedSession = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    
+    if (impersonating === 'true' && storedSession) {
       setIsImpersonating(true);
-      setOriginalAdminEmail(adminEmail);
+      try {
+        const parsed: StoredSession = JSON.parse(storedSession);
+        setOriginalAdminEmail(parsed.email);
+      } catch {
+        setOriginalAdminEmail(null);
+      }
     }
   }, []);
 
   const impersonateUser = useCallback(async (targetUserId: string, targetUserName: string) => {
     setLoading(true);
     try {
-      // Store current session info before impersonating
+      // Store current admin session before impersonating
       const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (currentSession) {
-        sessionStorage.setItem('admin_email', currentSession.user.email || '');
+      if (!currentSession) {
+        toast.error('No hay sesión activa');
+        return false;
       }
+
+      // Store admin session for later restoration
+      const sessionToStore: StoredSession = {
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+        email: currentSession.user.email || '',
+      };
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessionToStore));
 
       // Call the impersonation edge function
       const { data, error } = await supabase.functions.invoke('impersonate-user', {
@@ -36,6 +57,7 @@ export function useImpersonation() {
 
       if (error) {
         console.error('Impersonation error:', error);
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
         toast.error('Error al ingresar como usuario');
         return false;
       }
@@ -56,7 +78,7 @@ export function useImpersonation() {
         if (setSessionError) {
           console.error('Set session error:', setSessionError);
           sessionStorage.removeItem(IMPERSONATION_KEY);
-          sessionStorage.removeItem('admin_email');
+          sessionStorage.removeItem(ADMIN_SESSION_KEY);
           toast.error('Error al establecer la sesión');
           return false;
         }
@@ -69,9 +91,11 @@ export function useImpersonation() {
       }
 
       toast.error('No se pudo generar el enlace de acceso');
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
       return false;
     } catch (error) {
       console.error('Impersonation error:', error);
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
       toast.error('Error al ingresar como usuario');
       return false;
     } finally {
@@ -82,17 +106,53 @@ export function useImpersonation() {
   const returnToAdmin = useCallback(async () => {
     setLoading(true);
     try {
-      // Mark that we're returning from impersonation (keep admin_email for pre-fill)
-      sessionStorage.setItem('returning_from_impersonation', 'true');
-      sessionStorage.removeItem(IMPERSONATION_KEY);
+      // Get stored admin session
+      const storedSessionStr = sessionStorage.getItem(ADMIN_SESSION_KEY);
       
-      // Sign out and redirect to login
+      if (!storedSessionStr) {
+        toast.error('No se encontró la sesión del administrador');
+        // Clean up and redirect to login
+        sessionStorage.removeItem(IMPERSONATION_KEY);
+        await supabase.auth.signOut();
+        window.location.href = '/auth';
+        return;
+      }
+
+      const storedSession: StoredSession = JSON.parse(storedSessionStr);
+      
+      // Sign out current impersonated user
       await supabase.auth.signOut();
       
-      window.location.href = '/auth';
+      // Restore admin session
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: storedSession.access_token,
+        refresh_token: storedSession.refresh_token,
+      });
+
+      if (setSessionError) {
+        console.error('Restore session error:', setSessionError);
+        // Session might be expired, redirect to login
+        sessionStorage.removeItem(IMPERSONATION_KEY);
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        toast.error('Sesión expirada. Inicia sesión nuevamente.');
+        window.location.href = '/auth';
+        return;
+      }
+
+      // Clean up
+      sessionStorage.removeItem(IMPERSONATION_KEY);
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      
+      toast.success('Volviendo a tu cuenta de admin...');
+      
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error('Return to admin error:', error);
+      sessionStorage.removeItem(IMPERSONATION_KEY);
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
       toast.error('Error al volver a admin');
+      window.location.href = '/auth';
     } finally {
       setLoading(false);
     }
