@@ -53,6 +53,7 @@ export default function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [receiptType, setReceiptType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [documentNumber, setDocumentNumber] = useState('');
   const [documentData, setDocumentData] = useState<{
@@ -63,6 +64,9 @@ export default function NewOrderPage() {
     condicion?: string;
     verified: boolean;
   } | null>(null);
+
+  // Document is required only for boleta/factura
+  const requiresDocument = receiptType !== 'ticket';
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
   const availableProducts = products.filter(p => p.stock > 0);
@@ -234,26 +238,29 @@ export default function NewOrderPage() {
       return;
     }
 
-    if (!documentNumber) {
-      toast.error('Documento requerido', {
-        description: `Debes ingresar el ${documentType.toUpperCase()} del cliente`,
-      });
-      return;
-    }
+    // Validate document only if required (boleta/factura)
+    if (requiresDocument) {
+      if (!documentNumber) {
+        toast.error('Documento requerido', {
+          description: `Debes ingresar el ${documentType.toUpperCase()} del cliente para ${receiptType}`,
+        });
+        return;
+      }
 
-    // Validar formato de documento
-    if (documentType === 'dni' && documentNumber.length !== 8) {
-      toast.error('DNI inválido', {
-        description: 'El DNI debe tener 8 dígitos',
-      });
-      return;
-    }
+      // Validar formato de documento
+      if (documentType === 'dni' && documentNumber.length !== 8) {
+        toast.error('DNI inválido', {
+          description: 'El DNI debe tener 8 dígitos',
+        });
+        return;
+      }
 
-    if (documentType === 'ruc' && documentNumber.length !== 11) {
-      toast.error('RUC inválido', {
-        description: 'El RUC debe tener 11 dígitos',
-      });
-      return;
+      if (documentType === 'ruc' && documentNumber.length !== 11) {
+        toast.error('RUC inválido', {
+          description: 'El RUC debe tener 11 dígitos',
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -289,7 +296,9 @@ export default function NewOrderPage() {
         repartidor_id: repartidor.id,
         repartidor_name: repartidor.name,
         delivery_date: deliveryDate,
-        notes: `${documentType.toUpperCase()}: ${documentNumber}${notes ? ` | ${notes}` : ''}`,
+        notes: requiresDocument && documentNumber 
+          ? `${receiptType.toUpperCase()} - ${documentType.toUpperCase()}: ${documentNumber}${notes ? ` | ${notes}` : ''}`
+          : notes || null,
       }, items);
 
       if (orderData) {
@@ -311,7 +320,7 @@ export default function NewOrderPage() {
         await generateSalesNote({
           order_id: orderData.id,
           customer_name: customerDisplayName,
-          customer_ruc: documentNumber,
+          customer_ruc: requiresDocument ? documentNumber : undefined,
           customer_address: customerDocAddress,
           order_items: items.map(item => ({
             product_name: item.product_name,
@@ -324,7 +333,8 @@ export default function NewOrderPage() {
           notes,
           vendedor_name: vendedor.name,
           payment_method: 'Contado',
-          document_type: documentType,
+          document_type: requiresDocument ? documentType : undefined,
+          receipt_type: receiptType,
         });
 
         toast.success('Pedido creado', {
@@ -514,107 +524,148 @@ export default function NewOrderPage() {
             </CardContent>
           </Card>
 
-        {/* Document Info (DNI/RUC) */}
+        {/* Receipt Type */}
         <Card>
           <CardContent className="p-3 space-y-3">
-              <div className="space-y-3">
-                <Label>Tipo de Documento *</Label>
-                <RadioGroup
-                  value={documentType}
-                  onValueChange={(value) => {
-                    setDocumentType(value as 'dni' | 'ruc');
+            <div className="space-y-3">
+              <Label>Tipo de Comprobante</Label>
+              <RadioGroup
+                value={receiptType}
+                onValueChange={(value) => {
+                  setReceiptType(value as 'ticket' | 'boleta' | 'factura');
+                  // Reset document data when changing receipt type
+                  if (value === 'ticket') {
                     setDocumentNumber('');
                     setDocumentData(null);
-                  }}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dni" id="dni" />
-                    <Label htmlFor="dni" className="font-normal cursor-pointer">DNI</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="ruc" id="ruc" />
-                    <Label htmlFor="ruc" className="font-normal cursor-pointer">RUC</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                  }
+                }}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="ticket" id="ticket" />
+                  <Label htmlFor="ticket" className="font-normal cursor-pointer">Ticket</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="boleta" id="boleta" />
+                  <Label htmlFor="boleta" className="font-normal cursor-pointer">Boleta</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="factura" id="factura" />
+                  <Label htmlFor="factura" className="font-normal cursor-pointer">Factura</Label>
+                </div>
+              </RadioGroup>
+              <p className="text-xs text-muted-foreground">
+                {receiptType === 'ticket' 
+                  ? 'Sin documento requerido' 
+                  : `Requiere ${receiptType === 'boleta' ? 'DNI o RUC' : 'RUC'} del cliente`}
+              </p>
+            </div>
 
-              <div className="space-y-2">
-                <Label>{documentType.toUpperCase()} *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    value={documentNumber}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
-                      const maxLength = documentType === 'dni' ? 8 : 11;
-                      setDocumentNumber(value.slice(0, maxLength));
+            {/* Document fields - only shown for boleta/factura */}
+            {requiresDocument && (
+              <>
+                <div className="space-y-3">
+                  <Label>Tipo de Documento *</Label>
+                  <RadioGroup
+                    value={documentType}
+                    onValueChange={(value) => {
+                      setDocumentType(value as 'dni' | 'ruc');
+                      setDocumentNumber('');
                       setDocumentData(null);
                     }}
-                    placeholder={documentType === 'dni' ? '12345678' : '20123456789'}
-                    maxLength={documentType === 'dni' ? 8 : 11}
-                    className="flex-1"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={queryDocument}
-                    disabled={isQueryingDocument || documentNumber.length !== (documentType === 'dni' ? 8 : 11)}
-                    className="gap-2"
+                    className="flex gap-4"
                   >
-                    {isQueryingDocument ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Search className="w-4 h-4" />
-                    )}
-                    Consultar
-                  </Button>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="dni" id="dni" disabled={receiptType === 'factura'} />
+                      <Label htmlFor="dni" className={`font-normal cursor-pointer ${receiptType === 'factura' ? 'text-muted-foreground' : ''}`}>
+                        DNI
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="ruc" id="ruc" />
+                      <Label htmlFor="ruc" className="font-normal cursor-pointer">RUC</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {documentType === 'dni' ? '8 dígitos' : '11 dígitos'} - Presiona Consultar para verificar
-                </p>
-              </div>
 
-              {/* Document verification result */}
-              {documentData?.verified && (
-                <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg space-y-2">
-                  <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span className="font-medium text-sm">Documento verificado</span>
+                <div className="space-y-2">
+                  <Label>{documentType.toUpperCase()} *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={documentNumber}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        const maxLength = documentType === 'dni' ? 8 : 11;
+                        setDocumentNumber(value.slice(0, maxLength));
+                        setDocumentData(null);
+                      }}
+                      placeholder={documentType === 'dni' ? '12345678' : '20123456789'}
+                      maxLength={documentType === 'dni' ? 8 : 11}
+                      className="flex-1"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={queryDocument}
+                      disabled={isQueryingDocument || documentNumber.length !== (documentType === 'dni' ? 8 : 11)}
+                      className="gap-2"
+                    >
+                      {isQueryingDocument ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                      Consultar
+                    </Button>
                   </div>
-                  <div className="text-sm space-y-1">
-                    {documentType === 'ruc' && documentData.razon_social && (
-                      <p><span className="font-medium">Razón Social:</span> {documentData.razon_social}</p>
-                    )}
-                    {documentType === 'dni' && documentData.nombre && (
-                      <p><span className="font-medium">Nombre:</span> {documentData.nombre}</p>
-                    )}
-                    {documentData.direccion && (
-                      <p><span className="font-medium">Dirección:</span> {documentData.direccion}</p>
-                    )}
-                    {documentType === 'ruc' && documentData.estado && (
-                      <p>
-                        <span className="font-medium">Estado:</span>{' '}
-                        <span className={documentData.estado === 'ACTIVO' ? 'text-green-600' : 'text-red-600'}>
-                          {documentData.estado}
-                        </span>
-                        {documentData.condicion && (
-                          <span className="ml-2">
-                            | <span className="font-medium">Condición:</span>{' '}
-                            <span className={documentData.condicion === 'HABIDO' ? 'text-green-600' : 'text-orange-600'}>
-                              {documentData.condicion}
-                            </span>
-                          </span>
-                        )}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {documentType === 'dni' ? '8 dígitos' : '11 dígitos'} - Presiona Consultar para verificar
+                  </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                {/* Document verification result */}
+                {documentData?.verified && (
+                  <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="font-medium text-sm">Documento verificado</span>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      {documentType === 'ruc' && documentData.razon_social && (
+                        <p><span className="font-medium">Razón Social:</span> {documentData.razon_social}</p>
+                      )}
+                      {documentType === 'dni' && documentData.nombre && (
+                        <p><span className="font-medium">Nombre:</span> {documentData.nombre}</p>
+                      )}
+                      {documentData.direccion && (
+                        <p><span className="font-medium">Dirección:</span> {documentData.direccion}</p>
+                      )}
+                      {documentType === 'ruc' && documentData.estado && (
+                        <p>
+                          <span className="font-medium">Estado:</span>{' '}
+                          <span className={documentData.estado === 'ACTIVO' ? 'text-green-600' : 'text-red-600'}>
+                            {documentData.estado}
+                          </span>
+                          {documentData.condicion && (
+                            <span className="ml-2">
+                              | <span className="font-medium">Condición:</span>{' '}
+                              <span className={documentData.condicion === 'HABIDO' ? 'text-green-600' : 'text-orange-600'}>
+                                {documentData.condicion}
+                              </span>
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Assignment */}
         <Card>
@@ -679,7 +730,7 @@ export default function NewOrderPage() {
         <Button
           type="submit"
           className="w-full h-12 gap-2"
-          disabled={isSubmitting || !selectedCustomerId || orderItems.length === 0 || !selectedVendedorId || !selectedRepartidorId || !documentNumber}
+          disabled={isSubmitting || !selectedCustomerId || orderItems.length === 0 || !selectedVendedorId || !selectedRepartidorId || (requiresDocument && !documentNumber)}
         >
           {isSubmitting ? (
             <Loader2 className="w-5 h-5 animate-spin" />
