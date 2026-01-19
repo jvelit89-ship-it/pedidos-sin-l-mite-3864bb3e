@@ -40,25 +40,24 @@ export function useImpersonation() {
         return false;
       }
 
-      if (data?.token && data?.email) {
+      if (data?.session) {
         // Sign out current user first
         await supabase.auth.signOut();
         
         // Mark that we're impersonating
         sessionStorage.setItem(IMPERSONATION_KEY, 'true');
         
-        // Verify the OTP token to sign in as the target user
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          email: data.email,
-          token: data.token,
-          type: 'magiclink'
+        // Set the new session directly
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
         });
 
-        if (verifyError) {
-          console.error('OTP verification error:', verifyError);
+        if (setSessionError) {
+          console.error('Set session error:', setSessionError);
           sessionStorage.removeItem(IMPERSONATION_KEY);
           sessionStorage.removeItem('admin_email');
-          toast.error('Error al verificar el acceso');
+          toast.error('Error al establecer la sesión');
           return false;
         }
         
