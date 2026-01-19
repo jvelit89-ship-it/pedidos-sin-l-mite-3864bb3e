@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { OrderStatus, ORDER_STATUS_CONFIG, STATUS_CHANGE_PERMISSIONS } from '@/types';
+import { OrderStatus, ORDER_STATUS_CONFIG, STATUS_TRANSITION_PERMISSIONS } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useSalesNote } from '@/hooks/useSalesNote';
@@ -205,8 +205,11 @@ export default function OrderDetailPage() {
     );
   }
 
-  const allowedStatuses = user ? STATUS_CHANGE_PERMISSIONS[user.role] : [];
-  const canChangeStatus = allowedStatuses.length > 0 && order.status !== 'delivered' && order.status !== 'cancelled';
+  const allowedStatuses = user ? STATUS_TRANSITION_PERMISSIONS[user.role][order.status] : [];
+  const canChangeStatus = allowedStatuses.length > 0;
+  
+  // Hide tracking code for repartidores and operarios
+  const canViewTrackingCode = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'vendedor';
 
   // Can edit order: only before 'delivery' status, and only admin or assigned vendedor
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -399,7 +402,7 @@ export default function OrderDetailPage() {
       )}
 
       {/* Share Tracking Link */}
-      {order.tracking_code && (
+      {order.tracking_code && canViewTrackingCode && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
