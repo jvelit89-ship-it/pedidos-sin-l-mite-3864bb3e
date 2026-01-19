@@ -90,14 +90,22 @@ serve(async (req) => {
       );
     }
 
-    // Extract the token from the link
-    const actionLink = linkData.properties?.action_link;
+    // Extract the hashed token from properties
+    const token = linkData.properties?.hashed_token;
+    
+    if (!token) {
+      console.error('No token in link data:', linkData);
+      return new Response(
+        JSON.stringify({ error: 'Failed to extract token' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        link: actionLink,
-        user_email: targetUser.user.email
+        token: token,
+        email: targetUser.user.email
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
