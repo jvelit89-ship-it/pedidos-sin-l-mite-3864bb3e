@@ -1,0 +1,118 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+interface VerifyOtpRequest {
+  otpCode: string;
+  productId: string;
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify user is authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user is admin
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (roleError || !roleData || (roleData.role !== "admin" && roleData.role !== "superadmin")) {
+      return new Response(
+        JSON.stringify({ error: "Only admins can edit products" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { otpCode, productId }: VerifyOtpRequest = await req.json();
+
+    // Find valid OTP
+    const { data: otpData, error: otpError } = await supabase
+      .from("product_edit_otp_codes")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("otp_code", otpCode)
+      .eq("product_id", productId)
+      .eq("used", false)
+      .gte("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (otpError || !otpData) {
+      console.log("OTP verification failed:", otpError);
+      return new Response(
+        JSON.stringify({ error: "Código inválido o expirado" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Mark OTP as used
+    await supabase
+      .from("product_edit_otp_codes")
+      .update({ used: true })
+      .eq("id", otpData.id);
+
+    // Apply the pending changes to the product
+    const pendingChanges = otpData.pending_changes;
+    
+    const { error: updateError } = await supabase
+      .from("products")
+      .update(pendingChanges)
+      .eq("id", productId);
+
+    if (updateError) {
+      console.error("Error updating product:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Error al actualizar el producto" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Successfully updated product ${productId}`);
+
+    return new Response(
+      JSON.stringify({ success: true, message: "Producto actualizado correctamente" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: any) {
+    console.error("Error in verify-product-edit-otp function:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+};
+
+serve(handler);
