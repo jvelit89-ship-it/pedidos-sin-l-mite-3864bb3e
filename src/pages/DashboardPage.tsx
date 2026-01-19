@@ -16,8 +16,14 @@ import {
   CheckCircle2,
   Calendar,
   TrendingUp,
-  Package
+  Package,
+  Camera,
+  ExternalLink,
+  Copy
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -46,7 +52,42 @@ export default function DashboardPage() {
     ALERT_THRESHOLD_MINUTES,
   } = useDashboardStats();
 
+  const { settings } = useSettings();
+  const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  const hasDvrConfigured = settings.dvrSerialNumber || settings.dvrIpAddress;
+
+  const handleCopySN = () => {
+    if (settings.dvrSerialNumber) {
+      navigator.clipboard.writeText(settings.dvrSerialNumber);
+      toast.success('Número de serie copiado');
+    }
+  };
+
+  const getDvrWebUrl = () => {
+    if (settings.dvrIpAddress) {
+      const port = settings.dvrPort || 80;
+      return `http://${settings.dvrIpAddress}:${port}`;
+    }
+    return null;
+  };
+
+  const getDeepLink = () => {
+    if (settings.dvrBrand === 'dahua') {
+      return 'smartpss://';
+    } else if (settings.dvrBrand === 'hikvision') {
+      return 'ivms4200://';
+    }
+    return null;
+  };
+
+  const getAppName = () => {
+    if (settings.dvrBrand === 'dahua') return 'SmartPSS / gDMSS';
+    if (settings.dvrBrand === 'hikvision') return 'iVMS-4200 / IVMS';
+    return 'App del fabricante';
+  };
 
   const stats = useMemo<DashboardStats>(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -132,10 +173,136 @@ export default function DashboardPage() {
           <NewOrderBadge count={newOrdersCount} />
         </div>
         <div className="flex items-center gap-2">
+          {isAdmin && hasDvrConfigured && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setIsCameraDialogOpen(true)}
+            >
+              <Camera className="w-4 h-4" />
+              <span className="hidden sm:inline">Cámaras</span>
+            </Button>
+          )}
           <DailyClosing />
           <SyncIndicator />
         </div>
       </div>
+
+      {/* Camera Dialog */}
+      <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5" />
+              Videovigilancia - {settings.dvrBrand === 'dahua' ? 'Dahua' : settings.dvrBrand === 'hikvision' ? 'Hikvision' : 'DVR/NVR'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* If IP is configured, show iframe */}
+            {settings.dvrIpAddress ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Acceso directo a la interfaz web del DVR/NVR:
+                </p>
+                <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
+                  <iframe
+                    src={getDvrWebUrl() || ''}
+                    className="w-full h-full"
+                    title="DVR/NVR Web Interface"
+                    sandbox="allow-same-origin allow-scripts allow-forms"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="gap-2"
+                    onClick={() => window.open(getDvrWebUrl() || '', '_blank')}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Abrir en nueva pestaña
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* If only SN is configured, show deep link options */
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm font-medium mb-2">Número de Serie (SN):</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 p-2 bg-background rounded border text-sm font-mono">
+                      {settings.dvrSerialNumber}
+                    </code>
+                    <Button variant="outline" size="icon" onClick={handleCopySN}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Copia este número para usarlo en la aplicación de escritorio o móvil
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Abrir en aplicación:</p>
+                  
+                  {getDeepLink() && (
+                    <Button 
+                      className="w-full gap-2"
+                      onClick={() => window.location.href = getDeepLink() || ''}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Abrir {getAppName()}
+                    </Button>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {settings.dvrBrand === 'dahua' && (
+                      <>
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.open('https://www.dahuasecurity.com/support/downloadCenter', '_blank')}
+                        >
+                          Descargar SmartPSS
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.open('https://play.google.com/store/apps/details?id=com.mm.android.DMSS', '_blank')}
+                        >
+                          gDMSS (Android)
+                        </Button>
+                      </>
+                    )}
+                    {settings.dvrBrand === 'hikvision' && (
+                      <>
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.open('https://www.hikvision.com/en/support/download/software/ivms4200-series/', '_blank')}
+                        >
+                          Descargar iVMS-4200
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.open('https://play.google.com/store/apps/details?id=com.hikvision.hikconnect', '_blank')}
+                        >
+                          Hik-Connect (Android)
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    💡 <strong>Tip:</strong> Para ver las cámaras directamente en el navegador, 
+                    configura la IP del DVR en Ajustes → Videovigilancia
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
