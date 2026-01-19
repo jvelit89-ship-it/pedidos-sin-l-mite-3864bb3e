@@ -5,15 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 import { Badge } from '@/components/ui/badge';
 import { useTeam } from '@/hooks/useTeam';
 import { useProducts } from '@/hooks/useProducts';
 import { useVolumePricing } from '@/hooks/useVolumePricing';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Plus, Minus, Trash2, Package, Tag } from 'lucide-react';
+import { Loader2, Pencil, Plus, Minus, Trash2, Package, Tag, User } from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -35,13 +35,16 @@ interface OrderEditDialogProps {
     notes: string | null;
     repartidor_id: string | null;
     repartidor_name: string | null;
+    vendedor_id: string | null;
+    vendedor_name: string | null;
     items: OrderItem[];
   };
   onSuccess: () => void;
 }
 
 export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderEditDialogProps) {
-  const { repartidores, loading: loadingTeam } = useTeam();
+  const { user } = useAuth();
+  const { repartidores, vendedores, loading: loadingTeam } = useTeam();
   const { products, loading: loadingProducts } = useProducts();
   const { rules: volumePricingRules, getApplicablePrice } = useVolumePricing();
   const { formatCurrency } = useSettings();
@@ -51,11 +54,14 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
   const [deliveryDate, setDeliveryDate] = useState(order.delivery_date || '');
   const [notes, setNotes] = useState(order.notes || '');
   const [selectedRepartidorId, setSelectedRepartidorId] = useState(order.repartidor_id || '');
+  const [selectedVendedorId, setSelectedVendedorId] = useState(order.vendedor_id || '');
   
   // Product editing state
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number; originalQty: number }[]>([]);
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const activeRepartidores = repartidores.filter(r => r.active);
+  const activeVendedores = vendedores.filter(v => v.active);
   const availableProducts = products.filter(p => p.stock > 0 || orderItems.some(item => item.productId === p.id));
 
   // Initialize items when dialog opens
@@ -65,6 +71,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
       setDeliveryDate(order.delivery_date || '');
       setNotes(order.notes || '');
       setSelectedRepartidorId(order.repartidor_id || '');
+      setSelectedVendedorId(order.vendedor_id || '');
       setOrderItems(order.items.map(item => ({
         productId: item.product_id,
         quantity: item.quantity,
@@ -155,6 +162,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
     setIsSubmitting(true);
     try {
       const repartidor = repartidores.find(r => r.id === selectedRepartidorId);
+      const vendedor = vendedores.find(v => v.id === selectedVendedorId);
       
       // Update order details
       const { error: orderError } = await supabase
@@ -165,6 +173,8 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
           notes: notes || null,
           repartidor_id: selectedRepartidorId,
           repartidor_name: repartidor?.name || null,
+          vendedor_id: selectedVendedorId || order.vendedor_id,
+          vendedor_name: vendedor?.name || order.vendedor_name,
           total: calculateTotal,
           updated_at: new Date().toISOString(),
         })
@@ -401,6 +411,28 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                 onChange={(e) => setDeliveryDate(e.target.value)}
               />
             </div>
+
+            {/* Vendedor Selector - Only for Admins */}
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Vendedor
+                </Label>
+                <Select value={selectedVendedorId} onValueChange={setSelectedVendedorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Asignar vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeVendedores.map(vendedor => (
+                      <SelectItem key={vendedor.id} value={vendedor.id}>
+                        {vendedor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Repartidor *</Label>
