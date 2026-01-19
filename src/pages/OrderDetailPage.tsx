@@ -518,7 +518,23 @@ export default function OrderDetailPage() {
         <OrderEditDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
-          order={order}
+          order={{
+            id: order.id,
+            company_id: order.company_id,
+            delivery_address: order.delivery_address,
+            delivery_date: order.delivery_date,
+            notes: order.notes,
+            repartidor_id: order.repartidor_id,
+            repartidor_name: order.repartidor_name,
+            items: order.items.map(item => ({
+              id: item.id,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total: item.total,
+            })),
+          }}
           onSuccess={loadOrder}
         />
       )}
