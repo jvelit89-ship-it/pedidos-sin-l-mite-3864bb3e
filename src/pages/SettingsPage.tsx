@@ -12,8 +12,8 @@ import { useSync } from '@/contexts/SyncContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useUpdateOwnPassword } from '@/hooks/useTeam';
 import { generateSecurePassword } from '@/lib/passwordGenerator';
-import { Language, Currency, Timezone, DvrBrand, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
-import { User, LogOut, RefreshCw, Wifi, WifiOff, Globe, DollarSign, Key, Eye, EyeOff, Copy, Clock, Video } from 'lucide-react';
+import { Language, Currency, Timezone, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
+import { User, LogOut, RefreshCw, Wifi, WifiOff, Globe, DollarSign, Key, Eye, EyeOff, Copy, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -130,97 +130,48 @@ export default function SettingsPage() {
       </Card>
 
       {isAdmin && (
-        <>
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="w-4 h-4" /> {t.language}, {t.currency} & Zona Horaria</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">{t.language}</label>
-                <Select value={settings.language} onValueChange={(v) => updateSettings({ language: v as Language })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="es">🇲🇽 Español</SelectItem>
-                    <SelectItem value="en">🇺🇸 English</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">{t.currency}</label>
-                <Select value={settings.currency} onValueChange={(v) => updateSettings({ currency: v as Currency })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(CURRENCY_CONFIG).map(([key, { symbol, name }]) => (
-                      <SelectItem key={key} value={key}>{symbol} {name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> Zona Horaria
-                </label>
-                <Select value={settings.timezone} onValueChange={(v) => updateSettings({ timezone: v as Timezone })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TIMEZONE_CONFIG).map(([key, { label, offset }]) => (
-                      <SelectItem key={key} value={key}>🕐 {label} ({offset})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Esta configuración afecta cómo se muestran las fechas y horas en toda la aplicación
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Video className="w-4 h-4" /> Videovigilancia (DVR/NVR)</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Número de Serie (SN)</Label>
-                <Input
-                  value={settings.dvrSerialNumber || ''}
-                  onChange={(e) => updateSettings({ dvrSerialNumber: e.target.value })}
-                  placeholder="Ej: ABC123456789"
-                />
-                <p className="text-xs text-muted-foreground">
-                  El número de serie P2P del dispositivo DVR/NVR
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Marca</Label>
-                <Select value={settings.dvrBrand || ''} onValueChange={(v) => updateSettings({ dvrBrand: v as DvrBrand })}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dahua">Dahua</SelectItem>
-                    <SelectItem value="hikvision">Hikvision</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>IP del Dispositivo (Opcional)</Label>
-                <Input
-                  value={settings.dvrIpAddress || ''}
-                  onChange={(e) => updateSettings({ dvrIpAddress: e.target.value })}
-                  placeholder="Ej: 192.168.1.100 o dominio.ddns.net"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Si tienes acceso por red local o DDNS, ingresa la IP o dominio
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Puerto (Opcional)</Label>
-                <Input
-                  type="number"
-                  value={settings.dvrPort || 80}
-                  onChange={(e) => updateSettings({ dvrPort: parseInt(e.target.value) || 80 })}
-                  placeholder="80"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </>
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="w-4 h-4" /> {t.language}, {t.currency} & Zona Horaria</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">{t.language}</label>
+              <Select value={settings.language} onValueChange={(v) => updateSettings({ language: v as Language })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="es">🇲🇽 Español</SelectItem>
+                  <SelectItem value="en">🇺🇸 English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">{t.currency}</label>
+              <Select value={settings.currency} onValueChange={(v) => updateSettings({ currency: v as Currency })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CURRENCY_CONFIG).map(([key, { symbol, name }]) => (
+                    <SelectItem key={key} value={key}>{symbol} {name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Zona Horaria
+              </label>
+              <Select value={settings.timezone} onValueChange={(v) => updateSettings({ timezone: v as Timezone })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TIMEZONE_CONFIG).map(([key, { label, offset }]) => (
+                    <SelectItem key={key} value={key}>🕐 {label} ({offset})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Esta configuración afecta cómo se muestran las fechas y horas en toda la aplicación
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <Card>

@@ -6,18 +6,11 @@ export type Language = 'es' | 'en';
 export type Currency = 'PEN' | 'USD' | 'MXN';
 export type Timezone = 'America/Lima' | 'America/Mexico_City' | 'America/New_York' | 'America/Los_Angeles' | 'UTC';
 
-export type DvrBrand = 'dahua' | 'hikvision' | '';
-
 export interface AppSettings {
   language: Language;
   currency: Currency;
   timezone: Timezone;
   companyId?: string;
-  // DVR/NVR configuration
-  dvrSerialNumber?: string;
-  dvrBrand?: DvrBrand;
-  dvrIpAddress?: string;
-  dvrPort?: number;
 }
 
 export const TIMEZONE_CONFIG: Record<Timezone, { label: string; offset: string }> = {
