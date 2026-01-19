@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
 import { DesktopSidebar, BottomNavigation } from '@/components/Navigation';
 import { OfflineBanner } from '@/components/SyncIndicator';
+import { AppFooter } from '@/components/AppFooter';
 import { Loader2 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -34,11 +35,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       <OfflineBanner />
       <DesktopSidebar />
       <main className="md:ml-64 pb-safe md:pb-0">
-        <div className="min-h-screen">
+        <div className="min-h-screen pb-8">
           {children}
         </div>
       </main>
       <BottomNavigation />
+      <AppFooter />
     </div>
   );
 }
