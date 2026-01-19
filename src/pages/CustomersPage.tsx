@@ -20,6 +20,7 @@ import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, M
 interface Customer {
   id: string;
   name: string;
+  business_name: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -57,6 +58,7 @@ export default function CustomersPage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    business_name: '',
     phone: '',
     address: '',
     email: '',
@@ -332,6 +334,7 @@ export default function CustomersPage() {
 
       await updateCustomer(selectedCustomer.id, {
         name: formData.name,
+        business_name: formData.business_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
         address: formData.address || null,
@@ -346,6 +349,7 @@ export default function CustomersPage() {
       // Create customer first to get ID, then upload photo
       const newCustomer = await addCustomer({
         name: formData.name,
+        business_name: formData.business_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
         address: formData.address || null,
@@ -378,6 +382,7 @@ export default function CustomersPage() {
     setShowAddressConfirmation(false);
     setFormData({
       name: '',
+      business_name: '',
       phone: '',
       address: '',
       email: '',
@@ -394,6 +399,7 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setFormData({
       name: customer.name,
+      business_name: customer.business_name || '',
       phone: customer.phone || '',
       address: customer.address || '',
       email: customer.email || '',
@@ -475,26 +481,35 @@ export default function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t.phone} *</Label>
+                    <Label>{settings.language === 'es' ? 'Nombre del Negocio' : 'Business Name'}</Label>
                     <Input
-                      value={formData.phone}
-                      onChange={(e) => {
-                        // Only allow digits
-                        const value = e.target.value.replace(/\D/g, '').slice(0, 9);
-                        setFormData({ ...formData, phone: value });
-                      }}
-                      placeholder="987654321"
-                      pattern="[0-9]{9}"
-                      maxLength={9}
-                      inputMode="numeric"
-                      required
+                      value={formData.business_name}
+                      onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
+                      placeholder={settings.language === 'es' ? 'Opcional' : 'Optional'}
                     />
-                    {formData.phone && formData.phone.length !== 9 && (
-                      <p className="text-xs text-destructive">
-                        {settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits'}
-                      </p>
-                    )}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>{t.phone} *</Label>
+                  <Input
+                    value={formData.phone}
+                    onChange={(e) => {
+                      // Only allow digits
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                      setFormData({ ...formData, phone: value });
+                    }}
+                    placeholder="987654321"
+                    pattern="[0-9]{9}"
+                    maxLength={9}
+                    inputMode="numeric"
+                    required
+                  />
+                  {formData.phone && formData.phone.length !== 9 && (
+                    <p className="text-xs text-destructive">
+                      {settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

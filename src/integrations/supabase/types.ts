@@ -112,6 +112,7 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          business_name: string | null
           category: Database["public"]["Enums"]["customer_category"] | null
           company_id: string
           created_at: string
@@ -128,6 +129,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          business_name?: string | null
           category?: Database["public"]["Enums"]["customer_category"] | null
           company_id: string
           created_at?: string
@@ -144,6 +146,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          business_name?: string | null
           category?: Database["public"]["Enums"]["customer_category"] | null
           company_id?: string
           created_at?: string
