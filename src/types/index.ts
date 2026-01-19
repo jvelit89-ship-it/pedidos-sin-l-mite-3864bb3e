@@ -203,8 +203,52 @@ export const STATUS_CHANGE_PERMISSIONS: Record<UserRole, OrderStatus[]> = {
   superadmin: [],
   admin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
   vendedor: ['pending', 'preparation', 'ready'],
-  repartidor: ['delivery', 'delivered'],
-  operario: [],
+  repartidor: ['delivery', 'delivered', 'cancelled'],
+  operario: ['preparation', 'ready'],
+};
+
+// Status-based change permissions (what current status allows changing to)
+export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus, OrderStatus[]>> = {
+  superadmin: {
+    pending: [],
+    preparation: [],
+    ready: [],
+    delivery: [],
+    delivered: [],
+    cancelled: [],
+  },
+  admin: {
+    pending: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+    preparation: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+    ready: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+    delivery: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+    delivered: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+    cancelled: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+  },
+  vendedor: {
+    pending: ['pending', 'preparation', 'ready'],
+    preparation: ['pending', 'preparation', 'ready'],
+    ready: ['pending', 'preparation', 'ready'],
+    delivery: [],
+    delivered: [],
+    cancelled: [],
+  },
+  repartidor: {
+    pending: [],
+    preparation: [],
+    ready: ['delivery', 'delivered', 'cancelled'],
+    delivery: ['delivery', 'delivered', 'cancelled'],
+    delivered: [],
+    cancelled: [],
+  },
+  operario: {
+    pending: ['preparation', 'ready'],
+    preparation: ['preparation', 'ready'],
+    ready: [],
+    delivery: [],
+    delivered: [],
+    cancelled: [],
+  },
 };
 
 // Navigation items per role
@@ -219,7 +263,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { path: '/companies', label: 'Empresas', labelEn: 'Companies', icon: 'Building2', roles: ['superadmin'] },
   { path: '/dashboard', label: 'Dashboard', labelEn: 'Dashboard', icon: 'LayoutDashboard', roles: ['admin'] },
-  { path: '/orders', label: 'Pedidos', labelEn: 'Orders', icon: 'ShoppingCart', roles: ['admin', 'vendedor'] },
+  { path: '/orders', label: 'Pedidos', labelEn: 'Orders', icon: 'ShoppingCart', roles: ['admin', 'vendedor', 'operario', 'repartidor'] },
   { path: '/deliveries', label: 'Entregas', labelEn: 'Deliveries', icon: 'Truck', roles: ['admin', 'repartidor'] },
   { path: '/route', label: 'Ruta', labelEn: 'Route', icon: 'Route', roles: ['repartidor'] },
   { path: '/inventory', label: 'Inventario', labelEn: 'Inventory', icon: 'Package', roles: ['admin', 'vendedor', 'operario'] },

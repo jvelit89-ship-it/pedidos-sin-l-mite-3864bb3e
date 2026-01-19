@@ -70,6 +70,7 @@ export default function OrdersPage() {
 
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const canCreateOrders = isAdmin || user?.role === 'vendedor';
 
   // Filter orders based on role
   const roleFilteredOrders = orders.filter((order: Order) => {
@@ -149,10 +150,12 @@ export default function OrdersPage() {
               </span>
             </Button>
           )}
-          <Button onClick={() => navigate('/orders/new')} className="gap-2">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">{t.newOrder}</span>
-          </Button>
+          {canCreateOrders && (
+            <Button onClick={() => navigate('/orders/new')} className="gap-2">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">{t.newOrder}</span>
+            </Button>
+          )}
         </div>
       </div>
 
