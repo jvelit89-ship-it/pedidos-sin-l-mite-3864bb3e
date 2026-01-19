@@ -164,7 +164,54 @@ export default function CustomersPage() {
     fileInputRef.current?.click();
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress image before upload
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Scale down if larger than maxWidth
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Compression failed'));
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -174,20 +221,39 @@ export default function CustomersPage() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen no puede superar 5MB');
+    // Validate file size (max 10MB before compression)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('La imagen no puede superar 10MB');
       return;
     }
 
-    setPhotoFile(file);
-    
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Compress the image
+      toast.info('Comprimiendo imagen...');
+      const compressedFile = await compressImage(file, 800, 0.7);
+      
+      const originalSizeKB = Math.round(file.size / 1024);
+      const compressedSizeKB = Math.round(compressedFile.size / 1024);
+      console.log(`Image compressed: ${originalSizeKB}KB → ${compressedSizeKB}KB`);
+      
+      setPhotoFile(compressedFile);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error('Compression error:', error);
+      // Fallback to original file if compression fails
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleRemovePhoto = () => {
@@ -234,6 +300,12 @@ export default function CustomersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate phone number (9 digits for Peru)
+    if (formData.phone && formData.phone.length !== 9) {
+      toast.error(settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits');
+      return;
+    }
 
     if (selectedCustomer) {
       // Upload new photo if selected
@@ -389,9 +461,22 @@ export default function CustomersPage() {
                     <Label>{t.phone} *</Label>
                     <Input
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => {
+                        // Only allow digits
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                        setFormData({ ...formData, phone: value });
+                      }}
+                      placeholder="987654321"
+                      pattern="[0-9]{9}"
+                      maxLength={9}
+                      inputMode="numeric"
                       required
                     />
+                    {formData.phone && formData.phone.length !== 9 && (
+                      <p className="text-xs text-destructive">
+                        {settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
