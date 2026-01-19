@@ -57,6 +57,7 @@ export default function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
   const [receiptType, setReceiptType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [documentNumber, setDocumentNumber] = useState('');
@@ -76,6 +77,18 @@ export default function NewOrderPage() {
   const availableProducts = products.filter(p => p.stock > 0);
   const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
+  
+  // Filter customers based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers;
+    const search = customerSearch.toLowerCase();
+    return customers.filter(c => 
+      c.name.toLowerCase().includes(search) ||
+      c.business_name?.toLowerCase().includes(search) ||
+      c.phone?.includes(search) ||
+      c.address?.toLowerCase().includes(search)
+    );
+  }, [customers, customerSearch]);
 
   const queryDocument = useCallback(async () => {
     const expectedLength = documentType === 'dni' ? 8 : 11;
@@ -286,8 +299,13 @@ export default function NewOrderPage() {
     setIsSubmitting(true);
     try {
       const customer = customers.find(c => c.id === selectedCustomerId)!;
-      const vendedor = vendedores.find(v => v.id === selectedVendedorId)!;
-      const repartidor = repartidores.find(r => r.id === selectedRepartidorId)!;
+      
+      // Handle special "Venta de Planta" and "Recojo en Planta" options
+      const isVentaPlanta = selectedVendedorId === 'venta-planta';
+      const isRecojoPlanta = selectedRepartidorId === 'recojo-planta';
+      
+      const vendedor = isVentaPlanta ? null : vendedores.find(v => v.id === selectedVendedorId);
+      const repartidor = isRecojoPlanta ? null : repartidores.find(r => r.id === selectedRepartidorId);
 
       // Build order items with product details and volume pricing
       const items = orderItems.map(item => {
@@ -311,10 +329,10 @@ export default function NewOrderPage() {
         delivery_address: deliveryAddress,
         total: calculateTotal(),
         status: 'pending',
-        vendedor_id: vendedor.id,
-        vendedor_name: vendedor.name,
-        repartidor_id: repartidor.id,
-        repartidor_name: repartidor.name,
+        vendedor_id: vendedor?.id || null,
+        vendedor_name: isVentaPlanta ? 'Venta de Planta' : (vendedor?.name || null),
+        repartidor_id: repartidor?.id || null,
+        repartidor_name: isRecojoPlanta ? 'Recojo en Planta' : (repartidor?.name || null),
         delivery_date: deliveryDate,
         notes: requiresDocument && documentNumber 
           ? `${receiptType.toUpperCase()} - ${documentType.toUpperCase()}: ${documentNumber}${notes ? ` | ${notes}` : ''}`
@@ -408,16 +426,30 @@ export default function NewOrderPage() {
           <CardContent className="p-3 space-y-3">
             <div className="space-y-2">
               <Label>Cliente *</Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
               <Select value={selectedCustomerId} onValueChange={handleCustomerChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map(customer => (
+                  {filteredCustomers.map(customer => (
                     <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
+                      {customer.name}{customer.business_name ? ` - ${customer.business_name}` : ''}
                     </SelectItem>
                   ))}
+                  {filteredCustomers.length === 0 && (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      No se encontraron clientes
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -730,6 +762,7 @@ export default function NewOrderPage() {
                         <SelectValue placeholder="Seleccionar vendedor" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="venta-planta">🏭 Venta de Planta</SelectItem>
                         {activeVendedores.map(vendedor => (
                           <SelectItem key={vendedor.id} value={vendedor.id}>
                             {vendedor.name}
@@ -747,6 +780,7 @@ export default function NewOrderPage() {
                       <SelectValue placeholder="Asignar repartidor" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="recojo-planta">🏭 Recojo en Planta</SelectItem>
                       {activeRepartidores.map(repartidor => (
                         <SelectItem key={repartidor.id} value={repartidor.id}>
                           {repartidor.name}
