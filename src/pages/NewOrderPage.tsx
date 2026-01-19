@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts } from '@/hooks/useProducts';
 import { useTeam } from '@/hooks/useTeam';
 import { useOrders } from '@/hooks/useOrders';
 import { useSalesNote } from '@/hooks/useSalesNote';
+import { useVolumePricing } from '@/hooks/useVolumePricing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +28,8 @@ import {
   ShoppingCart,
   Loader2,
   Search,
-  CheckCircle2
+  CheckCircle2,
+  Tag
 } from 'lucide-react';
 
 export default function NewOrderPage() {
@@ -38,6 +41,7 @@ export default function NewOrderPage() {
   const { vendedores, repartidores, loading: loadingTeam } = useTeam();
   const { createOrder } = useOrders();
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
+  const { rules: volumePricingRules, getApplicablePrice } = useVolumePricing();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQueryingDocument, setIsQueryingDocument] = useState(false);
@@ -170,12 +174,42 @@ export default function NewOrderPage() {
     setOrderItems(items => items.filter(item => item.productId !== productId));
   };
 
+  // Calculate pricing with volume discounts
+  const getItemPricing = useCallback((productId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false };
+    
+    const { price, appliedRule, discount } = getApplicablePrice(
+      productId,
+      quantity,
+      product.price,
+      volumePricingRules
+    );
+    
+    return {
+      unitPrice: price,
+      total: price * quantity,
+      appliedRule,
+      discount,
+      hasDiscount: discount > 0,
+      basePrice: product.price,
+    };
+  }, [products, volumePricingRules, getApplicablePrice]);
+
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => {
-      const product = products.find(p => p.id === item.productId);
-      return sum + (product ? product.price * item.quantity : 0);
+      const { total } = getItemPricing(item.productId, item.quantity);
+      return sum + total;
     }, 0);
   };
+
+  // Check if any item has a volume discount applied
+  const hasAnyVolumeDiscount = useMemo(() => {
+    return orderItems.some(item => {
+      const { hasDiscount } = getItemPricing(item.productId, item.quantity);
+      return hasDiscount;
+    });
+  }, [orderItems, getItemPricing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,15 +263,16 @@ export default function NewOrderPage() {
       const vendedor = vendedores.find(v => v.id === selectedVendedorId)!;
       const repartidor = repartidores.find(r => r.id === selectedRepartidorId)!;
 
-      // Build order items with product details
+      // Build order items with product details and volume pricing
       const items = orderItems.map(item => {
         const product = products.find(p => p.id === item.productId)!;
+        const { unitPrice, total } = getItemPricing(item.productId, item.quantity);
         return {
           product_id: item.productId,
           product_name: product.name,
           quantity: item.quantity,
-          unit_price: product.price,
-          total: product.price * item.quantity,
+          unit_price: unitPrice,
+          total: total,
         };
       });
 
@@ -384,48 +419,73 @@ export default function NewOrderPage() {
                   {orderItems.map(item => {
                     const product = products.find(p => p.id === item.productId);
                     if (!product) return null;
+                    const pricing = getItemPricing(item.productId, item.quantity);
+                    
                     return (
-                      <div key={item.productId} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(product.price)} c/u
+                      <div key={item.productId} className="flex flex-col gap-2 p-3 bg-muted rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{product.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {pricing.hasDiscount ? (
+                                <>
+                                  <span className="text-sm text-muted-foreground line-through">
+                                    {formatCurrency(pricing.basePrice!)}
+                                  </span>
+                                  <span className="text-sm font-medium text-green-600">
+                                    {formatCurrency(pricing.unitPrice)} c/u
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">
+                                  {formatCurrency(product.price)} c/u
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleQuantityChange(item.productId, -1)}
+                            >
+                              <Minus className="w-4 h-4" />
+                            </Button>
+                            <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleQuantityChange(item.productId, 1)}
+                              disabled={item.quantity >= product.stock}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <p className="font-semibold w-20 text-right">
+                            {formatCurrency(pricing.total)}
                           </p>
-                        </div>
-                        <div className="flex items-center gap-2">
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleQuantityChange(item.productId, -1)}
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveProduct(item.productId)}
                           >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleQuantityChange(item.productId, 1)}
-                            disabled={item.quantity >= product.stock}
-                          >
-                            <Plus className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                        <p className="font-semibold w-20 text-right">
-                          {formatCurrency(product.price * item.quantity)}
-                        </p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveProduct(item.productId)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {pricing.hasDiscount && (
+                          <div className="flex items-center gap-1.5">
+                            <Tag className="w-3 h-3 text-green-600" />
+                            <span className="text-xs text-green-600 font-medium">
+                              Precio mayorista aplicado (desde {pricing.appliedRule?.min_quantity} unidades)
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -433,9 +493,19 @@ export default function NewOrderPage() {
               )}
 
               {orderItems.length > 0 && (
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <span className="text-lg font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary">{formatCurrency(calculateTotal())}</span>
+                <div className="space-y-3 pt-4 border-t">
+                  {hasAnyVolumeDiscount && (
+                    <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                      <Tag className="w-4 h-4 text-green-600" />
+                      <span className="text-sm text-green-700 dark:text-green-400 font-medium">
+                        Precio especial por compra al por mayor aplicado
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold">Total</span>
+                    <span className="text-2xl font-bold text-primary">{formatCurrency(calculateTotal())}</span>
+                  </div>
                 </div>
               )}
             </CardContent>

@@ -17,7 +17,8 @@ export type SupabaseTable =
   | 'audit_logs'
   | 'app_settings'
   | 'logs'
-  | 'stock_movements';
+  | 'stock_movements'
+  | 'volume_pricing_rules';
 
 interface QueryOptions {
   select?: string;

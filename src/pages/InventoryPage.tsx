@@ -31,8 +31,10 @@ import {
   BarChart3,
   Download,
   FileSpreadsheet,
-  FileText
+  FileText,
+  Percent
 } from 'lucide-react';
+import { VolumePricingManager } from '@/components/VolumePricingManager';
 
 interface Product {
   id: string;
@@ -503,7 +505,7 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="inventory" className="w-full">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : canViewHistory ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : canViewHistory ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <TabsTrigger value="inventory" className="gap-2">
             <Package className="w-4 h-4" />
             <span className="hidden sm:inline">{settings.language === 'es' ? 'Inventario' : 'Inventory'}</span>
@@ -512,6 +514,12 @@ export default function InventoryPage() {
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4" />
               <span className="hidden sm:inline">{settings.language === 'es' ? 'Historial' : 'History'}</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="pricing" className="gap-2">
+              <Percent className="w-4 h-4" />
+              <span className="hidden sm:inline">{settings.language === 'es' ? 'Precios' : 'Pricing'}</span>
             </TabsTrigger>
           )}
           {isAdmin && (
@@ -779,6 +787,13 @@ export default function InventoryPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        )}
+
+        {/* Pricing Tab - Admin Only */}
+        {isAdmin && (
+        <TabsContent value="pricing" className="space-y-4">
+          <VolumePricingManager />
         </TabsContent>
         )}
       </Tabs>
