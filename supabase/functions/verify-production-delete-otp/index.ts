@@ -56,9 +56,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { otpCode }: VerifyOtpRequest = await req.json();
 
-    // Find valid OTP - look for production-marked IDs
+    // Find valid OTP from production_delete_otp_codes table
     const { data: otpData, error: otpError } = await supabase
-      .from("delete_otp_codes")
+      .from("production_delete_otp_codes")
       .select("*")
       .eq("user_id", user.id)
       .eq("otp_code", otpCode)
@@ -76,18 +76,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if this is a production delete OTP
-    const orderIds = otpData.order_ids as string[];
-    if (!orderIds || orderIds.length === 0 || !orderIds[0]?.startsWith('production:')) {
-      return new Response(
-        JSON.stringify({ error: "Código inválido para eliminación de producción" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Mark OTP as used
     await supabase
-      .from("delete_otp_codes")
+      .from("production_delete_otp_codes")
       .update({ used: true })
       .eq("id", otpData.id);
 
@@ -157,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     } else {
       // Delete specific production records
-      const productionIds = orderIds.map(id => id.replace('production:', ''));
+      const productionIds = otpData.production_ids as string[];
       
       // Get production records to revert stock
       const { data: productionToDelete } = await supabase
