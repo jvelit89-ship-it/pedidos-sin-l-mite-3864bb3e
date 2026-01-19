@@ -374,7 +374,7 @@ export default function NewOrderPage() {
           total: calculateTotal(),
           delivery_date: deliveryDate,
           notes,
-          vendedor_name: vendedor.name,
+          vendedor_name: isVentaPlanta ? 'Venta de Planta' : vendedor?.name || '',
           payment_method: 'Contado',
           document_type: requiresDocument ? documentType : undefined,
           receipt_type: receiptType,
