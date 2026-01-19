@@ -274,6 +274,111 @@ export type Database = {
         }
         Relationships: []
       }
+      distributor_credit_usage: {
+        Row: {
+          company_id: string
+          created_at: string
+          credit_id: string
+          id: string
+          notes: string | null
+          quantity: number
+          registered_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          credit_id: string
+          id?: string
+          notes?: string | null
+          quantity: number
+          registered_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          credit_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          registered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distributor_credit_usage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_credit_usage_credit_id_fkey"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "distributor_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distributor_credits: {
+        Row: {
+          amount_paid: number
+          company_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          package_name: string
+          purchase_date: string
+          remaining_credits: number
+          total_credits: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid: number
+          company_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          package_name: string
+          purchase_date?: string
+          remaining_credits: number
+          total_credits: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          company_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          package_name?: string
+          purchase_date?: string
+          remaining_credits?: number
+          total_credits?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distributor_credits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_credits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_requests: {
         Row: {
           company_id: string
@@ -635,6 +740,103 @@ export type Database = {
           },
         ]
       }
+      production_recipes: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          input_product_id: string
+          is_active: boolean
+          output_product_id: string
+          quantity_ratio: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          input_product_id: string
+          is_active?: boolean
+          output_product_id: string
+          quantity_ratio?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          input_product_id?: string
+          is_active?: boolean
+          output_product_id?: string
+          quantity_ratio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_recipes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_recipes_input_product_id_fkey"
+            columns: ["input_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_recipes_output_product_id_fkey"
+            columns: ["output_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_waste: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          reason: string | null
+          registered_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity: number
+          reason?: string | null
+          registered_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          registered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_waste_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_waste_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string | null
@@ -988,7 +1190,7 @@ export type Database = {
     }
     Enums: {
       customer_category: "regular" | "premium" | "vip"
-      customer_type: "minorista" | "mayorista"
+      customer_type: "minorista" | "mayorista" | "distribuidor"
       order_status:
         | "pending"
         | "preparation"
@@ -1125,7 +1327,7 @@ export const Constants = {
   public: {
     Enums: {
       customer_category: ["regular", "premium", "vip"],
-      customer_type: ["minorista", "mayorista"],
+      customer_type: ["minorista", "mayorista", "distribuidor"],
       order_status: [
         "pending",
         "preparation",

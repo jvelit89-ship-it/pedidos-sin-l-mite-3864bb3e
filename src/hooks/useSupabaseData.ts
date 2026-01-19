@@ -20,7 +20,11 @@ export type SupabaseTable =
   | 'stock_movements'
   | 'volume_pricing_rules'
   | 'invoice_requests'
-  | 'commission_payments';
+  | 'commission_payments'
+  | 'distributor_credits'
+  | 'distributor_credit_usage'
+  | 'production_recipes'
+  | 'production_waste';
 
 interface QueryOptions {
   select?: string;
