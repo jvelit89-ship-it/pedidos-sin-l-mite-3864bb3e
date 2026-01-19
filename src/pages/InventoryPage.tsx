@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { useProducts, useProductionHistory } from '@/hooks/useProducts';
 import { useStockMovements, useStockReports } from '@/hooks/useStockMovements';
+import { useProductionRecipes } from '@/hooks/useProductionRecipes';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ import {
 } from 'lucide-react';
 import { VolumePricingManager } from '@/components/VolumePricingManager';
 import { ProductionRecipesManager } from '@/components/ProductionRecipesManager';
+import { DeleteProductionDialog } from '@/components/DeleteProductionDialog';
 
 interface Product {
   id: string;
@@ -54,9 +56,10 @@ interface Product {
 
 export default function InventoryPage() {
   const { products, loading, addProduct, updateProduct, deleteProduct, refetch: refetchProducts } = useProducts();
-  const { history, addProduction } = useProductionHistory();
+  const { history, addProduction, refetch: refetchHistory } = useProductionHistory();
   const { movements, loading: loadingMovements, refetch: refetchMovements } = useStockMovements();
   const { getProductSummary } = useStockReports();
+  const { recipes } = useProductionRecipes();
   const { formatCurrency, settings, t } = useSettings();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,6 +72,8 @@ export default function InventoryPage() {
   const [reportPeriod, setReportPeriod] = useState<'day' | 'week' | 'month'>('day');
   const [reportData, setReportData] = useState<any[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [isDeleteProductionOpen, setIsDeleteProductionOpen] = useState(false);
+  const [selectedProductionIds, setSelectedProductionIds] = useState<string[]>([]);
 
   const locale = settings.language === 'es' ? es : enUS;
 
@@ -233,6 +238,38 @@ export default function InventoryPage() {
   const canViewHistory = isAdmin || isOperario;
   const canRegisterProduction = isAdmin || isOperario;
 
+  // Filter products for direct production - exclude "preformas" (they should only be produced via recipes)
+  const directProductionProducts = useMemo(() => {
+    // Get product IDs that have recipes (these are outputs that need recipe-based production)
+    const productsWithRecipes = new Set(recipes.map((r: any) => r.output_product_id));
+    
+    // Filter out products that:
+    // 1. Have "preforma" in their name (case insensitive)
+    // 2. Are output products with recipes defined (they should use recipe-based production)
+    return products.filter((p: Product) => {
+      const isPreforma = p.name.toLowerCase().includes('preforma');
+      const hasRecipe = productsWithRecipes.has(p.id);
+      // Only show in direct production if it's NOT a preforma AND doesn't have a recipe
+      return !isPreforma && !hasRecipe;
+    });
+  }, [products, recipes]);
+
+  const handleDeleteProductionHistory = (productionId?: string) => {
+    if (productionId) {
+      setSelectedProductionIds([productionId]);
+    } else {
+      // Delete all
+      setSelectedProductionIds([]);
+    }
+    setIsDeleteProductionOpen(true);
+  };
+
+  const handleDeleteProductionSuccess = () => {
+    refetchHistory();
+    refetchProducts();
+    refetchMovements();
+  };
+
   // Export to CSV/XLS format
   const exportToCSV = () => {
     if (reportData.length === 0) {
@@ -387,7 +424,7 @@ export default function InventoryPage() {
                   <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                     <SelectTrigger><SelectValue placeholder={settings.language === 'es' ? 'Seleccionar producto' : 'Select product'} /></SelectTrigger>
                     <SelectContent>
-                      {products.map((p: Product) => (
+                      {directProductionProducts.map((p: Product) => (
                         <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku})</SelectItem>
                       ))}
                     </SelectContent>
@@ -690,9 +727,22 @@ export default function InventoryPage() {
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardContent className="p-4">
-              <h3 className="font-semibold mb-4">
-                {settings.language === 'es' ? 'Historial de Movimientos' : 'Movement History'}
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">
+                  {settings.language === 'es' ? 'Historial de Movimientos' : 'Movement History'}
+                </h3>
+                {isAdmin && movements.filter(m => m.movement_type === 'production').length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-destructive hover:text-destructive gap-2"
+                    onClick={() => handleDeleteProductionHistory()}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">{settings.language === 'es' ? 'Eliminar Todo' : 'Delete All'}</span>
+                  </Button>
+                )}
+              </div>
               {loadingMovements ? (
                 <div className="text-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
@@ -713,11 +763,23 @@ export default function InventoryPage() {
                           {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`text-lg font-bold ${item.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {item.quantity > 0 ? '+' : ''}{item.quantity}
-                        </span>
-                        <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className={`text-lg font-bold ${item.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {item.quantity > 0 ? '+' : ''}{item.quantity}
+                          </span>
+                          <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
+                        </div>
+                        {isAdmin && item.movement_type === 'production' && item.reference_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteProductionHistory(item.reference_id!)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -841,6 +903,16 @@ export default function InventoryPage() {
         </TabsContent>
         )}
       </Tabs>
+
+      {/* Delete Production Dialog */}
+      <DeleteProductionDialog
+        open={isDeleteProductionOpen}
+        onOpenChange={setIsDeleteProductionOpen}
+        productionIds={selectedProductionIds}
+        deleteAll={selectedProductionIds.length === 0}
+        onSuccess={handleDeleteProductionSuccess}
+        language={settings.language as 'es' | 'en'}
+      />
     </div>
   );
 }
