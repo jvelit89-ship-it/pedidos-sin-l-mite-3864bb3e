@@ -85,43 +85,61 @@ export type Database = {
           },
         ]
       }
-      commission_settings: {
+      commission_payments: {
         Row: {
-          commission_rate: number
           company_id: string
           created_at: string
           id: string
+          notes: string | null
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          status: string
+          total_amount: number
+          total_units: number
           updated_at: string
           vendedor_id: string
         }
         Insert: {
-          commission_rate?: number
           company_id: string
           created_at?: string
           id?: string
+          notes?: string | null
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          total_amount: number
+          total_units: number
           updated_at?: string
           vendedor_id: string
         }
         Update: {
-          commission_rate?: number
           company_id?: string
           created_at?: string
           id?: string
+          notes?: string | null
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          total_amount?: number
+          total_units?: number
           updated_at?: string
           vendedor_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "commission_settings_company_id_fkey"
+            foreignKeyName: "commission_payments_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "commission_settings_vendedor_id_fkey"
+            foreignKeyName: "commission_payments_vendedor_id_fkey"
             columns: ["vendedor_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "vendedores"
             referencedColumns: ["id"]
           },
@@ -620,6 +638,7 @@ export type Database = {
       products: {
         Row: {
           category: string | null
+          commission_amount: number
           company_id: string
           created_at: string
           id: string
@@ -633,6 +652,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          commission_amount?: number
           company_id: string
           created_at?: string
           id?: string
@@ -646,6 +666,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          commission_amount?: number
           company_id?: string
           created_at?: string
           id?: string

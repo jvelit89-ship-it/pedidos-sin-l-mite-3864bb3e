@@ -1,45 +1,52 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendedores } from '@/hooks/useTeam';
-import { useCommissionSettings, useVendorCommissions, useMyCommissions } from '@/hooks/useCommissions';
+import { useProductCommissions, useVendorCommissions, useMyCommissions } from '@/hooks/useCommissions';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, Calendar, Users, Percent, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-interface VendedorCommission {
+interface VendedorCommissionSummary {
   vendedor_id: string;
   vendedor_name: string;
-  commission_rate: number;
-  period1_sales: number;
+  period1_units: number;
   period1_commission: number;
-  period2_sales: number;
+  period2_units: number;
   period2_commission: number;
-  total_sales: number;
+  total_units: number;
   total_commission: number;
+  details: any[];
 }
 
 export default function CommissionsPage() {
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const { vendedores } = useVendedores();
-  const { setCommissionRate, getCommissionRate, loading: settingsLoading } = useCommissionSettings();
+  const { products, setProductCommission, loading: productsLoading } = useProductCommissions();
+  const { formatDateLocal } = useSettings();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [commissions, setCommissions] = useState<VendedorCommission[]>([]);
+  const [commissions, setCommissions] = useState<VendedorCommissionSummary[]>([]);
   const [myCommission, setMyCommission] = useState<any>(null);
-  const [editingVendedor, setEditingVendedor] = useState<string | null>(null);
-  const [newRate, setNewRate] = useState('');
+  const [dailyCommissions, setDailyCommissions] = useState<any[]>([]);
+  const [editingProduct, setEditingProduct] = useState<string | null>(null);
+  const [newAmount, setNewAmount] = useState('');
   const [loadingCommissions, setLoadingCommissions] = useState(false);
+  const [selectedVendedor, setSelectedVendedor] = useState<VendedorCommissionSummary | null>(null);
+  const [viewMode, setViewMode] = useState<'monthly' | 'daily'>('monthly');
 
-  const { calculateCommissions } = useVendorCommissions(selectedYear, selectedMonth);
-  const { calculateMyCommissions } = useMyCommissions(user?.vendedorId || null, selectedYear, selectedMonth);
+  const { calculateCommissions, loading: calcLoading } = useVendorCommissions(selectedYear, selectedMonth);
+  const { calculateMyCommissions, getDailyCommissions } = useMyCommissions(user?.vendedorId || null, selectedYear, selectedMonth);
 
   const isAdminOrSuper = isAdmin || isSuperAdmin;
 
@@ -50,7 +57,7 @@ export default function CommissionsPage() {
 
   useEffect(() => {
     loadCommissions();
-  }, [selectedMonth, selectedYear, settingsLoading]);
+  }, [selectedMonth, selectedYear]);
 
   const loadCommissions = async () => {
     setLoadingCommissions(true);
@@ -61,6 +68,8 @@ export default function CommissionsPage() {
       } else if (user?.vendedorId) {
         const data = await calculateMyCommissions();
         setMyCommission(data);
+        const daily = await getDailyCommissions();
+        setDailyCommissions(daily);
       }
     } catch (error) {
       console.error('Error loading commissions:', error);
@@ -69,15 +78,15 @@ export default function CommissionsPage() {
     }
   };
 
-  const handleSaveRate = async (vendedorId: string) => {
-    const rate = parseFloat(newRate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      toast.error('La comisión debe ser entre 0 y 100%');
+  const handleSaveProductCommission = async (productId: string) => {
+    const amount = parseFloat(newAmount);
+    if (isNaN(amount) || amount < 0) {
+      toast.error('El monto debe ser mayor o igual a 0');
       return;
     }
-    await setCommissionRate(vendedorId, rate);
-    setEditingVendedor(null);
-    setNewRate('');
+    await setProductCommission(productId, amount);
+    setEditingProduct(null);
+    setNewAmount('');
     loadCommissions();
   };
 
@@ -102,7 +111,7 @@ export default function CommissionsPage() {
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
 
   const totalCommissions = commissions.reduce((sum, c) => sum + c.total_commission, 0);
-  const totalSales = commissions.reduce((sum, c) => sum + c.total_sales, 0);
+  const totalUnits = commissions.reduce((sum, c) => sum + c.total_units, 0);
 
   // Vendedor view
   if (!isAdminOrSuper) {
@@ -113,6 +122,24 @@ export default function CommissionsPage() {
             <DollarSign className="h-6 w-6" />
             Mis Comisiones
           </h1>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'monthly' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('monthly')}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Mensual
+            </Button>
+            <Button
+              variant={viewMode === 'daily' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('daily')}
+            >
+              <CalendarDays className="h-4 w-4 mr-1" />
+              Diario
+            </Button>
+          </div>
         </div>
 
         {/* Month selector */}
@@ -138,63 +165,134 @@ export default function CommissionsPage() {
               Cargando...
             </CardContent>
           </Card>
-        ) : myCommission ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Tasa de Comisión</CardTitle>
-                <Percent className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{myCommission.commission_rate}%</div>
-              </CardContent>
-            </Card>
+        ) : viewMode === 'monthly' && myCommission ? (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Unidades Vendidas</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{myCommission.total_units}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Periodo 1 (1-15)</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(myCommission.period1_commission)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ventas: {formatCurrency(myCommission.period1_sales)}
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Periodo 1 (1-15)</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {formatCurrency(myCommission.period1_commission)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {myCommission.period1_units} unidades
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Periodo 2 (16-{new Date(selectedYear, selectedMonth, 0).getDate()})</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(myCommission.period2_commission)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ventas: {formatCurrency(myCommission.period2_sales)}
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Periodo 2 (16-{new Date(selectedYear, selectedMonth, 0).getDate()})</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {formatCurrency(myCommission.period2_commission)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {myCommission.period2_units} unidades
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-primary/5 border-primary/20">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total del Mes</CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
+              <Card className="bg-primary/5 border-primary/20">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Total del Mes</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-primary">
+                    {formatCurrency(myCommission.total_commission)}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Details table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Detalle de Comisiones</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">
-                  {formatCurrency(myCommission.total_commission)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ventas: {formatCurrency(myCommission.total_sales)}
-                </p>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead className="text-right">Comisión</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myCommission.details?.slice(0, 20).map((d: any, i: number) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-sm">
+                          {format(new Date(d.order_date), 'dd/MM', { locale: es })}
+                        </TableCell>
+                        <TableCell className="text-sm">{d.customer_name}</TableCell>
+                        <TableCell className="text-sm">{d.product_name}</TableCell>
+                        <TableCell className="text-right">{d.quantity}</TableCell>
+                        <TableCell className="text-right font-medium text-green-600">
+                          {formatCurrency(d.total_commission)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
-          </div>
+          </>
+        ) : viewMode === 'daily' ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Comisiones por Día (últimos 30 días)</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Unidades</TableHead>
+                    <TableHead className="text-right">Comisión</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyCommissions.map((d) => (
+                    <TableRow key={d.date}>
+                      <TableCell className="font-medium">
+                        {format(new Date(d.date + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })}
+                      </TableCell>
+                      <TableCell className="text-right">{d.units}</TableCell>
+                      <TableCell className="text-right font-medium text-green-600">
+                        {formatCurrency(d.commission)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {dailyCommissions.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                        No hay comisiones en los últimos 30 días
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
@@ -212,7 +310,7 @@ export default function CommissionsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <DollarSign className="h-6 w-6" />
-          Comisiones de Vendedores
+          Comisiones
         </h1>
       </div>
 
@@ -237,11 +335,11 @@ export default function CommissionsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Ventas</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Unidades</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalSales)}</div>
+            <div className="text-2xl font-bold">{totalUnits}</div>
           </CardContent>
         </Card>
 
@@ -269,23 +367,23 @@ export default function CommissionsPage() {
       <Tabs defaultValue="commissions">
         <TabsList>
           <TabsTrigger value="commissions">Comisiones del Mes</TabsTrigger>
-          <TabsTrigger value="settings">Configurar Tasas</TabsTrigger>
+          <TabsTrigger value="products">Comisión por Producto</TabsTrigger>
         </TabsList>
 
         <TabsContent value="commissions" className="mt-4">
           <Card>
             <CardContent className="p-0">
-              {loadingCommissions ? (
+              {loadingCommissions || calcLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Cargando...</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Vendedor</TableHead>
-                      <TableHead className="text-right">Tasa</TableHead>
                       <TableHead className="text-right">Periodo 1 (1-15)</TableHead>
                       <TableHead className="text-right">Periodo 2 (16-{new Date(selectedYear, selectedMonth, 0).getDate()})</TableHead>
                       <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -293,25 +391,31 @@ export default function CommissionsPage() {
                       <TableRow key={c.vendedor_id}>
                         <TableCell className="font-medium">{c.vendedor_name}</TableCell>
                         <TableCell className="text-right">
-                          <Badge variant="outline">{c.commission_rate}%</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div>{formatCurrency(c.period1_commission)}</div>
+                          <div className="font-medium">{formatCurrency(c.period1_commission)}</div>
                           <div className="text-xs text-muted-foreground">
-                            Ventas: {formatCurrency(c.period1_sales)}
+                            {c.period1_units} uds
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div>{formatCurrency(c.period2_commission)}</div>
+                          <div className="font-medium">{formatCurrency(c.period2_commission)}</div>
                           <div className="text-xs text-muted-foreground">
-                            Ventas: {formatCurrency(c.period2_sales)}
+                            {c.period2_units} uds
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="font-bold text-green-600">{formatCurrency(c.total_commission)}</div>
                           <div className="text-xs text-muted-foreground">
-                            {formatCurrency(c.total_sales)}
+                            {c.total_units} uds
                           </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedVendedor(c)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -329,58 +433,56 @@ export default function CommissionsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-4">
+        <TabsContent value="products" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Configurar Tasas de Comisión</CardTitle>
+              <CardTitle className="text-lg">Comisión por Producto</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Define el monto de comisión que gana el vendedor por cada unidad vendida
+              </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Tasa Actual</TableHead>
+                    <TableHead>Producto</TableHead>
+                    <TableHead className="text-right">Comisión por Unidad</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vendedores?.filter(v => v.active).map((vendedor) => (
-                    <TableRow key={vendedor.id}>
-                      <TableCell className="font-medium">{vendedor.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-500/10 text-green-600">
-                          Activo
-                        </Badge>
-                      </TableCell>
+                  {products.map((product) => (
+                    <TableRow key={product.product_id}>
+                      <TableCell className="font-medium">{product.product_name}</TableCell>
                       <TableCell className="text-right">
-                        {editingVendedor === vendedor.id ? (
+                        {editingProduct === product.product_id ? (
                           <div className="flex items-center justify-end gap-2">
+                            <span>S/</span>
                             <Input
                               type="number"
-                              value={newRate}
-                              onChange={(e) => setNewRate(e.target.value)}
-                              className="w-20 text-right"
-                              placeholder="0"
+                              value={newAmount}
+                              onChange={(e) => setNewAmount(e.target.value)}
+                              className="w-24 text-right"
+                              placeholder="0.00"
                               min="0"
-                              max="100"
-                              step="0.5"
+                              step="0.10"
                             />
-                            <span>%</span>
                           </div>
                         ) : (
-                          <Badge>{getCommissionRate(vendedor.id)}%</Badge>
+                          <Badge variant={product.commission_amount > 0 ? 'default' : 'outline'}>
+                            {formatCurrency(product.commission_amount)}
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {editingVendedor === vendedor.id ? (
+                        {editingProduct === product.product_id ? (
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" onClick={() => handleSaveRate(vendedor.id)}>
+                            <Button size="sm" onClick={() => handleSaveProductCommission(product.product_id)}>
                               Guardar
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => {
-                              setEditingVendedor(null);
-                              setNewRate('');
+                              setEditingProduct(null);
+                              setNewAmount('');
                             }}>
                               Cancelar
                             </Button>
@@ -390,8 +492,8 @@ export default function CommissionsPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              setEditingVendedor(vendedor.id);
-                              setNewRate(getCommissionRate(vendedor.id).toString());
+                              setEditingProduct(product.product_id);
+                              setNewAmount(product.commission_amount.toString());
                             }}
                           >
                             Editar
@@ -406,6 +508,47 @@ export default function CommissionsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Details dialog */}
+      <Dialog open={!!selectedVendedor} onOpenChange={() => setSelectedVendedor(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Detalle de Comisiones - {selectedVendedor?.vendedor_name}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="text-right">Cant.</TableHead>
+                  <TableHead className="text-right">Com/U</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedVendedor?.details.map((d, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm">
+                      {format(new Date(d.order_date), 'dd/MM', { locale: es })}
+                    </TableCell>
+                    <TableCell className="text-sm">{d.customer_name}</TableCell>
+                    <TableCell className="text-sm">{d.product_name}</TableCell>
+                    <TableCell className="text-right">{d.quantity}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(d.commission_per_unit)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-green-600">
+                      {formatCurrency(d.total_commission)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

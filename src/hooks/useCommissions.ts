@@ -1,27 +1,41 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
 
-interface CommissionSetting {
-  id: string;
-  vendedor_id: string;
-  commission_rate: number;
-  company_id: string;
-  created_at: string;
-  updated_at: string;
+interface ProductCommission {
+  product_id: string;
+  product_name: string;
+  commission_amount: number;
 }
 
-interface VendedorCommission {
+interface CommissionDetail {
+  order_id: string;
+  order_date: string;
+  customer_name: string;
+  product_name: string;
+  quantity: number;
+  commission_per_unit: number;
+  total_commission: number;
+}
+
+interface VendedorCommissionSummary {
   vendedor_id: string;
   vendedor_name: string;
-  commission_rate: number;
-  period1_sales: number; // 1-15 del mes
+  period1_units: number;
   period1_commission: number;
-  period2_sales: number; // 16-fin de mes
+  period2_units: number;
   period2_commission: number;
-  total_sales: number;
+  total_units: number;
   total_commission: number;
+  details: CommissionDetail[];
+}
+
+interface DailyCommission {
+  date: string;
+  units: number;
+  commission: number;
+  details: CommissionDetail[];
 }
 
 async function getUserCompanyId(): Promise<string | null> {
@@ -37,46 +51,21 @@ async function getUserCompanyId(): Promise<string | null> {
   return profile?.company_id || null;
 }
 
-export function useCommissionSettings() {
-  const { data: settings, loading, error, refetch } = useRealtimeQuery<CommissionSetting>('commission_settings', {
-    orderBy: { column: 'created_at', ascending: false },
+export function useProductCommissions() {
+  const { data: products, loading, refetch } = useRealtimeQuery<any>('products', {
+    orderBy: { column: 'name', ascending: true },
   });
 
-  const setCommissionRate = useCallback(async (vendedorId: string, rate: number) => {
-    const companyId = await getUserCompanyId();
-    if (!companyId) {
-      toast.error('Error: No se encontró la empresa');
-      return null;
-    }
+  const setProductCommission = useCallback(async (productId: string, amount: number) => {
+    const { error } = await supabase
+      .from('products')
+      .update({ commission_amount: amount })
+      .eq('id', productId);
 
-    // Try to update first, if no rows affected, insert
-    const { data: existing } = await supabase
-      .from('commission_settings')
-      .select('id')
-      .eq('vendedor_id', vendedorId)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await supabase
-        .from('commission_settings')
-        .update({ commission_rate: rate })
-        .eq('vendedor_id', vendedorId);
-
-      if (error) {
-        toast.error('Error al actualizar comisión');
-        console.error('Error updating commission:', error);
-        return null;
-      }
-    } else {
-      const { error } = await supabase
-        .from('commission_settings')
-        .insert({ vendedor_id: vendedorId, commission_rate: rate, company_id: companyId });
-
-      if (error) {
-        toast.error('Error al crear comisión');
-        console.error('Error creating commission:', error);
-        return null;
-      }
+    if (error) {
+      toast.error('Error al actualizar comisión');
+      console.error('Error updating commission:', error);
+      return false;
     }
 
     toast.success('Comisión actualizada');
@@ -84,141 +73,303 @@ export function useCommissionSettings() {
     return true;
   }, [refetch]);
 
-  const getCommissionRate = useCallback((vendedorId: string): number => {
-    const setting = settings?.find(s => s.vendedor_id === vendedorId);
-    return setting?.commission_rate || 0;
-  }, [settings]);
+  const getProductsWithCommissions = useCallback((): ProductCommission[] => {
+    return (products || []).map((p: any) => ({
+      product_id: p.id,
+      product_name: p.name,
+      commission_amount: p.commission_amount || 0,
+    }));
+  }, [products]);
 
   return {
-    settings,
+    products: getProductsWithCommissions(),
     loading,
-    error,
     refetch,
-    setCommissionRate,
-    getCommissionRate,
+    setProductCommission,
   };
 }
 
 export function useVendorCommissions(year: number, month: number) {
-  const { settings } = useCommissionSettings();
+  const [loading, setLoading] = useState(false);
 
-  const calculateCommissions = useCallback(async (): Promise<VendedorCommission[]> => {
-    const companyId = await getUserCompanyId();
-    if (!companyId) return [];
+  const calculateCommissions = useCallback(async (): Promise<VendedorCommissionSummary[]> => {
+    setLoading(true);
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return [];
 
-    // Get all vendedores
-    const { data: vendedores } = await supabase
-      .from('vendedores')
-      .select('id, name')
-      .eq('company_id', companyId)
-      .eq('active', true);
+      // Get all active vendedores
+      const { data: vendedores } = await supabase
+        .from('vendedores')
+        .select('id, name')
+        .eq('company_id', companyId)
+        .eq('active', true);
 
-    if (!vendedores) return [];
+      if (!vendedores) return [];
 
-    // Calculate date ranges for both periods
-    const period1Start = new Date(year, month - 1, 1);
-    const period1End = new Date(year, month - 1, 15, 23, 59, 59);
-    const period2Start = new Date(year, month - 1, 16);
-    const period2End = new Date(year, month, 0, 23, 59, 59); // Last day of month
+      // Calculate date ranges
+      const period1Start = new Date(year, month - 1, 1);
+      const period1End = new Date(year, month - 1, 15, 23, 59, 59);
+      const period2Start = new Date(year, month - 1, 16);
+      const period2End = new Date(year, month, 0, 23, 59, 59);
 
-    // Get all delivered orders for this month
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('vendedor_id, total, delivered_at')
-      .eq('company_id', companyId)
-      .eq('status', 'delivered')
-      .gte('delivered_at', period1Start.toISOString())
-      .lte('delivered_at', period2End.toISOString());
+      // Get delivered orders with items for this month
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          vendedor_id,
+          customer_name,
+          delivered_at,
+          order_items (
+            product_id,
+            product_name,
+            quantity
+          )
+        `)
+        .eq('company_id', companyId)
+        .eq('status', 'delivered')
+        .gte('delivered_at', period1Start.toISOString())
+        .lte('delivered_at', period2End.toISOString());
 
-    const commissions: VendedorCommission[] = vendedores.map(vendedor => {
-      const vendedorOrders = orders?.filter(o => o.vendedor_id === vendedor.id) || [];
-      const rate = settings?.find(s => s.vendedor_id === vendedor.id)?.commission_rate || 0;
+      // Get all products with commission amounts
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, commission_amount')
+        .eq('company_id', companyId);
 
-      // Period 1 (1-15)
-      const period1Orders = vendedorOrders.filter(o => {
-        const deliveredAt = new Date(o.delivered_at!);
-        return deliveredAt >= period1Start && deliveredAt <= period1End;
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.commission_amount || 0])
+      );
+
+      const commissions: VendedorCommissionSummary[] = vendedores.map(vendedor => {
+        const vendedorOrders = orders?.filter(o => o.vendedor_id === vendedor.id) || [];
+        
+        let period1Units = 0;
+        let period1Commission = 0;
+        let period2Units = 0;
+        let period2Commission = 0;
+        const details: CommissionDetail[] = [];
+
+        vendedorOrders.forEach(order => {
+          const deliveredAt = new Date(order.delivered_at!);
+          const isPeriod1 = deliveredAt >= period1Start && deliveredAt <= period1End;
+
+          (order.order_items || []).forEach((item: any) => {
+            const commissionPerUnit = productCommissions.get(item.product_id) || 0;
+            const totalCommission = item.quantity * commissionPerUnit;
+
+            if (isPeriod1) {
+              period1Units += item.quantity;
+              period1Commission += totalCommission;
+            } else {
+              period2Units += item.quantity;
+              period2Commission += totalCommission;
+            }
+
+            details.push({
+              order_id: order.id,
+              order_date: order.delivered_at!,
+              customer_name: order.customer_name,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              commission_per_unit: commissionPerUnit,
+              total_commission: totalCommission,
+            });
+          });
+        });
+
+        return {
+          vendedor_id: vendedor.id,
+          vendedor_name: vendedor.name,
+          period1_units: period1Units,
+          period1_commission: period1Commission,
+          period2_units: period2Units,
+          period2_commission: period2Commission,
+          total_units: period1Units + period2Units,
+          total_commission: period1Commission + period2Commission,
+          details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+        };
       });
-      const period1Sales = period1Orders.reduce((sum, o) => sum + o.total, 0);
-      const period1Commission = period1Sales * (rate / 100);
 
-      // Period 2 (16-end)
-      const period2Orders = vendedorOrders.filter(o => {
-        const deliveredAt = new Date(o.delivered_at!);
-        return deliveredAt >= period2Start && deliveredAt <= period2End;
-      });
-      const period2Sales = period2Orders.reduce((sum, o) => sum + o.total, 0);
-      const period2Commission = period2Sales * (rate / 100);
+      return commissions;
+    } finally {
+      setLoading(false);
+    }
+  }, [year, month]);
 
-      return {
-        vendedor_id: vendedor.id,
-        vendedor_name: vendedor.name,
-        commission_rate: rate,
-        period1_sales: period1Sales,
-        period1_commission: period1Commission,
-        period2_sales: period2Sales,
-        period2_commission: period2Commission,
-        total_sales: period1Sales + period2Sales,
-        total_commission: period1Commission + period2Commission,
-      };
-    });
-
-    return commissions;
-  }, [year, month, settings]);
-
-  return { calculateCommissions };
+  return { calculateCommissions, loading };
 }
 
 export function useMyCommissions(vendedorId: string | null, year: number, month: number) {
-  const { settings } = useCommissionSettings();
+  const [loading, setLoading] = useState(false);
 
   const calculateMyCommissions = useCallback(async () => {
     if (!vendedorId) return null;
+    setLoading(true);
 
-    // Calculate date ranges for both periods
-    const period1Start = new Date(year, month - 1, 1);
-    const period1End = new Date(year, month - 1, 15, 23, 59, 59);
-    const period2Start = new Date(year, month - 1, 16);
-    const period2End = new Date(year, month, 0, 23, 59, 59);
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return null;
 
-    // Get vendedor's delivered orders for this month
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('total, delivered_at')
-      .eq('vendedor_id', vendedorId)
-      .eq('status', 'delivered')
-      .gte('delivered_at', period1Start.toISOString())
-      .lte('delivered_at', period2End.toISOString());
+      // Calculate date ranges
+      const period1Start = new Date(year, month - 1, 1);
+      const period1End = new Date(year, month - 1, 15, 23, 59, 59);
+      const period2Start = new Date(year, month - 1, 16);
+      const period2End = new Date(year, month, 0, 23, 59, 59);
 
-    const rate = settings?.find(s => s.vendedor_id === vendedorId)?.commission_rate || 0;
+      // Get delivered orders with items for this month
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          customer_name,
+          delivered_at,
+          order_items (
+            product_id,
+            product_name,
+            quantity
+          )
+        `)
+        .eq('vendedor_id', vendedorId)
+        .eq('status', 'delivered')
+        .gte('delivered_at', period1Start.toISOString())
+        .lte('delivered_at', period2End.toISOString());
 
-    // Period 1 (1-15)
-    const period1Orders = orders?.filter(o => {
-      const deliveredAt = new Date(o.delivered_at!);
-      return deliveredAt >= period1Start && deliveredAt <= period1End;
-    }) || [];
-    const period1Sales = period1Orders.reduce((sum, o) => sum + o.total, 0);
-    const period1Commission = period1Sales * (rate / 100);
+      // Get all products with commission amounts
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, commission_amount')
+        .eq('company_id', companyId);
 
-    // Period 2 (16-end)
-    const period2Orders = orders?.filter(o => {
-      const deliveredAt = new Date(o.delivered_at!);
-      return deliveredAt >= period2Start && deliveredAt <= period2End;
-    }) || [];
-    const period2Sales = period2Orders.reduce((sum, o) => sum + o.total, 0);
-    const period2Commission = period2Sales * (rate / 100);
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.commission_amount || 0])
+      );
 
-    return {
-      vendedor_id: vendedorId,
-      commission_rate: rate,
-      period1_sales: period1Sales,
-      period1_commission: period1Commission,
-      period2_sales: period2Sales,
-      period2_commission: period2Commission,
-      total_sales: period1Sales + period2Sales,
-      total_commission: period1Commission + period2Commission,
-    };
-  }, [vendedorId, year, month, settings]);
+      let period1Units = 0;
+      let period1Commission = 0;
+      let period2Units = 0;
+      let period2Commission = 0;
+      const details: CommissionDetail[] = [];
 
-  return { calculateMyCommissions };
+      (orders || []).forEach(order => {
+        const deliveredAt = new Date(order.delivered_at!);
+        const isPeriod1 = deliveredAt >= period1Start && deliveredAt <= period1End;
+
+        (order.order_items || []).forEach((item: any) => {
+          const commissionPerUnit = productCommissions.get(item.product_id) || 0;
+          const totalCommission = item.quantity * commissionPerUnit;
+
+          if (isPeriod1) {
+            period1Units += item.quantity;
+            period1Commission += totalCommission;
+          } else {
+            period2Units += item.quantity;
+            period2Commission += totalCommission;
+          }
+
+          details.push({
+            order_id: order.id,
+            order_date: order.delivered_at!,
+            customer_name: order.customer_name,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            commission_per_unit: commissionPerUnit,
+            total_commission: totalCommission,
+          });
+        });
+      });
+
+      return {
+        vendedor_id: vendedorId,
+        period1_units: period1Units,
+        period1_commission: period1Commission,
+        period2_units: period2Units,
+        period2_commission: period2Commission,
+        total_units: period1Units + period2Units,
+        total_commission: period1Commission + period2Commission,
+        details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [vendedorId, year, month]);
+
+  const getDailyCommissions = useCallback(async (): Promise<DailyCommission[]> => {
+    if (!vendedorId) return [];
+    setLoading(true);
+
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return [];
+
+      // Get last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          customer_name,
+          delivered_at,
+          order_items (
+            product_id,
+            product_name,
+            quantity
+          )
+        `)
+        .eq('vendedor_id', vendedorId)
+        .eq('status', 'delivered')
+        .gte('delivered_at', startDate.toISOString())
+        .lte('delivered_at', endDate.toISOString())
+        .order('delivered_at', { ascending: false });
+
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, commission_amount')
+        .eq('company_id', companyId);
+
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.commission_amount || 0])
+      );
+
+      // Group by date
+      const dailyMap = new Map<string, DailyCommission>();
+
+      (orders || []).forEach(order => {
+        const dateKey = new Date(order.delivered_at!).toISOString().split('T')[0];
+
+        if (!dailyMap.has(dateKey)) {
+          dailyMap.set(dateKey, { date: dateKey, units: 0, commission: 0, details: [] });
+        }
+
+        const daily = dailyMap.get(dateKey)!;
+
+        (order.order_items || []).forEach((item: any) => {
+          const commissionPerUnit = productCommissions.get(item.product_id) || 0;
+          const totalCommission = item.quantity * commissionPerUnit;
+
+          daily.units += item.quantity;
+          daily.commission += totalCommission;
+          daily.details.push({
+            order_id: order.id,
+            order_date: order.delivered_at!,
+            customer_name: order.customer_name,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            commission_per_unit: commissionPerUnit,
+            total_commission: totalCommission,
+          });
+        });
+      });
+
+      return Array.from(dailyMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+    } finally {
+      setLoading(false);
+    }
+  }, [vendedorId]);
+
+  return { calculateMyCommissions, getDailyCommissions, loading };
 }
