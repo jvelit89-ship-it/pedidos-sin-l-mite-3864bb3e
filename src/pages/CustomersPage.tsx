@@ -8,14 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCustomers, useGeocoding } from '@/hooks/useCustomers';
 import { useVendedores } from '@/hooks/useTeam';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
+import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -27,6 +29,7 @@ interface Customer {
   latitude: number | null;
   longitude: number | null;
   category: 'regular' | 'premium' | 'vip';
+  customer_type: 'minorista' | 'mayorista';
   notes: string | null;
   company_id: string;
   facade_photo_url: string | null;
@@ -64,6 +67,7 @@ export default function CustomersPage() {
     email: '',
     notes: '',
     category: 'regular' as 'regular' | 'premium' | 'vip',
+    customer_type: 'minorista' as 'minorista' | 'mayorista',
     latitude: null as number | null,
     longitude: null as number | null,
     vendedor_id: '' as string,
@@ -340,6 +344,7 @@ export default function CustomersPage() {
         address: formData.address || null,
         notes: formData.notes || null,
         category: formData.category,
+        customer_type: formData.customer_type,
         latitude: formData.latitude,
         longitude: formData.longitude,
         vendedor_id: formData.vendedor_id || null,
@@ -355,6 +360,7 @@ export default function CustomersPage() {
         address: formData.address || null,
         notes: formData.notes || null,
         category: formData.category,
+        customer_type: formData.customer_type,
         latitude: formData.latitude,
         longitude: formData.longitude,
         vendedor_id: formData.vendedor_id || null,
@@ -388,6 +394,7 @@ export default function CustomersPage() {
       email: '',
       notes: '',
       category: 'regular',
+      customer_type: 'minorista',
       latitude: null,
       longitude: null,
       vendedor_id: '',
@@ -405,6 +412,7 @@ export default function CustomersPage() {
       email: customer.email || '',
       notes: customer.notes || '',
       category: customer.category || 'regular',
+      customer_type: customer.customer_type || 'minorista',
       latitude: customer.latitude,
       longitude: customer.longitude,
       vendedor_id: customer.vendedor_id || '',
@@ -633,6 +641,30 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
+                {/* Customer Type - Minorista/Mayorista */}
+                <div className="space-y-2">
+                  <Label>{settings.language === 'es' ? 'Tipo de Cliente' : 'Customer Type'}</Label>
+                  <Select
+                    value={formData.customer_type}
+                    onValueChange={(v) => setFormData({ ...formData, customer_type: v as 'minorista' | 'mayorista' })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minorista">
+                        {settings.language === 'es' ? 'Minorista (Cliente Final)' : 'Retail (End Customer)'}
+                      </SelectItem>
+                      <SelectItem value="mayorista">
+                        {settings.language === 'es' ? 'Mayorista (Precio Especial)' : 'Wholesale (Special Price)'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {settings.language === 'es' 
+                      ? 'Los mayoristas reciben automáticamente precios por volumen' 
+                      : 'Wholesale customers automatically receive volume pricing'}
+                  </p>
+                </div>
+
                 {/* Vendedor Selector */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
@@ -821,16 +853,20 @@ export default function CustomersPage() {
                     )}
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold truncate">{c.name}</p>
-                        {c.category && (
+                        {c.customer_type === 'mayorista' && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            <Store className="w-3 h-3 inline mr-0.5" />
+                            Mayorista
+                          </span>
+                        )}
+                        {c.category && c.category !== 'regular' && (
                           <span
                             className={`px-2 py-0.5 text-xs rounded-full ${
                               c.category === 'premium'
                                 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                : c.category === 'vip'
-                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                                : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                             }`}
                           >
                             {c.category}
@@ -891,91 +927,134 @@ export default function CustomersPage() {
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedCustomer?.name}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedCustomer?.name}
+              {selectedCustomer?.customer_type === 'mayorista' && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  <Store className="w-3 h-3 inline mr-1" />
+                  Mayorista
+                </span>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
-            <div className="space-y-4">
-              {/* Facade Photo */}
-              {selectedCustomer.facade_photo_url && (
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Camera className="w-4 h-4" />
-                    {settings.language === 'es' ? 'Foto de Fachada' : 'Facade Photo'}
-                  </Label>
-                  <img
-                    src={selectedCustomer.facade_photo_url}
-                    alt="Fachada del cliente"
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                </div>
-              )}
+            <Tabs defaultValue="info" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info">
+                  {settings.language === 'es' ? 'Información' : 'Information'}
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-1">
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  {settings.language === 'es' ? 'Historial' : 'History'}
+                </TabsTrigger>
+              </TabsList>
 
-              <div className="grid gap-2 text-sm">
-                {selectedCustomer.phone && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t.phone}</span>
-                    <span>{selectedCustomer.phone}</span>
+              <TabsContent value="info" className="mt-4 space-y-4">
+                {/* Facade Photo */}
+                {selectedCustomer.facade_photo_url && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Camera className="w-4 h-4" />
+                      {settings.language === 'es' ? 'Foto de Fachada' : 'Facade Photo'}
+                    </Label>
+                    <img
+                      src={selectedCustomer.facade_photo_url}
+                      alt="Fachada del cliente"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
                   </div>
                 )}
-                {selectedCustomer.address && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t.address}</span>
-                    <span className="text-right max-w-[60%]">{selectedCustomer.address}</span>
-                  </div>
-                )}
-                {selectedCustomer.email && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t.email}</span>
-                    <span>{selectedCustomer.email}</span>
-                  </div>
-                )}
-                {selectedCustomer.vendedor_id && (
+
+                <div className="grid gap-2 text-sm">
+                  {selectedCustomer.business_name && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {settings.language === 'es' ? 'Nombre del Negocio' : 'Business Name'}
+                      </span>
+                      <span className="font-medium">{selectedCustomer.business_name}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">
-                      {settings.language === 'es' ? 'Vendedor Asignado' : 'Assigned Vendor'}
+                      {settings.language === 'es' ? 'Tipo de Cliente' : 'Customer Type'}
                     </span>
-                    <span className="text-primary font-medium">{getVendedorName(selectedCustomer.vendedor_id)}</span>
+                    <span className={`font-medium ${selectedCustomer.customer_type === 'mayorista' ? 'text-blue-600' : ''}`}>
+                      {selectedCustomer.customer_type === 'mayorista' ? 'Mayorista' : 'Minorista'}
+                    </span>
                   </div>
-                )}
-                {selectedCustomer.notes && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t.notes}</span>
-                    <span className="text-right max-w-[60%]">{selectedCustomer.notes}</span>
-                  </div>
-                )}
-              </div>
-
-              {selectedCustomer.latitude && selectedCustomer.longitude ? (
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Map className="w-4 h-4" /> {t.customerLocation}
-                  </Label>
-                  <MapView
-                    latitude={selectedCustomer.latitude}
-                    longitude={selectedCustomer.longitude}
-                    height="200px"
-                  />
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCustomer.latitude},${selectedCustomer.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <MapPin className="w-4 h-4" /> {t.startNavigation}
-                  </a>
+                  {selectedCustomer.phone && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.phone}</span>
+                      <span>{selectedCustomer.phone}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.address && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.address}</span>
+                      <span className="text-right max-w-[60%]">{selectedCustomer.address}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.email && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.email}</span>
+                      <span>{selectedCustomer.email}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.vendedor_id && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {settings.language === 'es' ? 'Vendedor Asignado' : 'Assigned Vendor'}
+                      </span>
+                      <span className="text-primary font-medium">{getVendedorName(selectedCustomer.vendedor_id)}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.notes && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.notes}</span>
+                      <span className="text-right max-w-[60%]">{selectedCustomer.notes}</span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {settings.language === 'es' ? 'No hay ubicación registrada' : 'No location registered'}
-                </p>
-              )}
 
-              {!canEditCustomers && (
-                <p className="text-xs text-muted-foreground italic">
-                  {t.viewOnly} - {settings.language === 'es' ? 'Solo el administrador o vendedor puede editar clientes' : 'Only admin or vendor can edit customers'}
-                </p>
-              )}
-            </div>
+                {selectedCustomer.latitude && selectedCustomer.longitude ? (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Map className="w-4 h-4" /> {t.customerLocation}
+                    </Label>
+                    <MapView
+                      latitude={selectedCustomer.latitude}
+                      longitude={selectedCustomer.longitude}
+                      height="200px"
+                    />
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCustomer.latitude},${selectedCustomer.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <MapPin className="w-4 h-4" /> {t.startNavigation}
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {settings.language === 'es' ? 'No hay ubicación registrada' : 'No location registered'}
+                  </p>
+                )}
+
+                {!canEditCustomers && (
+                  <p className="text-xs text-muted-foreground italic">
+                    {t.viewOnly} - {settings.language === 'es' ? 'Solo el administrador o vendedor puede editar clientes' : 'Only admin or vendor can edit customers'}
+                  </p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-4">
+                <CustomerPurchaseHistory 
+                  customerId={selectedCustomer.id} 
+                  customerName={selectedCustomer.name} 
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>

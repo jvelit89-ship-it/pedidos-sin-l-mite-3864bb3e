@@ -13,6 +13,7 @@ interface Customer {
   latitude: number | null;
   longitude: number | null;
   category: 'regular' | 'premium' | 'vip';
+  customer_type: 'minorista' | 'mayorista';
   notes: string | null;
   company_id: string;
   facade_photo_url: string | null;
