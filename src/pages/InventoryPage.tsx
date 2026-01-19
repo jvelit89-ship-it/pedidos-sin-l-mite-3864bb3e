@@ -435,8 +435,9 @@ export default function InventoryPage() {
                   <Input
                     type="number"
                     min="1"
-                    value={productionQuantity}
+                    value={productionQuantity || ''}
                     onChange={(e) => setProductionQuantity(parseInt(e.target.value) || 0)}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -510,8 +511,9 @@ export default function InventoryPage() {
                     <Input
                       type="number"
                       min="0"
-                      value={formData.stock}
+                      value={formData.stock || ''}
                       onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                      onFocus={(e) => e.target.select()}
                     />
                   </div>
                   <div className="space-y-2">
@@ -519,8 +521,9 @@ export default function InventoryPage() {
                     <Input
                       type="number"
                       min="0"
-                      value={formData.min_stock}
+                      value={formData.min_stock || ''}
                       onChange={(e) => setFormData({ ...formData, min_stock: parseInt(e.target.value) || 0 })}
+                      onFocus={(e) => e.target.select()}
                     />
                   </div>
                   <div className="space-y-2 col-span-2">
@@ -529,8 +532,9 @@ export default function InventoryPage() {
                       type="number"
                       min="0"
                       step="0.01"
-                      value={formData.price}
+                      value={formData.price || ''}
                       onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                      onFocus={(e) => e.target.select()}
                       required
                     />
                   </div>
