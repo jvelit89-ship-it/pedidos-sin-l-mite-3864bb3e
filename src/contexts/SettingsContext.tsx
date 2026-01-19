@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AppSettings, Language, Currency, Timezone, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
+import { AppSettings, Language, Currency, Timezone, DvrBrand, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
 // Settings context for language and currency preferences
 
 interface Translations {
@@ -234,6 +234,10 @@ const defaultSettings: AppSettings = {
   language: 'es',
   currency: 'PEN',
   timezone: 'America/Lima',
+  dvrSerialNumber: '',
+  dvrBrand: '',
+  dvrIpAddress: '',
+  dvrPort: 80,
 };
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
