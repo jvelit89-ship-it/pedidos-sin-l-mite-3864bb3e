@@ -22,6 +22,11 @@ export default function AuthPage() {
   const { signIn, isAuthenticated, loading: authLoading } = useSupabaseAuth();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  
+  // Check if returning from impersonation
+  const [returningFromImpersonation, setReturningFromImpersonation] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -32,6 +37,27 @@ export default function AuthPage() {
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isSendingReset, setIsSendingReset] = useState(false);
+
+  // Check for impersonation return on mount
+  useEffect(() => {
+    const wasImpersonating = sessionStorage.getItem('returning_from_impersonation');
+    const savedAdminEmail = sessionStorage.getItem('admin_email');
+    
+    if (wasImpersonating === 'true' && savedAdminEmail) {
+      setReturningFromImpersonation(true);
+      setAdminEmail(savedAdminEmail);
+      setFormData(prev => ({ ...prev, email: savedAdminEmail }));
+      
+      // Clean up
+      sessionStorage.removeItem('returning_from_impersonation');
+      sessionStorage.removeItem('admin_email');
+      sessionStorage.removeItem('is_impersonating');
+      
+      toast.info('Sesión de impersonación finalizada', {
+        description: 'Ingresa tu contraseña para volver a tu cuenta de admin.',
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading && user) {
@@ -132,9 +158,14 @@ export default function AuthPage() {
 
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
+          <CardTitle className="text-2xl">
+            {returningFromImpersonation ? 'Volver a Admin' : 'Iniciar Sesión'}
+          </CardTitle>
           <CardDescription>
-            Ingresa tus credenciales para continuar
+            {returningFromImpersonation 
+              ? `Ingresa la contraseña de ${adminEmail}`
+              : 'Ingresa tus credenciales para continuar'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
