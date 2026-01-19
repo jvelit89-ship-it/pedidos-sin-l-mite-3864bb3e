@@ -18,7 +18,8 @@ export type SupabaseTable =
   | 'app_settings'
   | 'logs'
   | 'stock_movements'
-  | 'volume_pricing_rules';
+  | 'volume_pricing_rules'
+  | 'invoice_requests';
 
 interface QueryOptions {
   select?: string;

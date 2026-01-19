@@ -28,6 +28,7 @@ import { OperationalInsights } from '@/components/dashboard/OperationalInsights'
 import { AllRepartidoresLoad } from '@/components/dashboard/RepartidorLoadSummary';
 import { NewOrderBadge } from '@/components/dashboard/NewOrderBadge';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
+import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPanel';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -176,6 +177,9 @@ export default function DashboardPage() {
             <OperationalInsights insights={operationalInsights} />
             <AllRepartidoresLoad loads={allRepartidoresLoad} />
           </div>
+
+          {/* Invoice Requests Panel */}
+          <InvoiceRequestsPanel />
         </>
       )}
 

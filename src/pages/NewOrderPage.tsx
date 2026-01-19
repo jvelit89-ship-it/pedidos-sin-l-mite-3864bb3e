@@ -45,10 +45,14 @@ export default function NewOrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQueryingDocument, setIsQueryingDocument] = useState(false);
 
+  // Auto-assign vendedor if user is a vendedor
+  const isVendedorUser = user?.role === 'vendedor';
+  const autoVendedorId = isVendedorUser ? user?.vendedorId : null;
+
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [selectedVendedorId, setSelectedVendedorId] = useState('');
+  const [selectedVendedorId, setSelectedVendedorId] = useState(autoVendedorId || '');
   const [selectedRepartidorId, setSelectedRepartidorId] = useState('');
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
@@ -310,6 +314,19 @@ export default function NewOrderPage() {
               stock: Math.max(0, product.stock - item.quantity),
             });
           }
+        }
+
+        // Create invoice request if boleta/factura was selected
+        if (requiresDocument && documentNumber) {
+          await supabase.from('invoice_requests').insert({
+            order_id: orderData.id,
+            company_id: customer.company_id,
+            receipt_type: receiptType,
+            document_type: documentType,
+            document_number: documentNumber,
+            customer_name: documentData?.razon_social || documentData?.nombre || customer.name,
+            customer_address: documentData?.direccion || deliveryAddress,
+          });
         }
 
         // Generar nota de venta automáticamente
@@ -671,21 +688,34 @@ export default function NewOrderPage() {
         <Card>
           <CardContent className="p-3 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Vendedor *</Label>
-                  <Select value={selectedVendedorId} onValueChange={setSelectedVendedorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar vendedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeVendedores.map(vendedor => (
-                        <SelectItem key={vendedor.id} value={vendedor.id}>
-                          {vendedor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Vendedor - auto-assigned and hidden if user is vendedor */}
+                {isVendedorUser ? (
+                  <div className="space-y-2">
+                    <Label>Vendedor *</Label>
+                    <div className="h-10 px-3 py-2 border rounded-md bg-muted flex items-center">
+                      <span className="text-sm">{user?.name || 'Vendedor asignado'}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      El pedido se asigna automáticamente a tu cuenta
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Vendedor *</Label>
+                    <Select value={selectedVendedorId} onValueChange={setSelectedVendedorId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar vendedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeVendedores.map(vendedor => (
+                          <SelectItem key={vendedor.id} value={vendedor.id}>
+                            {vendedor.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Repartidor *</Label>

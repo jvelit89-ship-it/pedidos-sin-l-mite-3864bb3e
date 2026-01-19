@@ -214,6 +214,86 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_requests: {
+        Row: {
+          company_id: string
+          created_at: string
+          customer_address: string | null
+          customer_name: string
+          document_number: string
+          document_type: string
+          id: string
+          invoice_file_url: string | null
+          order_id: string
+          receipt_type: string
+          sent_at: string | null
+          sent_via: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          customer_address?: string | null
+          customer_name: string
+          document_number: string
+          document_type: string
+          id?: string
+          invoice_file_url?: string | null
+          order_id: string
+          receipt_type: string
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          customer_address?: string | null
+          customer_name?: string
+          document_number?: string
+          document_type?: string
+          id?: string
+          invoice_file_url?: string | null
+          order_id?: string
+          receipt_type?: string
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "customer_order_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_tracking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logs: {
         Row: {
           action: string
