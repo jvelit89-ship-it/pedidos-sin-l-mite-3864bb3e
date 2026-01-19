@@ -31,8 +31,11 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   if (!user) return null;
 
+  // Check if impersonating to add top padding
+  const isImpersonating = sessionStorage.getItem('is_impersonating') === 'true';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background ${isImpersonating ? 'pt-10' : ''}`}>
       <ImpersonationBanner />
       <OfflineBanner />
       <DesktopSidebar />
