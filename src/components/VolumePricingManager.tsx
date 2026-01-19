@@ -124,7 +124,11 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
               {settings.language === 'es' ? 'Nueva Regla' : 'New Rule'}
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent 
+            className="sm:max-w-md"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>
                 {editingRule 
