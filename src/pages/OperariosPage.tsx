@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useOperarios, useUpdateTeamMemberPassword } from '@/hooks/useTeam';
+import { useImpersonation } from '@/hooks/useImpersonation';
 import { toast } from 'sonner';
-import { Plus, Search, Wrench, Phone, Mail, Edit2, Trash2, RefreshCw, Eye, EyeOff, Copy } from 'lucide-react';
+import { Plus, Search, Wrench, Phone, Mail, Edit2, Trash2, RefreshCw, Eye, EyeOff, Copy, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { generateSecurePassword } from '@/lib/passwordGenerator';
@@ -19,6 +20,7 @@ export default function OperariosPage() {
   const { t } = useSettings();
   const { operarios, loading, createOperario, updateOperario, deleteOperario } = useOperarios();
   const { updatePassword: updateTeamMemberPassword } = useUpdateTeamMemberPassword();
+  const { impersonateUser, loading: impersonating } = useImpersonation();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedOperario, setSelectedOperario] = useState<typeof operarios[0] | null>(null);
@@ -291,6 +293,17 @@ export default function OperariosPage() {
                       </div>
                     </div>
                     <div className="flex gap-1">
+                      {o.user_id && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => impersonateUser(o.user_id!, o.name)}
+                          disabled={impersonating}
+                          title="Ingresar como este usuario"
+                        >
+                          <LogIn className="w-4 h-4 text-blue-600" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(o)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>

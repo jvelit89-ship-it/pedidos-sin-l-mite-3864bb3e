@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useTeam, useUpdateTeamMemberPassword } from '@/hooks/useTeam';
+import { useImpersonation } from '@/hooks/useImpersonation';
 import { toast } from 'sonner';
-import { Plus, Search, Bike, Phone, Mail, MapPin, Edit2, Trash2, RefreshCw, Eye, EyeOff, Copy } from 'lucide-react';
+import { Plus, Search, Bike, Phone, Mail, MapPin, Edit2, Trash2, RefreshCw, Eye, EyeOff, Copy, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { generateSecurePassword } from '@/lib/passwordGenerator';
@@ -19,6 +20,7 @@ export default function RepartidoresPage() {
   const { t } = useSettings();
   const { repartidores, loading, createRepartidor, updateRepartidor, deleteRepartidor } = useTeam();
   const { updatePassword: updateTeamMemberPassword } = useUpdateTeamMemberPassword();
+  const { impersonateUser, loading: impersonating } = useImpersonation();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRepartidor, setSelectedRepartidor] = useState<typeof repartidores[0] | null>(null);
@@ -310,6 +312,17 @@ export default function RepartidoresPage() {
                       </div>
                     </div>
                     <div className="flex gap-1">
+                      {r.user_id && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => impersonateUser(r.user_id!, r.name)}
+                          disabled={impersonating}
+                          title="Ingresar como este usuario"
+                        >
+                          <LogIn className="w-4 h-4 text-blue-600" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
