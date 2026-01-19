@@ -63,8 +63,8 @@ export function DesktopSidebar() {
           <Package className="w-5 h-5 text-sidebar-primary-foreground" />
         </div>
         <div>
-          <h1 className="font-semibold text-sidebar-primary-foreground">Pedidos</h1>
-          <p className="text-xs text-sidebar-foreground/60">Sistema de gestión</p>
+          <h1 className="font-semibold text-sidebar-primary-foreground text-sm leading-tight">Sistema de Pedidos</h1>
+          <p className="text-xs text-sidebar-foreground/60">y Entregas en Tiempo Real</p>
         </div>
       </div>
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
