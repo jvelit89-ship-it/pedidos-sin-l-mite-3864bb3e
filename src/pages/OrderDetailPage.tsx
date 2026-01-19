@@ -24,8 +24,10 @@ import {
   Share2,
   Copy,
   ExternalLink,
-  MessageCircle
+  MessageCircle,
+  Pencil
 } from 'lucide-react';
+import { OrderEditDialog } from '@/components/OrderEditDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tables } from '@/integrations/supabase/types';
@@ -64,6 +66,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -205,6 +208,12 @@ export default function OrderDetailPage() {
   const allowedStatuses = user ? STATUS_CHANGE_PERMISSIONS[user.role] : [];
   const canChangeStatus = allowedStatuses.length > 0 && order.status !== 'delivered' && order.status !== 'cancelled';
 
+  // Can edit order: only before 'delivery' status, and only admin or assigned vendedor
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isAssignedVendedor = user?.role === 'vendedor' && user?.vendedorId === order.vendedor_id;
+  const isBeforeDelivery = !['delivery', 'delivered', 'cancelled'].includes(order.status);
+  const canEditOrder = isBeforeDelivery && (isAdmin || isAssignedVendedor);
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-3xl mx-auto">
       {/* Header */}
@@ -220,6 +229,11 @@ export default function OrderDetailPage() {
             {format(new Date(order.created_at), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
           </p>
         </div>
+        {canEditOrder && (
+          <Button variant="outline" size="icon" onClick={() => setIsEditDialogOpen(true)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       {/* Status Card */}
@@ -498,6 +512,16 @@ export default function OrderDetailPage() {
         open={isDialogOpen}
         onClose={closeDialog}
       />
+
+      {/* Edit Order Dialog */}
+      {order && (
+        <OrderEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          order={order}
+          onSuccess={loadOrder}
+        />
+      )}
     </div>
   );
 }
