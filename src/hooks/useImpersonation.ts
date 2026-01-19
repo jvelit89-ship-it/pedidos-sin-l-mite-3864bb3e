@@ -40,17 +40,32 @@ export function useImpersonation() {
         return false;
       }
 
-      if (data?.link) {
-        // Mark that we're impersonating
-        sessionStorage.setItem(IMPERSONATION_KEY, 'true');
-        
-        toast.success(`Ingresando como ${targetUserName}...`);
-        
+      if (data?.token && data?.email) {
         // Sign out current user first
         await supabase.auth.signOut();
         
-        // Navigate to the magic link
-        window.location.href = data.link;
+        // Mark that we're impersonating
+        sessionStorage.setItem(IMPERSONATION_KEY, 'true');
+        
+        // Verify the OTP token to sign in as the target user
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          email: data.email,
+          token: data.token,
+          type: 'magiclink'
+        });
+
+        if (verifyError) {
+          console.error('OTP verification error:', verifyError);
+          sessionStorage.removeItem(IMPERSONATION_KEY);
+          sessionStorage.removeItem('admin_email');
+          toast.error('Error al verificar el acceso');
+          return false;
+        }
+        
+        toast.success(`Ingresando como ${targetUserName}...`);
+        
+        // Reload to apply new session
+        window.location.href = '/';
         return true;
       }
 
