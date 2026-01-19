@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,12 +19,10 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-interface OrderHistory {
+interface OrderSummary {
   id: string;
   tracking_code: string;
-  customer_name: string;
   status: string;
-  total: number;
   created_at: string;
   delivered_at: string | null;
 }
@@ -49,21 +47,12 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function CustomerPortalPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialPhone = searchParams.get('phone') || '';
   
   const [trackingCode, setTrackingCode] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState(initialPhone);
-  const [orders, setOrders] = useState<OrderHistory[]>([]);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-
-  // Search by phone number on load if provided
-  useEffect(() => {
-    if (initialPhone) {
-      handleSearchByPhone();
-    }
-  }, []);
 
   const handleTrackOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,18 +68,19 @@ export default function CustomerPortalPage() {
     setSearched(true);
     
     try {
-      const { data, error } = await supabase
-        .from('customer_order_history')
-        .select('*')
-        .eq('customer_phone', phoneNumber.trim())
-        .order('created_at', { ascending: false })
-        .limit(20);
+      // Use secure Edge Function instead of direct database access
+      const { data, error } = await supabase.functions.invoke('get-customer-orders', {
+        body: { phone: phoneNumber.trim() }
+      });
 
       if (error) {
         console.error('Error fetching orders:', error);
         setOrders([]);
+      } else if (data.error) {
+        console.error('API Error:', data.error);
+        setOrders([]);
       } else {
-        setOrders(data as OrderHistory[] || []);
+        setOrders(data.orders || []);
       }
     } catch (e) {
       console.error('Error:', e);
@@ -98,10 +88,6 @@ export default function CustomerPortalPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `S/ ${amount.toFixed(2)}`;
   };
 
   return (
@@ -256,9 +242,6 @@ export default function CustomerPortalPage() {
                                 <div className="flex items-center justify-between text-sm">
                                   <span className="text-muted-foreground">
                                     {format(new Date(order.created_at), "d MMM yyyy", { locale: es })}
-                                  </span>
-                                  <span className="font-medium">
-                                    {formatCurrency(order.total)}
                                   </span>
                                 </div>
                               </CardContent>

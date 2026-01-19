@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,6 @@ import {
   ChefHat,
   XCircle,
   RefreshCw,
-  Phone,
   ArrowLeft,
   Share2
 } from 'lucide-react';
@@ -25,15 +24,13 @@ import { es } from 'date-fns/locale';
 interface OrderTracking {
   id: string;
   tracking_code: string;
-  customer_name: string;
-  delivery_address: string | null;
   status: 'pending' | 'preparation' | 'ready' | 'delivery' | 'delivered' | 'cancelled';
-  total: number;
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
-  repartidor_name: string | null;
-  customer_phone: string | null;
+  repartidor_first_name: string | null;
+  customer_first_name: string;
+  has_delivery_address: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -92,24 +89,24 @@ export default function OrderTrackingPage() {
     }
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('order_tracking')
-        .select('*')
-        .eq('tracking_code', trackingCode.toUpperCase())
-        .single();
+      // Use secure Edge Function instead of direct database access
+      const { data, error: fetchError } = await supabase.functions.invoke('get-order-tracking', {
+        body: { tracking_code: trackingCode }
+      });
 
       if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          setError('Pedido no encontrado. Verifica el código de seguimiento.');
-        } else {
-          setError('Error al cargar el pedido');
-        }
+        console.error('Error fetching order:', fetchError);
+        setError('Error al cargar el pedido');
+        setOrder(null);
+      } else if (data.error) {
+        setError(data.error);
         setOrder(null);
       } else {
         setOrder(data as OrderTracking);
         setError(null);
       }
     } catch (e) {
+      console.error('Connection error:', e);
       setError('Error de conexión');
     } finally {
       setLoading(false);
@@ -121,32 +118,6 @@ export default function OrderTrackingPage() {
   useEffect(() => {
     fetchOrder();
   }, [fetchOrder]);
-
-  // Real-time subscription
-  useEffect(() => {
-    if (!order?.id) return;
-
-    const channel = supabase
-      .channel(`order-tracking-${order.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `id=eq.${order.id}`,
-        },
-        (payload) => {
-          // Refetch to get updated view data
-          fetchOrder();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [order?.id, fetchOrder]);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -173,10 +144,6 @@ export default function OrderTrackingPage() {
       await navigator.clipboard.writeText(url);
       alert('Link copiado al portapapeles');
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `S/ ${amount.toFixed(2)}`;
   };
 
   if (loading) {
@@ -259,9 +226,9 @@ export default function OrderTrackingPage() {
                   <StatusIcon className="w-8 h-8" />
                 </motion.div>
                 <h2 className="text-2xl font-bold">{STATUS_CONFIG[order.status].label}</h2>
-                {order.repartidor_name && order.status === 'delivery' && (
+                {order.repartidor_first_name && order.status === 'delivery' && (
                   <p className="text-muted-foreground mt-1">
-                    Repartidor: <span className="font-medium">{order.repartidor_name}</span>
+                    Repartidor: <span className="font-medium">{order.repartidor_first_name}</span>
                   </p>
                 )}
                 {isDelivered && order.delivered_at && (
@@ -323,7 +290,7 @@ export default function OrderTrackingPage() {
           </Card>
         </motion.div>
 
-        {/* Order Details */}
+        {/* Order Details - Minimal info for privacy */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -338,16 +305,16 @@ export default function OrderTrackingPage() {
                 <Package className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Cliente</p>
-                  <p className="font-medium">{order.customer_name}</p>
+                  <p className="font-medium">{order.customer_first_name}</p>
                 </div>
               </div>
 
-              {order.delivery_address && (
+              {order.has_delivery_address && (
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Dirección de entrega</p>
-                    <p className="font-medium">{order.delivery_address}</p>
+                    <p className="text-sm text-muted-foreground">Entrega</p>
+                    <p className="font-medium">A domicilio</p>
                   </div>
                 </div>
               )}
@@ -361,18 +328,11 @@ export default function OrderTrackingPage() {
                   </p>
                 </div>
               </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="text-xl font-bold">{formatCurrency(order.total)}</span>
-              </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Contact & Actions */}
+        {/* Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -387,17 +347,6 @@ export default function OrderTrackingPage() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
-          
-          {order.customer_phone && (
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => window.open(`tel:${order.customer_phone}`, '_self')}
-            >
-              <Phone className="w-4 h-4 mr-2" />
-              Llamar
-            </Button>
-          )}
         </motion.div>
 
         {/* Last Updated */}
@@ -405,13 +354,13 @@ export default function OrderTrackingPage() {
           Última actualización: {format(lastUpdated, 'HH:mm:ss')}
         </p>
 
-        {/* Link to History */}
+        {/* Link to Portal */}
         <div className="text-center pt-4">
           <Link 
-            to={`/track?phone=${order.customer_phone || ''}`}
+            to="/track"
             className="text-sm text-primary hover:underline"
           >
-            Ver historial de pedidos
+            Buscar otro pedido
           </Link>
         </div>
       </div>
