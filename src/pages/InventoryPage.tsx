@@ -32,7 +32,8 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  Percent
+  Percent,
+  Trash2
 } from 'lucide-react';
 import { VolumePricingManager } from '@/components/VolumePricingManager';
 
@@ -51,7 +52,7 @@ interface Product {
 }
 
 export default function InventoryPage() {
-  const { products, loading, addProduct, updateProduct, refetch: refetchProducts } = useProducts();
+  const { products, loading, addProduct, updateProduct, deleteProduct, refetch: refetchProducts } = useProducts();
   const { history, addProduction } = useProductionHistory();
   const { movements, loading: loadingMovements, refetch: refetchMovements } = useStockMovements();
   const { getProductSummary } = useStockReports();
@@ -139,6 +140,14 @@ export default function InventoryPage() {
     
     setIsDialogOpen(false);
     resetForm();
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    if (confirm(settings.language === 'es' 
+      ? `¿Eliminar el producto "${product.name}"? Esta acción no se puede deshacer.`
+      : `Delete product "${product.name}"? This action cannot be undone.`)) {
+      await deleteProduct(product.id);
+    }
   };
 
   const handleProduction = async () => {
@@ -361,7 +370,11 @@ export default function InventoryPage() {
                 <span className="hidden sm:inline">{settings.language === 'es' ? 'Registrar Producción' : 'Register Production'}</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent 
+              className="sm:max-w-md"
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {settings.language === 'es' ? 'Registrar Producción' : 'Register Production'}
@@ -419,7 +432,11 @@ export default function InventoryPage() {
                 <span className="hidden sm:inline">{settings.language === 'es' ? 'Nuevo Producto' : 'New Product'}</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent 
+              className="sm:max-w-md"
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {editingProduct ? (settings.language === 'es' ? 'Editar Producto' : 'Edit Product') : (settings.language === 'es' ? 'Nuevo Producto' : 'New Product')}
@@ -605,14 +622,24 @@ export default function InventoryPage() {
                             <p className="text-xs text-muted-foreground">{product.sku}</p>
                           </div>
                           {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleOpenDialog(product)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleOpenDialog(product)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteProduct(product)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                         

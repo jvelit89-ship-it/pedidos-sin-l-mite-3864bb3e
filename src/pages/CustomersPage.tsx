@@ -14,7 +14,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, Upload, X, Image } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, Upload, X, Image, Trash2 } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -35,8 +35,9 @@ interface Customer {
 
 export default function CustomersPage() {
   const { canEditCustomers, user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const { t, settings } = useSettings();
-  const { customers, loading, addCustomer, updateCustomer } = useCustomers();
+  const { customers, loading, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
   const { vendedores } = useVendedores();
   const { searchAddress, reverseGeocode } = useGeocoding();
   const [searchTerm, setSearchTerm] = useState('');
@@ -293,6 +294,14 @@ export default function CustomersPage() {
     setIsViewDialogOpen(true);
   };
 
+  const handleDelete = async (customer: Customer) => {
+    if (confirm(settings.language === 'es' 
+      ? `¿Eliminar al cliente "${customer.name}"? Esta acción no se puede deshacer.`
+      : `Delete customer "${customer.name}"? This action cannot be undone.`)) {
+      await deleteCustomer(customer.id);
+    }
+  };
+
   const handleLocationSelect = (lat: number, lng: number) => {
     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
   };
@@ -324,7 +333,11 @@ export default function CustomersPage() {
                 <Plus className="w-4 h-4" /> {t.newCustomer}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent 
+              className="max-w-lg max-h-[90vh] overflow-y-auto"
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {selectedCustomer ? t.editCustomer : t.newCustomer}
@@ -637,6 +650,16 @@ export default function CustomersPage() {
                       {canEditCustomers && (
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(c)}>
                           <Edit2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(c)}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
