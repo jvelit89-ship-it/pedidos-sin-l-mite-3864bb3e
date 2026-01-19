@@ -200,30 +200,33 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, {
 
 // Role-based status change permissions
 export const STATUS_CHANGE_PERMISSIONS: Record<UserRole, OrderStatus[]> = {
-  superadmin: [],
+  superadmin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
   admin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
   vendedor: ['pending', 'preparation', 'ready'],
   repartidor: ['delivery', 'delivered', 'cancelled'],
   operario: ['preparation', 'ready'],
 };
 
+// All statuses array for admin full control
+const ALL_STATUSES: OrderStatus[] = ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'];
+
 // Status-based change permissions (what current status allows changing to)
 export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus, OrderStatus[]>> = {
   superadmin: {
-    pending: [],
-    preparation: [],
-    ready: [],
-    delivery: [],
-    delivered: [],
-    cancelled: [],
+    pending: ALL_STATUSES,
+    preparation: ALL_STATUSES,
+    ready: ALL_STATUSES,
+    delivery: ALL_STATUSES,
+    delivered: ALL_STATUSES,
+    cancelled: ALL_STATUSES,
   },
   admin: {
-    pending: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-    preparation: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-    ready: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-    delivery: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-    delivered: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-    cancelled: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
+    pending: ALL_STATUSES,
+    preparation: ALL_STATUSES,
+    ready: ALL_STATUSES,
+    delivery: ALL_STATUSES,
+    delivered: ALL_STATUSES,
+    cancelled: ALL_STATUSES,
   },
   vendedor: {
     pending: ['pending', 'preparation', 'ready'],

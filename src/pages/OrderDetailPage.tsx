@@ -211,11 +211,12 @@ export default function OrderDetailPage() {
   // Hide tracking code for repartidores and operarios
   const canViewTrackingCode = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'vendedor';
 
-  // Can edit order: only before 'delivery' status, and only admin or assigned vendedor
+  // Can edit order: admins can edit any order, vendedores only before 'delivery' status
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isAssignedVendedor = user?.role === 'vendedor' && user?.vendedorId === order.vendedor_id;
   const isBeforeDelivery = !['delivery', 'delivered', 'cancelled'].includes(order.status);
-  const canEditOrder = isBeforeDelivery && (isAdmin || isAssignedVendedor);
+  // Admins can edit any order regardless of status, vendedores only before delivery
+  const canEditOrder = isAdmin || (isBeforeDelivery && isAssignedVendedor);
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-3xl mx-auto">
@@ -529,6 +530,8 @@ export default function OrderDetailPage() {
             notes: order.notes,
             repartidor_id: order.repartidor_id,
             repartidor_name: order.repartidor_name,
+            vendedor_id: order.vendedor_id,
+            vendedor_name: order.vendedor_name,
             items: order.items.map(item => ({
               id: item.id,
               product_id: item.product_id,
