@@ -129,7 +129,7 @@ export function useProductionRecipes() {
 
 export function useProductionWaste() {
   const { data: waste, loading, error, refetch } = useRealtimeQuery<ProductionWaste>('production_waste', {
-    select: '*, products(name, sku), profiles(name)',
+    select: '*, products(name, sku)',
     orderBy: { column: 'created_at', ascending: false },
   });
 
