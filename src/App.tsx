@@ -25,6 +25,7 @@ import RoutePage from './pages/RoutePage';
 import SettingsPage from './pages/SettingsPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import CommissionsPage from './pages/CommissionsPage';
+import ManualPage from './pages/ManualPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import NotFound from './pages/NotFound';
 
@@ -71,6 +72,7 @@ const App = () => {
                   <Route path="/repartidores" element={<ProtectedRoute><RepartidoresPage /></ProtectedRoute>} />
                   <Route path="/operarios" element={<ProtectedRoute><OperariosPage /></ProtectedRoute>} />
                   <Route path="/commissions" element={<ProtectedRoute><CommissionsPage /></ProtectedRoute>} />
+                  <Route path="/manual" element={<ProtectedRoute><ManualPage /></ProtectedRoute>} />
                   <Route path="/logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />

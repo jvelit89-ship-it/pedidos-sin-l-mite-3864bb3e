@@ -275,4 +275,5 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/operarios', label: 'Operarios', labelEn: 'Operators', icon: 'Wrench', roles: ['admin'] },
   { path: '/logs', label: 'Registros', labelEn: 'Audit Logs', icon: 'FileText', roles: ['admin'] },
   { path: '/settings', label: 'Ajustes', labelEn: 'Settings', icon: 'Settings', roles: ['superadmin', 'admin', 'vendedor', 'repartidor', 'operario'] },
+  { path: '/manual', label: 'Manual', labelEn: 'Manual', icon: 'BookOpen', roles: ['superadmin', 'admin', 'vendedor', 'repartidor', 'operario'] },
 ];
