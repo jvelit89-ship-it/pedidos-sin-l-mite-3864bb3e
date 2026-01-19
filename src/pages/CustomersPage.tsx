@@ -262,17 +262,48 @@ export default function CustomersPage() {
     return link.includes('goo.gl') || link.includes('maps.app.goo.gl') || link.includes('g.co');
   };
 
+  // Expand short URL using edge function
+  const expandShortUrl = async (link: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      toast.info('Expandiendo enlace corto...');
+      const { data, error } = await supabase.functions.invoke('expand-url', {
+        body: { url: link }
+      });
+
+      if (error) {
+        console.error('Error expanding URL:', error);
+        return null;
+      }
+
+      if (data.success && data.coordinates) {
+        return data.coordinates;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error calling expand-url function:', error);
+      return null;
+    }
+  };
+
   const handleGoogleMapsLinkChange = async (link: string) => {
     setFormData(prev => ({ ...prev, google_maps_link: link }));
     
     if (!link.trim()) return;
     
-    const coords = parseGoogleMapsLink(link);
+    // First try to parse directly (for full URLs)
+    let coords = parseGoogleMapsLink(link);
+    
+    // If direct parsing fails and it's a short URL, try expanding
+    if (!coords && isShortUrl(link)) {
+      coords = await expandShortUrl(link);
+    }
+    
     if (coords) {
       setFormData(prev => ({
         ...prev,
-        latitude: coords.lat,
-        longitude: coords.lng,
+        latitude: coords!.lat,
+        longitude: coords!.lng,
       }));
       
       // Try to get address from coordinates
@@ -284,11 +315,8 @@ export default function CustomersPage() {
       }
       
       toast.success('Ubicación extraída del enlace');
-    } else if (isShortUrl(link)) {
-      // Short URLs don't contain coordinates directly
-      toast.info('Enlace corto detectado. Por favor, abre el enlace en Google Maps y copia la URL completa de la barra de direcciones.');
-    } else if (link.includes('google') || link.includes('maps')) {
-      toast.error('No se pudo extraer la ubicación. Asegúrate de copiar el enlace completo desde la barra de direcciones.');
+    } else if (link.includes('google') || link.includes('maps') || isShortUrl(link)) {
+      toast.error('No se pudo extraer la ubicación. Intenta copiar el enlace completo desde la barra de direcciones.');
     }
   };
 

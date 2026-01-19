@@ -85,6 +85,48 @@ export type Database = {
           },
         ]
       }
+      commission_settings: {
+        Row: {
+          commission_rate: number
+          company_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          vendedor_id: string
+        }
+        Insert: {
+          commission_rate?: number
+          company_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          vendedor_id: string
+        }
+        Update: {
+          commission_rate?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_settings_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: true
+            referencedRelation: "vendedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           active: boolean | null
