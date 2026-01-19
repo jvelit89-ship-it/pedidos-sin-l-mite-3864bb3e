@@ -21,6 +21,7 @@ interface SalesNoteData {
   vendedor_name?: string;
   payment_method?: string;
   document_type?: 'dni' | 'ruc';
+  receipt_type?: 'ticket' | 'boleta' | 'factura';
 }
 
 interface SalesNoteResult {
