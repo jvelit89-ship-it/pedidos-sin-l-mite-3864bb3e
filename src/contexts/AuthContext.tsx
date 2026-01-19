@@ -29,7 +29,7 @@ const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/inventory': ['admin', 'vendedor', 'operario'],
   '/customers': ['admin', 'vendedor', 'repartidor'],
   '/customers-map': ['admin'],
-  '/commissions': ['admin', 'vendedor'],
+  '/commissions': ['admin', 'vendedor', 'operario'],
   '/vendedores': ['admin'],
   '/repartidores': ['admin'],
   '/operarios': ['admin'],
@@ -62,9 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profileData) {
         const role = (roleData?.role as UserRole) || 'vendedor';
         
-        // Fetch repartidor or vendedor ID if applicable
+        // Fetch role-specific IDs
         let repartidorId: string | null = null;
         let vendedorId: string | null = null;
+        let operarioId: string | null = null;
         
         if (role === 'repartidor') {
           const { data: repartidorData } = await supabase
@@ -80,6 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('user_id', userId)
             .maybeSingle();
           vendedorId = vendedorData?.id || null;
+        } else if (role === 'operario') {
+          const { data: operarioData } = await supabase
+            .from('operarios')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          operarioId = operarioData?.id || null;
         }
         
         setUser({
@@ -90,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           companyId: profileData.company_id,
           repartidorId,
           vendedorId,
+          operarioId,
         });
       } else {
         // Profile doesn't exist yet - create one

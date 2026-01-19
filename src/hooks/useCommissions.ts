@@ -56,10 +56,11 @@ export function useProductCommissions() {
     orderBy: { column: 'name', ascending: true },
   });
 
-  const setProductCommission = useCallback(async (productId: string, amount: number) => {
+  const setProductCommission = useCallback(async (productId: string, amount: number, type: 'vendedor' | 'operario' = 'vendedor') => {
+    const column = type === 'operario' ? 'operario_commission_amount' : 'commission_amount';
     const { error } = await supabase
       .from('products')
-      .update({ commission_amount: amount })
+      .update({ [column]: amount })
       .eq('id', productId);
 
     if (error) {
@@ -73,11 +74,12 @@ export function useProductCommissions() {
     return true;
   }, [refetch]);
 
-  const getProductsWithCommissions = useCallback((): ProductCommission[] => {
+  const getProductsWithCommissions = useCallback(() => {
     return (products || []).map((p: any) => ({
       product_id: p.id,
       product_name: p.name,
       commission_amount: p.commission_amount || 0,
+      operario_commission_amount: p.operario_commission_amount || 0,
     }));
   }, [products]);
 
@@ -372,4 +374,232 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
   }, [vendedorId]);
 
   return { calculateMyCommissions, getDailyCommissions, loading };
+}
+
+// Operario commission interfaces
+interface OperarioProductionDetail {
+  production_id: string;
+  produced_at: string;
+  product_name: string;
+  quantity: number;
+  commission_per_unit: number;
+  total_commission: number;
+}
+
+interface OperarioCommissionSummary {
+  operario_id: string;
+  operario_name: string;
+  period1_units: number;
+  period1_commission: number;
+  period2_units: number;
+  period2_commission: number;
+  total_units: number;
+  total_commission: number;
+  details: OperarioProductionDetail[];
+}
+
+export function useOperarioCommissions(year: number, month: number) {
+  const [loading, setLoading] = useState(false);
+
+  const calculateCommissions = useCallback(async (): Promise<OperarioCommissionSummary[]> => {
+    setLoading(true);
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return [];
+
+      // Get all active operarios
+      const { data: operarios } = await supabase
+        .from('operarios')
+        .select('id, name, user_id')
+        .eq('company_id', companyId)
+        .eq('active', true);
+
+      if (!operarios) return [];
+
+      // Calculate date ranges
+      const period1Start = new Date(year, month - 1, 1);
+      const period1End = new Date(year, month - 1, 15, 23, 59, 59);
+      const period2Start = new Date(year, month - 1, 16);
+      const period2End = new Date(year, month, 0, 23, 59, 59);
+
+      // Get production history for this month
+      const { data: productions } = await supabase
+        .from('production_history')
+        .select(`
+          id,
+          product_id,
+          quantity,
+          produced_at,
+          produced_by,
+          products (name)
+        `)
+        .eq('company_id', companyId)
+        .gte('produced_at', period1Start.toISOString())
+        .lte('produced_at', period2End.toISOString());
+
+      // Get all products with operario commission amounts
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, operario_commission_amount')
+        .eq('company_id', companyId);
+
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.operario_commission_amount || 0])
+      );
+
+      const commissions: OperarioCommissionSummary[] = operarios.map(operario => {
+        // Match productions by produced_by (which stores the operario name or user info)
+        const operarioProductions = productions?.filter(p => 
+          p.produced_by === operario.name || p.produced_by === operario.user_id
+        ) || [];
+        
+        let period1Units = 0;
+        let period1Commission = 0;
+        let period2Units = 0;
+        let period2Commission = 0;
+        const details: OperarioProductionDetail[] = [];
+
+        operarioProductions.forEach(prod => {
+          const producedAt = new Date(prod.produced_at);
+          const isPeriod1 = producedAt >= period1Start && producedAt <= period1End;
+          const commissionPerUnit = productCommissions.get(prod.product_id) || 0;
+          const totalCommission = prod.quantity * commissionPerUnit;
+
+          if (isPeriod1) {
+            period1Units += prod.quantity;
+            period1Commission += totalCommission;
+          } else {
+            period2Units += prod.quantity;
+            period2Commission += totalCommission;
+          }
+
+          details.push({
+            production_id: prod.id,
+            produced_at: prod.produced_at,
+            product_name: (prod.products as any)?.name || 'Producto',
+            quantity: prod.quantity,
+            commission_per_unit: commissionPerUnit,
+            total_commission: totalCommission,
+          });
+        });
+
+        return {
+          operario_id: operario.id,
+          operario_name: operario.name,
+          period1_units: period1Units,
+          period1_commission: period1Commission,
+          period2_units: period2Units,
+          period2_commission: period2Commission,
+          total_units: period1Units + period2Units,
+          total_commission: period1Commission + period2Commission,
+          details: details.sort((a, b) => new Date(b.produced_at).getTime() - new Date(a.produced_at).getTime()),
+        };
+      });
+
+      return commissions;
+    } finally {
+      setLoading(false);
+    }
+  }, [year, month]);
+
+  return { calculateCommissions, loading };
+}
+
+export function useMyOperarioCommissions(operarioId: string | null, year: number, month: number) {
+  const [loading, setLoading] = useState(false);
+
+  const calculateMyCommissions = useCallback(async () => {
+    if (!operarioId) return null;
+    setLoading(true);
+
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return null;
+
+      // Get operario name for matching productions
+      const { data: operario } = await supabase
+        .from('operarios')
+        .select('name, user_id')
+        .eq('id', operarioId)
+        .single();
+
+      if (!operario) return null;
+
+      // Calculate date ranges
+      const period1Start = new Date(year, month - 1, 1);
+      const period1End = new Date(year, month - 1, 15, 23, 59, 59);
+      const period2Start = new Date(year, month - 1, 16);
+      const period2End = new Date(year, month, 0, 23, 59, 59);
+
+      // Get production history for this month (match by name or user_id)
+      const { data: productions } = await supabase
+        .from('production_history')
+        .select(`
+          id,
+          product_id,
+          quantity,
+          produced_at,
+          products (name)
+        `)
+        .eq('company_id', companyId)
+        .or(`produced_by.eq.${operario.name},produced_by.eq.${operario.user_id}`)
+        .gte('produced_at', period1Start.toISOString())
+        .lte('produced_at', period2End.toISOString());
+
+      // Get all products with operario commission amounts
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, operario_commission_amount')
+        .eq('company_id', companyId);
+
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.operario_commission_amount || 0])
+      );
+
+      let period1Units = 0;
+      let period1Commission = 0;
+      let period2Units = 0;
+      let period2Commission = 0;
+      const details: OperarioProductionDetail[] = [];
+
+      (productions || []).forEach(prod => {
+        const producedAt = new Date(prod.produced_at);
+        const isPeriod1 = producedAt >= period1Start && producedAt <= period1End;
+        const commissionPerUnit = productCommissions.get(prod.product_id) || 0;
+        const totalCommission = prod.quantity * commissionPerUnit;
+
+        if (isPeriod1) {
+          period1Units += prod.quantity;
+          period1Commission += totalCommission;
+        } else {
+          period2Units += prod.quantity;
+          period2Commission += totalCommission;
+        }
+
+        details.push({
+          production_id: prod.id,
+          produced_at: prod.produced_at,
+          product_name: (prod.products as any)?.name || 'Producto',
+          quantity: prod.quantity,
+          commission_per_unit: commissionPerUnit,
+          total_commission: totalCommission,
+        });
+      });
+
+      return {
+        operario_id: operarioId,
+        period1_units: period1Units,
+        period1_commission: period1Commission,
+        period2_units: period2Units,
+        period2_commission: period2Commission,
+        total_units: period1Units + period2Units,
+        total_commission: period1Commission + period2Commission,
+        details: details.sort((a, b) => new Date(b.produced_at).getTime() - new Date(a.produced_at).getTime()),
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [operarioId, year, month]);
+
+  return { calculateMyCommissions, loading };
 }

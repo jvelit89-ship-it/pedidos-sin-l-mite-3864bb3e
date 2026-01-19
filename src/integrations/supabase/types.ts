@@ -645,6 +645,7 @@ export type Database = {
           min_stock: number
           name: string
           notes: string | null
+          operario_commission_amount: number
           price: number
           sku: string
           stock: number
@@ -659,6 +660,7 @@ export type Database = {
           min_stock?: number
           name: string
           notes?: string | null
+          operario_commission_amount?: number
           price?: number
           sku: string
           stock?: number
@@ -673,6 +675,7 @@ export type Database = {
           min_stock?: number
           name?: string
           notes?: string | null
+          operario_commission_amount?: number
           price?: number
           sku?: string
           stock?: number
