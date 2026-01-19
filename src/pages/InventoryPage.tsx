@@ -725,13 +725,16 @@ export default function InventoryPage() {
 
         {canViewHistory && (
         <TabsContent value="history" className="space-y-4">
+          {/* Production History - Admin can delete individual records */}
+          {isAdmin && (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">
-                  {settings.language === 'es' ? 'Historial de Movimientos' : 'Movement History'}
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Factory className="w-4 h-4" />
+                  {settings.language === 'es' ? 'Historial de Producción' : 'Production History'}
                 </h3>
-                {isAdmin && movements.filter(m => m.movement_type === 'production').length > 0 && (
+                {history && history.length > 0 && (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -743,6 +746,50 @@ export default function InventoryPage() {
                   </Button>
                 )}
               </div>
+              {!history || history.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">{settings.language === 'es' ? 'Sin registros de producción' : 'No production records'}</p>
+              ) : (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  {history.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                        <div>
+                          <p className="font-medium">{item.products?.name || 'Producto'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {settings.language === 'es' ? 'Producción' : 'Production'} • {format(new Date(item.produced_at), 'PPp', { locale })}
+                          </p>
+                          {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-lg font-bold text-green-600">+{item.quantity}</span>
+                          <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteProductionHistory(item.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          )}
+
+          {/* Stock Movements */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-4">
+                {settings.language === 'es' ? 'Historial de Movimientos' : 'Movement History'}
+              </h3>
               {loadingMovements ? (
                 <div className="text-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
@@ -763,23 +810,11 @@ export default function InventoryPage() {
                           {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <span className={`text-lg font-bold ${item.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {item.quantity > 0 ? '+' : ''}{item.quantity}
-                          </span>
-                          <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
-                        </div>
-                        {isAdmin && item.movement_type === 'production' && item.reference_id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteProductionHistory(item.reference_id!)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                      <div className="text-right">
+                        <span className={`text-lg font-bold ${item.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.quantity > 0 ? '+' : ''}{item.quantity}
+                        </span>
+                        <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
                       </div>
                     </div>
                   ))}
