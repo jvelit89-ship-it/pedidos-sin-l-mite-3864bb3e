@@ -10,7 +10,7 @@ import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Loader2, LogIn, UserPlus, Mail } from 'lucide-react';
+import { Loader2, LogIn, UserPlus, Mail, Package } from 'lucide-react';
 
 const authSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -148,7 +148,16 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+      {/* Logo and Title */}
+      <div className="flex flex-col items-center mb-6">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1e40af] to-[#3b82f6] flex items-center justify-center shadow-lg mb-3">
+          <Package className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-xl font-bold text-foreground text-center">Sistema de Pedidos y Entregas</h1>
+        <p className="text-sm text-muted-foreground">en Tiempo Real</p>
+      </div>
+
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">
@@ -296,6 +305,11 @@ export default function AuthPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <p className="mt-6 text-[10px] text-muted-foreground">
+        Version 1.31190126 - Creado por Juan Manuel Velit
+      </p>
     </div>
   );
 }
