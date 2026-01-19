@@ -17,7 +17,7 @@ import { MapView } from '@/components/MapView';
 import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2 } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -72,6 +72,7 @@ export default function CustomersPage() {
     longitude: null as number | null,
     vendedor_id: '' as string,
     facade_photo_url: null as string | null,
+    google_maps_link: '' as string,
   });
 
   // Check if we're on mobile
@@ -176,6 +177,77 @@ export default function CustomersPage() {
     setAddressSuggestions([]);
     setShowAddressConfirmation(false);
     toast.success('Ubicación guardada');
+  };
+
+  // Extract coordinates from Google Maps link
+  const parseGoogleMapsLink = (link: string): { lat: number; lng: number } | null => {
+    try {
+      // Match patterns like:
+      // https://www.google.com/maps?q=-12.0464,-77.0428
+      // https://www.google.com/maps/place/.../@-12.0464,-77.0428,17z
+      // https://maps.google.com/?q=-12.0464,-77.0428
+      // https://goo.gl/maps/...
+      // https://maps.app.goo.gl/...
+      
+      // Pattern 1: @lat,lng,zoom
+      const atPattern = /@(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+      const atMatch = link.match(atPattern);
+      if (atMatch) {
+        return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
+      }
+      
+      // Pattern 2: ?q=lat,lng or &q=lat,lng
+      const qPattern = /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+      const qMatch = link.match(qPattern);
+      if (qMatch) {
+        return { lat: parseFloat(qMatch[1]), lng: parseFloat(qMatch[2]) };
+      }
+      
+      // Pattern 3: /place/lat,lng
+      const placePattern = /\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+      const placeMatch = link.match(placePattern);
+      if (placeMatch) {
+        return { lat: parseFloat(placeMatch[1]), lng: parseFloat(placeMatch[2]) };
+      }
+
+      // Pattern 4: ll=lat,lng
+      const llPattern = /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+      const llMatch = link.match(llPattern);
+      if (llMatch) {
+        return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
+      }
+      
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleGoogleMapsLinkChange = async (link: string) => {
+    setFormData(prev => ({ ...prev, google_maps_link: link }));
+    
+    if (!link.trim()) return;
+    
+    const coords = parseGoogleMapsLink(link);
+    if (coords) {
+      setFormData(prev => ({
+        ...prev,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      }));
+      
+      // Try to get address from coordinates
+      const address = await reverseGeocode(coords.lat, coords.lng);
+      if (address) {
+        const parts = address.split(',');
+        const shortAddress = parts.slice(0, 3).join(',').trim();
+        setFormData(prev => ({ ...prev, address: shortAddress }));
+      }
+      
+      toast.success('Ubicación extraída del enlace');
+    } else if (link.includes('google') || link.includes('maps') || link.includes('goo.gl')) {
+      toast.error('No se pudo extraer la ubicación. Intenta copiar el enlace completo.');
+    }
   };
 
   const handleCameraCapture = () => {
@@ -399,6 +471,7 @@ export default function CustomersPage() {
       longitude: null,
       vendedor_id: '',
       facade_photo_url: null,
+      google_maps_link: '',
     });
   };
 
@@ -417,6 +490,7 @@ export default function CustomersPage() {
       longitude: customer.longitude,
       vendedor_id: customer.vendedor_id || '',
       facade_photo_url: customer.facade_photo_url,
+      google_maps_link: '',
     });
     if (customer.facade_photo_url) {
       setPhotoPreview(customer.facade_photo_url);
@@ -614,6 +688,24 @@ export default function CustomersPage() {
                       {settings.language === 'es' ? 'Ubicación guardada' : 'Location saved'}
                     </p>
                   )}
+                </div>
+
+                {/* Google Maps Link - Easy location input */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    {settings.language === 'es' ? 'Enlace de Google Maps (Opcional)' : 'Google Maps Link (Optional)'}
+                  </Label>
+                  <Input
+                    value={formData.google_maps_link}
+                    onChange={(e) => handleGoogleMapsLinkChange(e.target.value)}
+                    placeholder={settings.language === 'es' ? 'Pega aquí el enlace de Google Maps...' : 'Paste Google Maps link here...'}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {settings.language === 'es' 
+                      ? '💡 Abre Google Maps, busca la ubicación, toca "Compartir" y copia el enlace' 
+                      : '💡 Open Google Maps, find location, tap "Share" and copy the link'}
+                  </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
