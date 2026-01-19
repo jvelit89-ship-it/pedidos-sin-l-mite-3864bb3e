@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AppSettings, Language, Currency, CURRENCY_CONFIG } from '@/types';
+import { AppSettings, Language, Currency, Timezone, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
 // Settings context for language and currency preferences
 
 interface Translations {
@@ -222,6 +222,8 @@ interface SettingsContextType {
   t: Translations;
   formatCurrency: (amount: number) => string;
   currencySymbol: string;
+  formatDateLocal: (dateString: string, includeTime?: boolean) => string;
+  timezoneConfig: typeof TIMEZONE_CONFIG;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -231,6 +233,7 @@ const SETTINGS_STORAGE_KEY = 'pedidos_settings';
 const defaultSettings: AppSettings = {
   language: 'es',
   currency: 'PEN',
+  timezone: 'America/Lima',
 };
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -265,8 +268,49 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     [currencySymbol]
   );
 
+  // Format date string (YYYY-MM-DD or ISO) to localized date using configured timezone
+  const formatDateLocal = useCallback(
+    (dateString: string, includeTime: boolean = false): string => {
+      if (!dateString) return '';
+      
+      try {
+        // Check if it's a date-only string (YYYY-MM-DD)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+          // Parse date-only strings without timezone conversion
+          const parts = dateString.split('-');
+          const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+          return date.toLocaleDateString(settings.language === 'es' ? 'es-PE' : 'en-US', {
+            day: 'numeric',
+            month: 'long',
+            year: includeTime ? 'numeric' : undefined,
+            timeZone: settings.timezone,
+          });
+        }
+        
+        // For ISO dates with time, use the configured timezone
+        const date = new Date(dateString);
+        const options: Intl.DateTimeFormatOptions = {
+          day: 'numeric',
+          month: 'long',
+          timeZone: settings.timezone,
+        };
+        
+        if (includeTime) {
+          options.year = 'numeric';
+          options.hour = '2-digit';
+          options.minute = '2-digit';
+        }
+        
+        return date.toLocaleDateString(settings.language === 'es' ? 'es-PE' : 'en-US', options);
+      } catch {
+        return dateString;
+      }
+    },
+    [settings.language, settings.timezone]
+  );
+
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, t, formatCurrency, currencySymbol }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, t, formatCurrency, currencySymbol, formatDateLocal, timezoneConfig: TIMEZONE_CONFIG }}>
       {children}
     </SettingsContext.Provider>
   );

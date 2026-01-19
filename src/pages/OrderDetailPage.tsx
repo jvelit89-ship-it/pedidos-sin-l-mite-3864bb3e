@@ -61,7 +61,7 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, formatDateLocal } = useSettings();
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -302,7 +302,7 @@ export default function OrderDetailPage() {
             {order.delivery_date && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4" />
-                <span>Entrega: {format(new Date(order.delivery_date + 'T12:00:00'), "d 'de' MMMM", { locale: es })}</span>
+                <span>Entrega: {formatDateLocal(order.delivery_date)}</span>
               </div>
             )}
           </CardContent>

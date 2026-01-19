@@ -12,8 +12,8 @@ import { useSync } from '@/contexts/SyncContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useUpdateOwnPassword } from '@/hooks/useTeam';
 import { generateSecurePassword } from '@/lib/passwordGenerator';
-import { Language, Currency, CURRENCY_CONFIG } from '@/types';
-import { User, LogOut, RefreshCw, Wifi, WifiOff, Globe, DollarSign, Key, Eye, EyeOff, Copy } from 'lucide-react';
+import { Language, Currency, Timezone, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
+import { User, LogOut, RefreshCw, Wifi, WifiOff, Globe, DollarSign, Key, Eye, EyeOff, Copy, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -131,7 +131,7 @@ export default function SettingsPage() {
 
       {isAdmin && (
         <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="w-4 h-4" /> {t.language} & {t.currency}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="w-4 h-4" /> {t.language}, {t.currency} & Zona Horaria</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">{t.language}</label>
@@ -153,6 +153,22 @@ export default function SettingsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Zona Horaria
+              </label>
+              <Select value={settings.timezone} onValueChange={(v) => updateSettings({ timezone: v as Timezone })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TIMEZONE_CONFIG).map(([key, { label, offset }]) => (
+                    <SelectItem key={key} value={key}>🕐 {label} ({offset})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Esta configuración afecta cómo se muestran las fechas y horas en toda la aplicación
+              </p>
             </div>
           </CardContent>
         </Card>
