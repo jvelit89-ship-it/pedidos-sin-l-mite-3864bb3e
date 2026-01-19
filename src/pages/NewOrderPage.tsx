@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -351,7 +350,7 @@ export default function NewOrderPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
+    <div className="p-3 md:p-6 space-y-3 max-w-2xl mx-auto pb-24">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -360,44 +359,41 @@ export default function NewOrderPage() {
         <h1 className="text-xl font-bold">Nuevo Pedido</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {/* Customer Selection */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <div className="space-y-2">
-                <Label>Cliente *</Label>
-                <Select value={selectedCustomerId} onValueChange={handleCustomerChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <Card>
+          <CardContent className="p-3 space-y-3">
+            <div className="space-y-2">
+              <Label>Cliente *</Label>
+              <Select value={selectedCustomerId} onValueChange={handleCustomerChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map(customer => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Dirección de Entrega *</Label>
-                <Input
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Dirección completa"
-                  required
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            <div className="space-y-2">
+              <Label>Dirección de Entrega *</Label>
+              <Input
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                placeholder="Dirección completa"
+                required
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Products */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card>
-            <CardContent className="p-4 space-y-4">
+        <Card>
+          <CardContent className="p-3 space-y-3">
               <div className="space-y-2">
                 <Label>Agregar Productos *</Label>
                 <Select onValueChange={handleAddProduct}>
@@ -422,67 +418,74 @@ export default function NewOrderPage() {
                     const pricing = getItemPricing(item.productId, item.quantity);
                     
                     return (
-                      <div key={item.productId} className="flex flex-col gap-2 p-3 bg-muted rounded-lg">
-                        <div className="flex items-center gap-3">
+                      <div key={item.productId} className="p-2 bg-muted rounded-lg space-y-2">
+                        {/* Product name and price - stacked for mobile */}
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{product.name}</p>
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-sm leading-tight">{product.name}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
                               {pricing.hasDiscount ? (
                                 <>
-                                  <span className="text-sm text-muted-foreground line-through">
+                                  <span className="text-xs text-muted-foreground line-through">
                                     {formatCurrency(pricing.basePrice!)}
                                   </span>
-                                  <span className="text-sm font-medium text-green-600">
-                                    {formatCurrency(pricing.unitPrice)} c/u
+                                  <span className="text-xs font-medium text-green-600">
+                                    {formatCurrency(pricing.unitPrice)}
                                   </span>
                                 </>
                               ) : (
-                                <span className="text-sm text-muted-foreground">
+                                <span className="text-xs text-muted-foreground">
                                   {formatCurrency(product.price)} c/u
                                 </span>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleQuantityChange(item.productId, -1)}
-                            >
-                              <Minus className="w-4 h-4" />
-                            </Button>
-                            <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleQuantityChange(item.productId, 1)}
-                              disabled={item.quantity >= product.stock}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          <p className="font-semibold w-20 text-right">
-                            {formatCurrency(pricing.total)}
-                          </p>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="h-7 w-7 text-destructive shrink-0"
                             onClick={() => handleRemoveProduct(item.productId)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
+                        
+                        {/* Quantity controls and total - inline */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleQuantityChange(item.productId, -1)}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="w-8 text-center font-semibold text-sm">{item.quantity}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleQuantityChange(item.productId, 1)}
+                              disabled={item.quantity >= product.stock}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <p className="font-semibold text-sm">
+                            {formatCurrency(pricing.total)}
+                          </p>
+                        </div>
+                        
+                        {/* Volume discount badge */}
                         {pricing.hasDiscount && (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
                             <Tag className="w-3 h-3 text-green-600" />
-                            <span className="text-xs text-green-600 font-medium">
-                              Precio mayorista aplicado (desde {pricing.appliedRule?.min_quantity} unidades)
+                            <span className="text-xs text-green-600">
+                              Mayorista ({pricing.appliedRule?.min_quantity}+ uds)
                             </span>
                           </div>
                         )}
@@ -510,12 +513,10 @@ export default function NewOrderPage() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
 
         {/* Document Info (DNI/RUC) */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card>
-            <CardContent className="p-4 space-y-4">
+        <Card>
+          <CardContent className="p-3 space-y-3">
               <div className="space-y-3">
                 <Label>Tipo de Documento *</Label>
                 <RadioGroup
@@ -614,12 +615,10 @@ export default function NewOrderPage() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
 
         {/* Assignment */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card>
-            <CardContent className="p-4 space-y-4">
+        <Card>
+          <CardContent className="p-3 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Vendedor *</Label>
@@ -675,7 +674,6 @@ export default function NewOrderPage() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
 
         {/* Submit */}
         <Button

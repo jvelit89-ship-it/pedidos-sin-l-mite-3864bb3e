@@ -117,7 +117,11 @@ ${html}
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent 
+        className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <div className="p-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Nota de Venta {noteNumber}</h2>
