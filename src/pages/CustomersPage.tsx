@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useCustomers, useGeocoding } from '@/hooks/useCustomers';
 import { useVendedores } from '@/hooks/useTeam';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +15,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, Upload, X, Image, Trash2 } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -51,6 +52,8 @@ export default function CustomersPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [addressSearchTimeout, setAddressSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -110,26 +113,55 @@ export default function CustomersPage() {
     );
   };
 
-  const handleAddressSearch = async (query: string) => {
+  const handleAddressSearch = useCallback((query: string) => {
     setFormData(prev => ({ ...prev, address: query }));
-    if (query.length >= 3) {
-      setIsSearchingAddress(true);
-      const results = await searchAddress(query);
-      setAddressSuggestions(results);
-      setIsSearchingAddress(false);
+    
+    // Clear previous timeout
+    if (addressSearchTimeout) {
+      clearTimeout(addressSearchTimeout);
+    }
+    
+    if (query.length >= 5) {
+      // Debounce: wait 800ms after user stops typing
+      const timeout = setTimeout(async () => {
+        setIsSearchingAddress(true);
+        try {
+          const results = await searchAddress(query);
+          // Limit to 3 suggestions max
+          setAddressSuggestions(results.slice(0, 3));
+        } catch (error) {
+          console.error('Address search error:', error);
+          setAddressSuggestions([]);
+        } finally {
+          setIsSearchingAddress(false);
+        }
+      }, 800);
+      setAddressSearchTimeout(timeout);
     } else {
       setAddressSuggestions([]);
     }
-  };
+  }, [addressSearchTimeout, searchAddress]);
 
   const handleSelectAddress = (suggestion: { lat: string; lon: string; display_name: string }) => {
+    // Extract a shorter, cleaner address
+    const parts = suggestion.display_name.split(',');
+    const shortAddress = parts.slice(0, 3).join(',').trim();
+    
     setFormData(prev => ({
       ...prev,
-      address: suggestion.display_name,
+      address: shortAddress,
       latitude: parseFloat(suggestion.lat),
       longitude: parseFloat(suggestion.lon),
     }));
     setAddressSuggestions([]);
+  };
+
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleGallerySelect = () => {
+    fileInputRef.current?.click();
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -392,18 +424,24 @@ export default function CustomersPage() {
                       )}
                     </Button>
                   </div>
-                  {addressSuggestions.length > 0 && (
-                    <div className="border rounded-md bg-background max-h-40 overflow-y-auto z-50">
-                      {addressSuggestions.map((suggestion, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0"
-                          onClick={() => handleSelectAddress(suggestion)}
-                        >
-                          {suggestion.display_name}
-                        </button>
-                      ))}
+                {addressSuggestions.length > 0 && (
+                    <div className="border rounded-md bg-background shadow-lg max-h-32 overflow-y-auto z-50">
+                      {addressSuggestions.map((suggestion, idx) => {
+                        // Show shorter version in suggestions
+                        const parts = suggestion.display_name.split(',');
+                        const shortName = parts.slice(0, 3).join(',').trim();
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0 line-clamp-2"
+                            onClick={() => handleSelectAddress(suggestion)}
+                          >
+                            <MapPin className="w-3 h-3 inline mr-1 text-muted-foreground" />
+                            {shortName}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -464,8 +502,16 @@ export default function CustomersPage() {
                     {settings.language === 'es' ? 'Foto de Fachada' : 'Facade Photo'}
                   </Label>
                   
+                  {/* Hidden file inputs */}
                   <input
                     ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+                  <input
+                    ref={cameraInputRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
@@ -491,18 +537,26 @@ export default function CustomersPage() {
                       </Button>
                     </div>
                   ) : (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
-                    >
-                      <Image className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        {isMobile
-                          ? (settings.language === 'es' ? 'Toca para tomar foto' : 'Tap to take photo')
-                          : (settings.language === 'es' ? 'Clic para subir imagen' : 'Click to upload image')
-                        }
-                      </p>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors">
+                          <ImagePlus className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            {settings.language === 'es' ? 'Agregar foto' : 'Add photo'}
+                          </p>
+                        </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="w-48">
+                        <DropdownMenuItem onClick={handleCameraCapture} className="gap-2">
+                          <Camera className="w-4 h-4" />
+                          {settings.language === 'es' ? 'Tomar foto' : 'Take photo'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleGallerySelect} className="gap-2">
+                          <Image className="w-4 h-4" />
+                          {settings.language === 'es' ? 'Elegir de galería' : 'Choose from gallery'}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
 
