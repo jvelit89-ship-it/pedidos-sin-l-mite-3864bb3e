@@ -68,6 +68,19 @@ function formatAmount(amount: number): string {
   return `${intWords} con ${decPart.toString().padStart(2, '0')}/100 Soles`;
 }
 
+// Format date string (YYYY-MM-DD) to localized Spanish date without timezone issues
+function formatDateForPeru(dateString: string): string {
+  const parts = dateString.split('-');
+  if (parts.length === 3) {
+    const day = parseInt(parts[2], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[0], 10);
+    const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return `${day} de ${months[month]} de ${year}`;
+  }
+  return dateString;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -337,7 +350,7 @@ serve(async (req) => {
   </div>
   ${data.delivery_date ? `
   <div class="info-row">
-    <span><span class="info-label">F. Entrega:</span> ${new Date(data.delivery_date).toLocaleDateString('es-PE')}</span>
+    <span><span class="info-label">F. Entrega:</span> ${formatDateForPeru(data.delivery_date)}</span>
   </div>
   ` : ''}
 

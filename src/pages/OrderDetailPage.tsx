@@ -302,7 +302,7 @@ export default function OrderDetailPage() {
             {order.delivery_date && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4" />
-                <span>Entrega: {format(new Date(order.delivery_date), "d 'de' MMMM", { locale: es })}</span>
+                <span>Entrega: {format(new Date(order.delivery_date + 'T12:00:00'), "d 'de' MMMM", { locale: es })}</span>
               </div>
             )}
           </CardContent>
