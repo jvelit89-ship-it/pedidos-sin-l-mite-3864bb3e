@@ -39,6 +39,7 @@ import {
 import { VolumePricingManager } from '@/components/VolumePricingManager';
 import { ProductionRecipesManager } from '@/components/ProductionRecipesManager';
 import { DeleteProductionDialog } from '@/components/DeleteProductionDialog';
+import { EditProductOTPDialog } from '@/components/EditProductOTPDialog';
 
 interface Product {
   id: string;
@@ -74,6 +75,8 @@ export default function InventoryPage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [isDeleteProductionOpen, setIsDeleteProductionOpen] = useState(false);
   const [selectedProductionIds, setSelectedProductionIds] = useState<string[]>([]);
+  const [isEditOTPDialogOpen, setIsEditOTPDialogOpen] = useState(false);
+  const [pendingEditChanges, setPendingEditChanges] = useState<Record<string, any>>({});
 
   const locale = settings.language === 'es' ? es : enUS;
 
@@ -123,7 +126,8 @@ export default function InventoryPage() {
     e.preventDefault();
     
     if (editingProduct) {
-      await updateProduct(editingProduct.id, {
+      // For editing, require OTP verification
+      const changes = {
         name: formData.name,
         sku: formData.sku,
         category: formData.category || null,
@@ -131,7 +135,10 @@ export default function InventoryPage() {
         min_stock: formData.min_stock,
         price: formData.price,
         notes: formData.notes || null,
-      });
+      };
+      setPendingEditChanges(changes);
+      setIsDialogOpen(false);
+      setIsEditOTPDialogOpen(true);
     } else {
       await addProduct({
         name: formData.name,
@@ -142,9 +149,13 @@ export default function InventoryPage() {
         price: formData.price,
         notes: formData.notes || null,
       });
+      setIsDialogOpen(false);
+      resetForm();
     }
-    
-    setIsDialogOpen(false);
+  };
+
+  const handleEditOTPSuccess = async () => {
+    await refetchProducts();
     resetForm();
   };
 
@@ -952,6 +963,18 @@ export default function InventoryPage() {
         onSuccess={handleDeleteProductionSuccess}
         language={settings.language as 'es' | 'en'}
       />
+
+      {/* Edit Product OTP Dialog */}
+      {editingProduct && (
+        <EditProductOTPDialog
+          open={isEditOTPDialogOpen}
+          onOpenChange={setIsEditOTPDialogOpen}
+          productId={editingProduct.id}
+          productName={editingProduct.name}
+          pendingChanges={pendingEditChanges}
+          onSuccess={handleEditOTPSuccess}
+        />
+      )}
     </div>
   );
 }

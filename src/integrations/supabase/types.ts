@@ -695,6 +695,47 @@ export type Database = {
           },
         ]
       }
+      product_edit_otp_codes: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          otp_code: string
+          pending_changes: Json
+          product_id: string
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          pending_changes: Json
+          product_id: string
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          pending_changes?: Json
+          product_id?: string
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_edit_otp_codes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_delete_otp_codes: {
         Row: {
           created_at: string
