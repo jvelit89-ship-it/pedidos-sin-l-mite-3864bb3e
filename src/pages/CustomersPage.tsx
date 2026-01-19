@@ -17,7 +17,8 @@ import { MapView } from '@/components/MapView';
 import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2 } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard } from 'lucide-react';
+import { DistributorCreditsManager } from '@/components/DistributorCreditsManager';
 
 interface Customer {
   id: string;
@@ -803,12 +804,12 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                {/* Customer Type - Minorista/Mayorista */}
+                {/* Customer Type - Minorista/Mayorista/Distribuidor */}
                 <div className="space-y-2">
                   <Label>{settings.language === 'es' ? 'Tipo de Cliente' : 'Customer Type'}</Label>
                   <Select
                     value={formData.customer_type}
-                    onValueChange={(v) => setFormData({ ...formData, customer_type: v as 'minorista' | 'mayorista' })}
+                    onValueChange={(v) => setFormData({ ...formData, customer_type: v as 'minorista' | 'mayorista' | 'distribuidor' })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -818,12 +819,19 @@ export default function CustomersPage() {
                       <SelectItem value="mayorista">
                         {settings.language === 'es' ? 'Mayorista (Precio Especial)' : 'Wholesale (Special Price)'}
                       </SelectItem>
+                      <SelectItem value="distribuidor">
+                        {settings.language === 'es' ? 'Distribuidor (Pago Anticipado)' : 'Distributor (Prepaid Credits)'}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {settings.language === 'es' 
-                      ? 'Los mayoristas reciben automáticamente precios por volumen' 
-                      : 'Wholesale customers automatically receive volume pricing'}
+                    {formData.customer_type === 'distribuidor' 
+                      ? (settings.language === 'es' 
+                        ? 'Los distribuidores hacen pagos anticipados y recogen recargas poco a poco' 
+                        : 'Distributors make prepaid purchases and pick up refills gradually')
+                      : (settings.language === 'es' 
+                        ? 'Los mayoristas reciben automáticamente precios por volumen' 
+                        : 'Wholesale customers automatically receive volume pricing')}
                   </p>
                 </div>
 
@@ -1023,6 +1031,12 @@ export default function CustomersPage() {
                             Mayorista
                           </span>
                         )}
+                        {c.customer_type === 'distribuidor' && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            <Truck className="w-3 h-3 inline mr-0.5" />
+                            Distribuidor
+                          </span>
+                        )}
                         {c.category && c.category !== 'regular' && (
                           <span
                             className={`px-2 py-0.5 text-xs rounded-full ${
@@ -1097,19 +1111,41 @@ export default function CustomersPage() {
                   Mayorista
                 </span>
               )}
+              {selectedCustomer?.customer_type === 'distribuidor' && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <Truck className="w-3 h-3 inline mr-1" />
+                  Distribuidor
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
-            <Tabs defaultValue="info" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs defaultValue={selectedCustomer.customer_type === 'distribuidor' ? 'credits' : 'info'} className="w-full">
+              <TabsList className={`grid w-full ${selectedCustomer.customer_type === 'distribuidor' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <TabsTrigger value="info">
                   {settings.language === 'es' ? 'Información' : 'Information'}
                 </TabsTrigger>
+                {selectedCustomer.customer_type === 'distribuidor' && (
+                  <TabsTrigger value="credits" className="gap-1">
+                    <CreditCard className="w-3.5 h-3.5" />
+                    Créditos
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="history" className="gap-1">
                   <ShoppingBag className="w-3.5 h-3.5" />
                   {settings.language === 'es' ? 'Historial' : 'History'}
                 </TabsTrigger>
               </TabsList>
+
+              {/* Credits Tab for Distributors */}
+              {selectedCustomer.customer_type === 'distribuidor' && (
+                <TabsContent value="credits" className="mt-4">
+                  <DistributorCreditsManager 
+                    customerId={selectedCustomer.id} 
+                    customerName={selectedCustomer.name}
+                  />
+                </TabsContent>
+              )}
 
               <TabsContent value="info" className="mt-4 space-y-4">
                 {/* Facade Photo */}
@@ -1140,8 +1176,12 @@ export default function CustomersPage() {
                     <span className="text-muted-foreground">
                       {settings.language === 'es' ? 'Tipo de Cliente' : 'Customer Type'}
                     </span>
-                    <span className={`font-medium ${selectedCustomer.customer_type === 'mayorista' ? 'text-blue-600' : ''}`}>
-                      {selectedCustomer.customer_type === 'mayorista' ? 'Mayorista' : 'Minorista'}
+                    <span className={`font-medium ${
+                      selectedCustomer.customer_type === 'mayorista' ? 'text-blue-600' : 
+                      selectedCustomer.customer_type === 'distribuidor' ? 'text-green-600' : ''
+                    }`}>
+                      {selectedCustomer.customer_type === 'mayorista' ? 'Mayorista' : 
+                       selectedCustomer.customer_type === 'distribuidor' ? 'Distribuidor' : 'Minorista'}
                     </span>
                   </div>
                   {selectedCustomer.phone && (

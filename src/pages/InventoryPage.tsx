@@ -36,6 +36,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { VolumePricingManager } from '@/components/VolumePricingManager';
+import { ProductionRecipesManager } from '@/components/ProductionRecipesManager';
 
 interface Product {
   id: string;
@@ -522,11 +523,17 @@ export default function InventoryPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="inventory" className="w-full">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : canViewHistory ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : canViewHistory ? 'grid-cols-3' : 'grid-cols-1'}`}>
           <TabsTrigger value="inventory" className="gap-2">
             <Package className="w-4 h-4" />
             <span className="hidden sm:inline">{settings.language === 'es' ? 'Inventario' : 'Inventory'}</span>
           </TabsTrigger>
+          {canRegisterProduction && (
+            <TabsTrigger value="production" className="gap-2">
+              <Factory className="w-4 h-4" />
+              <span className="hidden sm:inline">{settings.language === 'es' ? 'Producción' : 'Production'}</span>
+            </TabsTrigger>
+          )}
           {canViewHistory && (
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4" />
@@ -546,6 +553,16 @@ export default function InventoryPage() {
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* Production Tab */}
+        {canRegisterProduction && (
+          <TabsContent value="production">
+            <ProductionRecipesManager onProductionComplete={() => {
+              refetchProducts();
+              refetchMovements();
+            }} />
+          </TabsContent>
+        )}
 
         <TabsContent value="inventory" className="space-y-4">
           {/* Stats */}
