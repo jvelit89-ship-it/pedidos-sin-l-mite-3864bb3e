@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ export default function CustomersPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [addressSearchTimeout, setAddressSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showAddressConfirmation, setShowAddressConfirmation] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -113,34 +113,48 @@ export default function CustomersPage() {
     );
   };
 
-  const handleAddressSearch = useCallback((query: string) => {
-    setFormData(prev => ({ ...prev, address: query }));
-    
-    // Clear previous timeout
-    if (addressSearchTimeout) {
-      clearTimeout(addressSearchTimeout);
+  // Simple address input - no automatic search
+  const handleAddressChange = (value: string) => {
+    setFormData(prev => ({ ...prev, address: value }));
+    setShowAddressConfirmation(false);
+    setAddressSuggestions([]);
+  };
+
+  // User confirms address is correct (no geocoding needed)
+  const handleConfirmAddress = () => {
+    setShowAddressConfirmation(false);
+    setAddressSuggestions([]);
+    toast.success('Dirección confirmada');
+  };
+
+  // User wants to search for suggestions
+  const handleSearchSuggestions = async () => {
+    if (formData.address.length < 5) {
+      toast.error('Ingresa al menos 5 caracteres');
+      return;
     }
     
-    if (query.length >= 5) {
-      // Debounce: wait 800ms after user stops typing
-      const timeout = setTimeout(async () => {
-        setIsSearchingAddress(true);
-        try {
-          const results = await searchAddress(query);
-          // Limit to 3 suggestions max
-          setAddressSuggestions(results.slice(0, 3));
-        } catch (error) {
-          console.error('Address search error:', error);
-          setAddressSuggestions([]);
-        } finally {
-          setIsSearchingAddress(false);
-        }
-      }, 800);
-      setAddressSearchTimeout(timeout);
-    } else {
-      setAddressSuggestions([]);
+    setIsSearchingAddress(true);
+    try {
+      const results = await searchAddress(formData.address);
+      setAddressSuggestions(results.slice(0, 3));
+      if (results.length === 0) {
+        toast.info('No se encontraron sugerencias');
+      }
+    } catch (error) {
+      console.error('Address search error:', error);
+      toast.error('Error al buscar direcciones');
+    } finally {
+      setIsSearchingAddress(false);
     }
-  }, [addressSearchTimeout, searchAddress]);
+  };
+
+  // Show confirmation dialog when user finishes typing
+  const handleAddressBlur = () => {
+    if (formData.address.length >= 5 && !formData.latitude) {
+      setShowAddressConfirmation(true);
+    }
+  };
 
   const handleSelectAddress = (suggestion: { lat: string; lon: string; display_name: string }) => {
     // Extract a shorter, cleaner address
@@ -154,6 +168,8 @@ export default function CustomersPage() {
       longitude: parseFloat(suggestion.lon),
     }));
     setAddressSuggestions([]);
+    setShowAddressConfirmation(false);
+    toast.success('Ubicación guardada');
   };
 
   const handleCameraCapture = () => {
@@ -359,6 +375,7 @@ export default function CustomersPage() {
     setAddressSuggestions([]);
     setPhotoFile(null);
     setPhotoPreview(null);
+    setShowAddressConfirmation(false);
     setFormData({
       name: '',
       phone: '',
@@ -483,17 +500,14 @@ export default function CustomersPage() {
                 <div className="space-y-2">
                   <Label>{t.address} *</Label>
                   <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        value={formData.address}
-                        onChange={(e) => handleAddressSearch(e.target.value)}
-                        placeholder={settings.language === 'es' ? 'Buscar dirección...' : 'Search address...'}
-                        required
-                      />
-                      {isSearchingAddress && (
-                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
+                    <Input
+                      value={formData.address}
+                      onChange={(e) => handleAddressChange(e.target.value)}
+                      onBlur={handleAddressBlur}
+                      placeholder={settings.language === 'es' ? 'Escribe la dirección completa...' : 'Enter full address...'}
+                      className="flex-1"
+                      required
+                    />
                     <Button
                       type="button"
                       variant="outline"
@@ -509,25 +523,73 @@ export default function CustomersPage() {
                       )}
                     </Button>
                   </div>
-                {addressSuggestions.length > 0 && (
-                    <div className="border rounded-md bg-background shadow-lg max-h-32 overflow-y-auto z-50">
+                  
+                  {/* Address confirmation prompt */}
+                  {showAddressConfirmation && !formData.latitude && (
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <p className="text-sm">
+                        {settings.language === 'es' 
+                          ? '¿La dirección es correcta?' 
+                          : 'Is the address correct?'}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          onClick={handleConfirmAddress}
+                          className="flex-1"
+                        >
+                          {settings.language === 'es' ? 'Sí, es correcta' : 'Yes, correct'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={handleSearchSuggestions}
+                          disabled={isSearchingAddress}
+                          className="flex-1"
+                        >
+                          {isSearchingAddress ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            settings.language === 'es' ? 'Ver opciones' : 'See options'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Address suggestions */}
+                  {addressSuggestions.length > 0 && (
+                    <div className="border rounded-md bg-background shadow-lg overflow-hidden">
+                      <p className="px-3 py-2 text-xs text-muted-foreground bg-muted border-b">
+                        {settings.language === 'es' ? 'Selecciona una opción:' : 'Select an option:'}
+                      </p>
                       {addressSuggestions.map((suggestion, idx) => {
-                        // Show shorter version in suggestions
                         const parts = suggestion.display_name.split(',');
                         const shortName = parts.slice(0, 3).join(',').trim();
                         return (
                           <button
                             key={idx}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0 line-clamp-2"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0"
                             onClick={() => handleSelectAddress(suggestion)}
                           >
-                            <MapPin className="w-3 h-3 inline mr-1 text-muted-foreground" />
+                            <MapPin className="w-3 h-3 inline mr-1 text-primary" />
                             {shortName}
                           </button>
                         );
                       })}
                     </div>
+                  )}
+                  
+                  {/* Show coordinates if set */}
+                  {formData.latitude && formData.longitude && (
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {settings.language === 'es' ? 'Ubicación guardada' : 'Location saved'}
+                    </p>
                   )}
                 </div>
 
