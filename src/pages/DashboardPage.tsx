@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
+import { getLimaDateKey } from '@/lib/limaTime';
 // Dashboard components
 import { SmartAlerts } from '@/components/dashboard/SmartAlerts';
 import { HealthIndicators } from '@/components/dashboard/HealthIndicators';
@@ -49,40 +49,34 @@ export default function DashboardPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const stats = useMemo<DashboardStats>(() => {
-    // Use America/Lima timezone for "today" calculation to match DailyClosing
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Lima',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const today = formatter.format(now); // Returns YYYY-MM-DD in Lima timezone
-    const todayOrders = orders.filter(o => o.created_at.startsWith(today));
-    
+    const today = getLimaDateKey(new Date());
+    const todayOrders = orders.filter(o => getLimaDateKey(o.created_at) === today);
+
     return {
       ordersToday: todayOrders.length,
-      pendingOrders: orders.filter(o => o.status === 'pending').length,
-      inDeliveryOrders: orders.filter(o => o.status === 'delivery').length,
-      deliveredOrders: orders.filter(o => o.status === 'delivered').length,
+      pendingOrders: todayOrders.filter(o => o.status === 'pending').length,
+      inDeliveryOrders: todayOrders.filter(o => o.status === 'delivery').length,
+      deliveredOrders: todayOrders.filter(o => o.status === 'delivered').length,
     };
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
+    const today = getLimaDateKey(new Date());
+    const weekAgo = getLimaDateKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
     return orders.filter(order => {
       if (statusFilter !== 'all' && order.status !== statusFilter) return false;
-      
-      const orderDate = new Date(order.created_at);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
+
+      const orderDay = getLimaDateKey(order.created_at);
+
       if (dateFilter === 'today') {
-        return orderDate >= today;
-      } else if (dateFilter === 'week') {
-        const weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return orderDate >= weekAgo;
+        return orderDay === today;
       }
+
+      if (dateFilter === 'week') {
+        return orderDay >= weekAgo;
+      }
+
       return true;
     });
   }, [orders, dateFilter, statusFilter]);

@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { useOrders } from './useOrders';
 import { useRepartidores } from './useTeam';
+import { getLimaDateKey } from '@/lib/limaTime';
 
 const WORK_START_HOUR = 7; // 7am
 const WORK_END_HOUR = 19; // 7pm
@@ -201,12 +202,11 @@ export function useDashboardStats() {
 
   // Health Indicators
   const healthIndicators = useMemo<HealthIndicators>(() => {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = getLimaDateKey(new Date());
+    const yesterday = getLimaDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
-    const todayOrders = orders.filter(o => o.created_at.startsWith(today));
-    const yesterdayOrders = orders.filter(o => o.created_at.startsWith(yesterday));
+    const todayOrders = orders.filter(o => getLimaDateKey(o.created_at) === today);
+    const yesterdayOrders = orders.filter(o => getLimaDateKey(o.created_at) === yesterday);
 
     const deliveredToday = todayOrders.filter(o => o.status === 'delivered').length;
     const totalToday = todayOrders.length;
