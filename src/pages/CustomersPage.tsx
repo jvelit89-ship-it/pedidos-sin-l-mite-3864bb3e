@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard, Tag } from 'lucide-react';
 import { DistributorCreditsManager } from '@/components/DistributorCreditsManager';
 import { CustomerPricingManager } from '@/components/CustomerPricingManager';
+import { SecureImage } from '@/components/SecureImage';
 
 interface Customer {
   id: string;
@@ -1012,10 +1013,16 @@ export default function CustomersPage() {
                   <div className="flex items-start gap-3">
                     {/* Thumbnail */}
                     {c.facade_photo_url ? (
-                      <img
-                        src={c.facade_photo_url}
+                      <SecureImage
+                        bucket="customer-photos"
+                        path={c.facade_photo_url}
                         alt="Fachada"
                         className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        fallback={
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                            <Users className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                        }
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
@@ -1172,8 +1179,9 @@ export default function CustomersPage() {
                       <Camera className="w-4 h-4" />
                       {settings.language === 'es' ? 'Foto de Fachada' : 'Facade Photo'}
                     </Label>
-                    <img
-                      src={selectedCustomer.facade_photo_url}
+                    <SecureImage
+                      bucket="customer-photos"
+                      path={selectedCustomer.facade_photo_url}
                       alt="Fachada del cliente"
                       className="w-full h-48 object-cover rounded-lg"
                     />
