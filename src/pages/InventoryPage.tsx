@@ -58,7 +58,7 @@ interface Product {
 
 export default function InventoryPage() {
   const { products, loading, addProduct, updateProduct, deleteProduct, refetch: refetchProducts } = useProducts();
-  const { history, addProduction, refetch: refetchHistory } = useProductionHistory();
+  const { history, addProduction, updateProduction, refetch: refetchHistory } = useProductionHistory();
   const { movements, loading: loadingMovements, refetch: refetchMovements } = useStockMovements();
   const { getProductSummary } = useStockReports();
   const { recipes } = useProductionRecipes();
@@ -78,6 +78,13 @@ export default function InventoryPage() {
   const [selectedProductionIds, setSelectedProductionIds] = useState<string[]>([]);
   const [isEditOTPDialogOpen, setIsEditOTPDialogOpen] = useState(false);
   const [pendingEditChanges, setPendingEditChanges] = useState<Record<string, any>>({});
+  const [editProductionOpen, setEditProductionOpen] = useState(false);
+  const [editProductionItem, setEditProductionItem] = useState<any>(null);
+  const [editProductionData, setEditProductionData] = useState({
+    quantity: 0,
+    notes: '',
+    produced_at: '',
+  });
 
   const locale = settings.language === 'es' ? es : enUS;
 
@@ -775,6 +782,10 @@ export default function InventoryPage() {
                           <p className="text-xs text-muted-foreground">
                             {settings.language === 'es' ? 'Producción' : 'Production'} • {format(new Date(item.produced_at), 'PPp', { locale })}
                           </p>
+                          <p className="text-xs text-primary font-medium">
+                            {settings.language === 'es' ? 'Registrado por: ' : 'Registered by: '}
+                            {item.profiles?.name || (settings.language === 'es' ? 'Desconocido' : 'Unknown')}
+                          </p>
                           {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
                         </div>
                       </div>
@@ -783,6 +794,22 @@ export default function InventoryPage() {
                           <span className="text-lg font-bold text-green-600">+{item.quantity}</span>
                           <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'unidades' : 'units'}</p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditProductionItem(item);
+                            setEditProductionData({
+                              quantity: item.quantity,
+                              notes: item.notes || '',
+                              produced_at: item.produced_at.split('T')[0],
+                            });
+                            setEditProductionOpen(true);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -981,6 +1008,106 @@ export default function InventoryPage() {
           onSuccess={handleEditOTPSuccess}
         />
       )}
+
+      {/* Edit Production Dialog */}
+      <Dialog open={editProductionOpen} onOpenChange={setEditProductionOpen}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>
+              {settings.language === 'es' ? 'Editar Registro de Producción' : 'Edit Production Record'}
+            </DialogTitle>
+          </DialogHeader>
+          {editProductionItem && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="font-medium">{editProductionItem.products?.name || 'Producto'}</p>
+                <p className="text-xs text-muted-foreground">
+                  {settings.language === 'es' ? 'Registrado por: ' : 'Registered by: '}
+                  {editProductionItem.profiles?.name || (settings.language === 'es' ? 'Desconocido' : 'Unknown')}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>{settings.language === 'es' ? 'Cantidad' : 'Quantity'}</Label>
+                <Input
+                  type="number"
+                  value={editProductionData.quantity}
+                  onChange={(e) => setEditProductionData({
+                    ...editProductionData,
+                    quantity: Number(e.target.value)
+                  })}
+                  min={1}
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{settings.language === 'es' ? 'Fecha de Producción' : 'Production Date'}</Label>
+                <Input
+                  type="date"
+                  value={editProductionData.produced_at}
+                  onChange={(e) => setEditProductionData({
+                    ...editProductionData,
+                    produced_at: e.target.value
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{settings.language === 'es' ? 'Notas' : 'Notes'}</Label>
+                <Textarea
+                  value={editProductionData.notes}
+                  onChange={(e) => setEditProductionData({
+                    ...editProductionData,
+                    notes: e.target.value
+                  })}
+                  placeholder={settings.language === 'es' ? 'Notas opcionales...' : 'Optional notes...'}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditProductionOpen(false)}>
+                  {settings.language === 'es' ? 'Cancelar' : 'Cancel'}
+                </Button>
+                <Button onClick={async () => {
+                  if (!editProductionItem) return;
+                  
+                  const updates: any = {};
+                  if (editProductionData.quantity !== editProductionItem.quantity) {
+                    updates.quantity = editProductionData.quantity;
+                  }
+                  if (editProductionData.notes !== (editProductionItem.notes || '')) {
+                    updates.notes = editProductionData.notes || null;
+                  }
+                  if (editProductionData.produced_at !== editProductionItem.produced_at.split('T')[0]) {
+                    updates.produced_at = new Date(editProductionData.produced_at).toISOString();
+                  }
+
+                  if (Object.keys(updates).length === 0) {
+                    toast.info(settings.language === 'es' ? 'No hay cambios' : 'No changes');
+                    setEditProductionOpen(false);
+                    return;
+                  }
+
+                  const success = await updateProduction(
+                    editProductionItem.id,
+                    updates,
+                    editProductionItem.quantity,
+                    editProductionItem.product_id
+                  );
+
+                  if (success) {
+                    setEditProductionOpen(false);
+                    refetchProducts();
+                  }
+                }}>
+                  {settings.language === 'es' ? 'Guardar Cambios' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -272,6 +272,10 @@ export function useAdvancedProduction() {
       }
     }
 
+    // Get current user id
+    const { data: { user } } = await supabase.auth.getUser();
+    const producedBy = user?.id || null;
+
     // Add production record for output product
     const { data: productionData, error: historyError } = await supabase
       .from('production_history')
@@ -280,6 +284,7 @@ export function useAdvancedProduction() {
         quantity,
         company_id: companyId,
         notes: notes || null,
+        produced_by: producedBy,
       })
       .select()
       .single();
