@@ -11,6 +11,7 @@ import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Map, Filter, Loader2, Phone, MapPin, User, Store, Package, ExternalLink, ShoppingBag, Clock } from 'lucide-react';
+import { SecureImage } from '@/components/SecureImage';
 
 interface Customer {
   id: string;
@@ -255,10 +256,16 @@ export default function CustomersMapPage() {
           <DialogHeader className="p-4 pb-2 shrink-0 border-b">
             <DialogTitle className="flex items-center gap-3">
               {selectedCustomer?.facade_photo_url ? (
-                <img
-                  src={selectedCustomer.facade_photo_url}
+                <SecureImage
+                  bucket="customer-photos"
+                  path={selectedCustomer.facade_photo_url}
                   alt="Fachada"
                   className="w-12 h-12 rounded-lg object-cover"
+                  fallback={
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                      <User className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  }
                 />
               ) : (
                 <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
