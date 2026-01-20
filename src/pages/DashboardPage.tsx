@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { getLimaDateKey } from '@/lib/limaTime';
+import { getBusinessDateKey, getTodayBusinessDateKey } from '@/lib/limaTime';
 // Dashboard components
 import { SmartAlerts } from '@/components/dashboard/SmartAlerts';
 import { HealthIndicators } from '@/components/dashboard/HealthIndicators';
@@ -50,8 +50,8 @@ export default function DashboardPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const stats = useMemo<DashboardStats>(() => {
-    const today = getLimaDateKey(new Date());
-    const todayOrders = orders.filter(o => getLimaDateKey(o.created_at) === today);
+    const today = getTodayBusinessDateKey();
+    const todayOrders = orders.filter(o => getBusinessDateKey(o.created_at) === today);
 
     return {
       ordersToday: todayOrders.length,
@@ -63,13 +63,13 @@ export default function DashboardPage() {
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
-    const today = getLimaDateKey(new Date());
-    const weekAgo = getLimaDateKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const today = getTodayBusinessDateKey();
+    const weekAgo = getBusinessDateKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
 
     return orders.filter(order => {
       if (statusFilter !== 'all' && order.status !== statusFilter) return false;
 
-      const orderDay = getLimaDateKey(order.created_at);
+      const orderDay = getBusinessDateKey(order.created_at);
 
       if (dateFilter === 'today') {
         return orderDay === today;
