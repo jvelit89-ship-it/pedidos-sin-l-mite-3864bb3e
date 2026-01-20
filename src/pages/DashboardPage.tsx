@@ -49,7 +49,15 @@ export default function DashboardPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const stats = useMemo<DashboardStats>(() => {
-    const today = new Date().toISOString().split('T')[0];
+    // Use America/Lima timezone for "today" calculation to match DailyClosing
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Lima',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const today = formatter.format(now); // Returns YYYY-MM-DD in Lima timezone
     const todayOrders = orders.filter(o => o.created_at.startsWith(today));
     
     return {
