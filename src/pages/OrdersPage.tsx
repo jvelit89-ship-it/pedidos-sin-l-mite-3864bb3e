@@ -27,7 +27,9 @@ import {
   X,
   RefreshCw,
   User,
-  Truck
+  Truck,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -227,6 +229,71 @@ export default function OrdersPage() {
 
   const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
+
+  // Export orders to CSV
+  const exportOrdersToCSV = (ordersToExport: Order[], fileName: string) => {
+    if (ordersToExport.length === 0) {
+      toast.error(settings.language === 'es' ? 'No hay pedidos para exportar' : 'No orders to export');
+      return;
+    }
+
+    const headers = [
+      'ID',
+      'Cliente',
+      'Estado',
+      'Total',
+      'Vendedor',
+      'Repartidor',
+      'Dirección',
+      'Productos',
+      'Fecha Creación',
+      'Fecha Entrega'
+    ];
+
+    const rows = ordersToExport.map(order => {
+      const products = order.order_items?.map(item => 
+        `${item.product_name} x${item.quantity}`
+      ).join('; ') || '';
+      
+      const statusLabel = ORDER_STATUS_CONFIG[order.status]?.label || order.status;
+      
+      return [
+        order.id.slice(0, 8),
+        `"${order.customer_name}"`,
+        statusLabel,
+        order.total.toFixed(2),
+        order.vendedor_name || '-',
+        order.repartidor_name || '-',
+        `"${order.delivery_address || '-'}"`,
+        `"${products}"`,
+        format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
+        order.delivered_at ? format(new Date(order.delivered_at), 'dd/MM/yyyy HH:mm') : '-'
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${fileName}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    toast.success(settings.language === 'es' ? 'Pedidos exportados' : 'Orders exported');
+  };
+
+  const handleExportFiltered = () => {
+    exportOrdersToCSV(filteredOrders, 'pedidos_filtrados');
+  };
+
+  const handleExportByStatus = (status: OrderStatus) => {
+    const statusOrders = orders.filter((o: Order) => o.status === status);
+    const statusName = ORDER_STATUS_CONFIG[status].label.toLowerCase().replace(/\s+/g, '_');
+    exportOrdersToCSV(statusOrders, `pedidos_${statusName}`);
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
@@ -337,7 +404,7 @@ export default function OrdersPage() {
 
       {/* Search and Filters */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
             {isAdmin && filteredOrders.length > 0 && (
               <div className="flex items-center">
@@ -388,6 +455,49 @@ export default function OrdersPage() {
               </SelectContent>
             </Select>
           </div>
+          
+          {/* Export Buttons */}
+          {isAdmin && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+              <span className="text-sm text-muted-foreground mr-1">
+                <Download className="w-4 h-4 inline mr-1" />
+                {settings.language === 'es' ? 'Exportar:' : 'Export:'}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExportFiltered}
+                className="gap-1"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                {settings.language === 'es' ? 'Vista actual' : 'Current view'} ({filteredOrders.length})
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleExportByStatus('delivered')}
+                className="gap-1"
+              >
+                ✅ {settings.language === 'es' ? 'Entregados' : 'Delivered'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleExportByStatus('pending')}
+                className="gap-1"
+              >
+                🕐 {settings.language === 'es' ? 'Pendientes' : 'Pending'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleExportByStatus('cancelled')}
+                className="gap-1"
+              >
+                ❌ {settings.language === 'es' ? 'Cancelados' : 'Cancelled'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
