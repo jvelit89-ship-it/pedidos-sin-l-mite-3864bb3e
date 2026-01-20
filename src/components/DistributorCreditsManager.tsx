@@ -220,7 +220,7 @@ export function DistributorCreditsManager({ customerId, customerName, onCreditsC
                     <Input
                       type="number"
                       min="0"
-                      step="0.01"
+                      step="0.0001"
                       value={packageForm.amountPaid}
                       onChange={(e) => setPackageForm({ ...packageForm, amountPaid: parseFloat(e.target.value) || 0 })}
                     />
