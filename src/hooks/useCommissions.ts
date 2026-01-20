@@ -448,9 +448,9 @@ export function useOperarioCommissions(year: number, month: number) {
       );
 
       const commissions: OperarioCommissionSummary[] = operarios.map(operario => {
-        // Match productions by produced_by (which stores the operario name or user info)
+        // Match productions by produced_by (which stores the auth user_id UUID)
         const operarioProductions = productions?.filter(p => 
-          p.produced_by === operario.name || p.produced_by === operario.user_id
+          p.produced_by === operario.user_id
         ) || [];
         
         let period1Units = 0;
@@ -531,7 +531,7 @@ export function useMyOperarioCommissions(operarioId: string | null, year: number
       const period2Start = new Date(year, month - 1, 16);
       const period2End = new Date(year, month, 0, 23, 59, 59);
 
-      // Get production history for this month (match by name or user_id)
+      // Get production history for this month (match by user_id only - produced_by stores the auth user UUID)
       const { data: productions } = await supabase
         .from('production_history')
         .select(`
@@ -542,7 +542,7 @@ export function useMyOperarioCommissions(operarioId: string | null, year: number
           products (name)
         `)
         .eq('company_id', companyId)
-        .or(`produced_by.eq.${operario.name},produced_by.eq.${operario.user_id}`)
+        .eq('produced_by', operario.user_id)
         .gte('produced_at', period1Start.toISOString())
         .lte('produced_at', period2End.toISOString());
 
