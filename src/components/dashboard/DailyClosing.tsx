@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { getLimaDateKey } from '@/lib/limaTime';
+import { getBusinessDateKey, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
 import { DailyClosingHistory } from './DailyClosingHistory';
 import { 
   Calendar, 
@@ -76,11 +76,11 @@ export function DailyClosing() {
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate today's statistics using configured timezone
+  // Calculate today's statistics using business day (22:30-22:30)
   const dailyStats = useMemo<DailyStats>(() => {
-    // Get today's date key in America/Lima and compare against each order in the same timezone
-    const today = getLimaDateKey(new Date());
-    const todayOrders = orders.filter(o => getLimaDateKey(o.created_at) === today);
+    // Get today's business day key and compare against each order
+    const today = getTodayBusinessDateKey();
+    const todayOrders = orders.filter(o => getBusinessDateKey(o.created_at) === today);
 
     // Filter by role if needed
     let filteredOrders = todayOrders;
@@ -288,7 +288,7 @@ export function DailyClosing() {
                     <div className="flex items-center gap-3">
                       <ShoppingCart className="w-8 h-8 text-primary" />
                       <div>
-                        <p className="text-sm text-muted-foreground">Total Pedidos (00:00 - 23:59)</p>
+                        <p className="text-sm text-muted-foreground">Total Pedidos ({getBusinessDayCutoff().hour}:{getBusinessDayCutoff().minute.toString().padStart(2, '0')} - {getBusinessDayCutoff().hour}:{getBusinessDayCutoff().minute.toString().padStart(2, '0')})</p>
                         <p className="text-3xl font-bold text-primary">{dailyStats.totalOrders}</p>
                       </div>
                     </div>

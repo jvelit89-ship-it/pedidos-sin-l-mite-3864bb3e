@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,15 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { DeleteOrdersDialog } from '@/components/DeleteOrdersDialog';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
+import { BusinessDaySelector } from '@/components/BusinessDaySelector';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useVendedores, useRepartidores } from '@/hooks/useTeam';
 import { supabase } from '@/integrations/supabase/client';
 import { ORDER_STATUS_CONFIG, OrderStatus } from '@/types';
+import { getTodayBusinessDateKey, getBusinessDateKey } from '@/lib/limaTime';
 import { toast } from 'sonner';
 import { 
   Plus, 
@@ -29,7 +32,11 @@ import {
   User,
   Truck,
   FileSpreadsheet,
-  Download
+  Download,
+  Flame,
+  History,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -62,6 +69,11 @@ interface Order {
   }>;
 }
 
+// Active statuses (orders that need attention)
+const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'preparation', 'ready', 'delivery'];
+// Completed statuses (history)
+const COMPLETED_STATUSES: OrderStatus[] = ['delivered', 'cancelled'];
+
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -69,9 +81,19 @@ export default function OrdersPage() {
   const { orders, loading, refetch } = useOrders();
   const { vendedores } = useVendedores();
   const { repartidores } = useRepartidores();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  
+  // History date filter (business day)
+  const [historyDate, setHistoryDate] = useState(getTodayBusinessDateKey());
+  
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [vendedorFilter, setVendedorFilter] = useState<string>('all');
+  
+  // Selection
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
@@ -90,14 +112,51 @@ export default function OrdersPage() {
     return true;
   });
 
-  const filteredOrders = roleFilteredOrders.filter((order: Order) => {
-    const matchesSearch = 
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesVendedor = vendedorFilter === 'all' || order.vendedor_id === vendedorFilter;
-    return matchesSearch && matchesStatus && matchesVendedor;
-  });
+  // Active orders: pending, preparation, ready, delivery (no date filter)
+  const activeOrders = useMemo(() => {
+    return roleFilteredOrders.filter((order: Order) => 
+      ACTIVE_STATUSES.includes(order.status)
+    );
+  }, [roleFilteredOrders]);
+
+  // History orders: delivered, cancelled (filtered by business day)
+  const historyOrders = useMemo(() => {
+    return roleFilteredOrders.filter((order: Order) => {
+      if (!COMPLETED_STATUSES.includes(order.status)) return false;
+      
+      // Filter by business day
+      const orderBusinessDay = getBusinessDateKey(order.created_at);
+      return orderBusinessDay === historyDate;
+    });
+  }, [roleFilteredOrders, historyDate]);
+
+  // Current tab orders
+  const currentOrders = activeTab === 'active' ? activeOrders : historyOrders;
+
+  // Apply search and filters to current orders
+  const filteredOrders = useMemo(() => {
+    return currentOrders.filter((order: Order) => {
+      const matchesSearch = 
+        order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.id.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Status filter only applies within the tab's available statuses
+      const availableStatuses = activeTab === 'active' ? ACTIVE_STATUSES : COMPLETED_STATUSES;
+      const matchesStatus = statusFilter === 'all' || 
+        (availableStatuses.includes(statusFilter as OrderStatus) && order.status === statusFilter);
+      
+      const matchesVendedor = vendedorFilter === 'all' || order.vendedor_id === vendedorFilter;
+      
+      return matchesSearch && matchesStatus && matchesVendedor;
+    });
+  }, [currentOrders, searchTerm, statusFilter, vendedorFilter, activeTab]);
+
+  // Reset status filter when changing tabs
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab as 'active' | 'history');
+    setStatusFilter('all');
+    setSelectedOrders([]);
+  };
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
     if (checked) {
@@ -289,10 +348,21 @@ export default function OrdersPage() {
   };
 
   const handleExportByStatus = (status: OrderStatus) => {
-    const statusOrders = orders.filter((o: Order) => o.status === status);
+    const statusOrders = currentOrders.filter((o: Order) => o.status === status);
     const statusName = ORDER_STATUS_CONFIG[status].label.toLowerCase().replace(/\s+/g, '_');
     exportOrdersToCSV(statusOrders, `pedidos_${statusName}`);
   };
+
+  // Count stats for tabs
+  const activeCount = activeOrders.length;
+  const historyCount = historyOrders.length;
+  const deliveredCount = historyOrders.filter(o => o.status === 'delivered').length;
+  const cancelledCount = historyOrders.filter(o => o.status === 'cancelled').length;
+
+  // Status options based on current tab
+  const statusOptions = activeTab === 'active' 
+    ? ACTIVE_STATUSES 
+    : COMPLETED_STATUSES;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -328,266 +398,314 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Selection toolbar - shown when orders are selected */}
-      {isAdmin && selectedOrders.length > 0 && (
-        <Card className="border-primary bg-primary/5">
-          <CardContent className="p-3 space-y-3">
-            {/* Header row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={clearSelection} disabled={isBulkUpdating}>
-                  <X className="w-4 h-4" />
-                </Button>
-                <span className="text-sm font-medium">
-                  {selectedOrders.length} {settings.language === 'es' ? 'seleccionado(s)' : 'selected'}
-                </span>
-                {isBulkUpdating && <RefreshCw className="w-4 h-4 animate-spin" />}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="active" className="gap-2">
+            <Flame className="w-4 h-4" />
+            Activos ({activeCount})
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="w-4 h-4" />
+            Historial
+          </TabsTrigger>
+        </TabsList>
+
+        {/* History date selector */}
+        {activeTab === 'history' && (
+          <Card className="mt-4">
+            <CardContent className="p-4">
+              <BusinessDaySelector 
+                selectedDate={historyDate} 
+                onDateChange={setHistoryDate} 
+              />
+              <div className="flex items-center gap-4 mt-3 text-sm">
+                <div className="flex items-center gap-1 text-green-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  {deliveredCount} entregados
+                </div>
+                <div className="flex items-center gap-1 text-red-600">
+                  <XCircle className="w-4 h-4" />
+                  {cancelledCount} cancelados
+                </div>
               </div>
-              <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2" disabled={isBulkUpdating}>
-                <Trash2 className="w-4 h-4" />
-                <span className="hidden sm:inline">
-                  {settings.language === 'es' ? 'Eliminar' : 'Delete'}
-                </span>
-              </Button>
-            </div>
-            
-            {/* Bulk actions row */}
-            <div className="flex flex-wrap gap-2">
-              {/* Bulk Status Change */}
-              <Select onValueChange={(value) => handleBulkStatusChange(value as OrderStatus)} disabled={isBulkUpdating}>
-                <SelectTrigger className="w-auto min-w-[160px]">
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Selection toolbar - shown when orders are selected */}
+        {isAdmin && selectedOrders.length > 0 && (
+          <Card className="border-primary bg-primary/5 mt-4">
+            <CardContent className="p-3 space-y-3">
+              {/* Header row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" onClick={clearSelection} disabled={isBulkUpdating}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium">
+                    {selectedOrders.length} {settings.language === 'es' ? 'seleccionado(s)' : 'selected'}
+                  </span>
+                  {isBulkUpdating && <RefreshCw className="w-4 h-4 animate-spin" />}
+                </div>
+                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2" disabled={isBulkUpdating}>
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">
+                    {settings.language === 'es' ? 'Eliminar' : 'Delete'}
+                  </span>
+                </Button>
+              </div>
+              
+              {/* Bulk actions row */}
+              <div className="flex flex-wrap gap-2">
+                {/* Bulk Status Change */}
+                <Select onValueChange={(value) => handleBulkStatusChange(value as OrderStatus)} disabled={isBulkUpdating}>
+                  <SelectTrigger className="w-auto min-w-[160px]">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <span className="text-sm">Cambiar estado</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>
+                        {config.icon} {config.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Bulk Vendedor Change */}
+                <Select onValueChange={handleBulkVendedorChange} disabled={isBulkUpdating}>
+                  <SelectTrigger className="w-auto min-w-[160px]">
+                    <User className="w-4 h-4 mr-2" />
+                    <span className="text-sm">Asignar vendedor</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeVendedores.map(v => (
+                      <SelectItem key={v.id} value={v.id}>
+                        🧑‍💼 {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Bulk Repartidor Change */}
+                <Select onValueChange={handleBulkRepartidorChange} disabled={isBulkUpdating}>
+                  <SelectTrigger className="w-auto min-w-[160px]">
+                    <Truck className="w-4 h-4 mr-2" />
+                    <span className="text-sm">Asignar repartidor</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeRepartidores.map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        🚚 {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Search and Filters */}
+        <Card className="mt-4">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {isAdmin && filteredOrders.length > 0 && (
+                <div className="flex items-center">
+                  <Checkbox
+                    checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </div>
+              )}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder={settings.language === 'es' ? 'Buscar por cliente o ID...' : 'Search by customer or ID...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-40">
                   <Filter className="w-4 h-4 mr-2" />
-                  <span className="text-sm">Cambiar estado</span>
+                  <SelectValue placeholder={t.status} />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
-                    <SelectItem key={key} value={key}>
-                      {config.icon} {config.label}
+                  <SelectItem value="all">
+                    {settings.language === 'es' ? 'Todos los estados' : 'All statuses'}
+                  </SelectItem>
+                  {statusOptions.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {ORDER_STATUS_CONFIG[status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[status].label : ORDER_STATUS_CONFIG[status].labelEn}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              {/* Bulk Vendedor Change */}
-              <Select onValueChange={handleBulkVendedorChange} disabled={isBulkUpdating}>
-                <SelectTrigger className="w-auto min-w-[160px]">
-                  <User className="w-4 h-4 mr-2" />
-                  <span className="text-sm">Asignar vendedor</span>
+              <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder={settings.language === 'es' ? 'Vendedor' : 'Vendor'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {activeVendedores.map(v => (
+                  <SelectItem value="all">
+                    {settings.language === 'es' ? 'Todos los vendedores' : 'All vendors'}
+                  </SelectItem>
+                  {vendedores.filter(v => v.active).map(v => (
                     <SelectItem key={v.id} value={v.id}>
                       🧑‍💼 {v.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              {/* Bulk Repartidor Change */}
-              <Select onValueChange={handleBulkRepartidorChange} disabled={isBulkUpdating}>
-                <SelectTrigger className="w-auto min-w-[160px]">
-                  <Truck className="w-4 h-4 mr-2" />
-                  <span className="text-sm">Asignar repartidor</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {activeRepartidores.map(r => (
-                    <SelectItem key={r.id} value={r.id}>
-                      🚚 {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {isAdmin && filteredOrders.length > 0 && (
-              <div className="flex items-center">
-                <Checkbox
-                  checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
-                  onCheckedChange={handleSelectAll}
-                />
+            
+            {/* Export Buttons */}
+            {isAdmin && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                <span className="text-sm text-muted-foreground mr-1">
+                  <Download className="w-4 h-4 inline mr-1" />
+                  {settings.language === 'es' ? 'Exportar:' : 'Export:'}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleExportFiltered}
+                  className="gap-1"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  {settings.language === 'es' ? 'Vista actual' : 'Current view'} ({filteredOrders.length})
+                </Button>
+                {activeTab === 'active' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleExportByStatus('pending')}
+                    className="gap-1"
+                  >
+                    🕐 {settings.language === 'es' ? 'Pendientes' : 'Pending'}
+                  </Button>
+                )}
+                {activeTab === 'history' && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleExportByStatus('delivered')}
+                      className="gap-1"
+                    >
+                      ✅ {settings.language === 'es' ? 'Entregados' : 'Delivered'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleExportByStatus('cancelled')}
+                      className="gap-1"
+                    >
+                      ❌ {settings.language === 'es' ? 'Cancelados' : 'Cancelled'}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={settings.language === 'es' ? 'Buscar por cliente o ID...' : 'Search by customer or ID...'}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder={t.status} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {settings.language === 'es' ? 'Todos los estados' : 'All statuses'}
-                </SelectItem>
-                {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>
-                    {config.icon} {settings.language === 'es' ? config.label : config.labelEn}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder={settings.language === 'es' ? 'Vendedor' : 'Vendor'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {settings.language === 'es' ? 'Todos los vendedores' : 'All vendors'}
-                </SelectItem>
-                {vendedores.filter(v => v.active).map(v => (
-                  <SelectItem key={v.id} value={v.id}>
-                    🧑‍💼 {v.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Export Buttons */}
-          {isAdmin && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
-              <span className="text-sm text-muted-foreground mr-1">
-                <Download className="w-4 h-4 inline mr-1" />
-                {settings.language === 'es' ? 'Exportar:' : 'Export:'}
-              </span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleExportFiltered}
-                className="gap-1"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                {settings.language === 'es' ? 'Vista actual' : 'Current view'} ({filteredOrders.length})
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleExportByStatus('delivered')}
-                className="gap-1"
-              >
-                ✅ {settings.language === 'es' ? 'Entregados' : 'Delivered'}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleExportByStatus('pending')}
-                className="gap-1"
-              >
-                🕐 {settings.language === 'es' ? 'Pendientes' : 'Pending'}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleExportByStatus('cancelled')}
-                className="gap-1"
-              >
-                ❌ {settings.language === 'es' ? 'Cancelados' : 'Cancelled'}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Orders List */}
-      {loading ? (
-        <div className="text-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-        </div>
-      ) : filteredOrders.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-lg font-medium text-muted-foreground">{t.noData}</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {searchTerm || statusFilter !== 'all' 
-                ? (settings.language === 'es' ? 'Intenta cambiar los filtros de búsqueda' : 'Try changing the search filters')
-                : (settings.language === 'es' ? 'Crea tu primer pedido para comenzar' : 'Create your first order to start')}
-            </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-3">
-          {filteredOrders.map((order: Order, index: number) => (
-            <motion.div
-              key={order.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-            >
-              <Card 
-                className={`card-interactive cursor-pointer ${selectedOrders.includes(order.id) ? 'ring-2 ring-primary' : ''}`}
+
+        {/* Orders List */}
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <Card className="mt-4">
+            <CardContent className="py-12 text-center">
+              <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+              <p className="text-lg font-medium text-muted-foreground">
+                {activeTab === 'active' 
+                  ? (settings.language === 'es' ? '¡Sin pedidos activos!' : 'No active orders!') 
+                  : (settings.language === 'es' ? 'Sin pedidos en esta fecha' : 'No orders on this date')}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {searchTerm || statusFilter !== 'all' 
+                  ? (settings.language === 'es' ? 'Intenta cambiar los filtros de búsqueda' : 'Try changing the search filters')
+                  : activeTab === 'active'
+                    ? (settings.language === 'es' ? 'Todos los pedidos están completados' : 'All orders are completed')
+                    : (settings.language === 'es' ? 'Selecciona otra fecha para ver el historial' : 'Select another date to view history')}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3 mt-4">
+            {filteredOrders.map((order: Order, index: number) => (
+              <motion.div
+                key={order.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    {isAdmin && (
-                      <Checkbox
-                        checked={selectedOrders.includes(order.id)}
-                        onCheckedChange={(checked) => handleSelectOrder(order.id, checked as boolean)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-                    <div 
-                      className="flex-1 min-w-0 flex items-center gap-4"
-                      onClick={() => navigate(`/orders/${order.id}`)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold truncate">{order.customer_name}</p>
-                          <span className={`px-2.5 py-1 text-xs rounded-full font-medium inline-flex items-center gap-1 ${ORDER_STATUS_CONFIG[order.status].className}`}>
-                            {ORDER_STATUS_CONFIG[order.status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[order.status].label : ORDER_STATUS_CONFIG[order.status].labelEn}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
-                          <span>#{order.id.slice(0, 8)}</span>
-                          <span>•</span>
-                          <span>{order.order_items?.length || 0} {settings.language === 'es' ? 'producto' : 'product'}{(order.order_items?.length || 0) !== 1 ? 's' : ''}</span>
-                          <span>•</span>
-                          <span className="font-medium text-foreground">{formatCurrency(order.total)}</span>
-                          {order.vendedor_name && (
-                            <>
-                              <span>•</span>
-                              <span className="text-primary font-medium">🧑‍💼 {order.vendedor_name}</span>
-                            </>
+                <Card 
+                  className={`card-interactive cursor-pointer ${selectedOrders.includes(order.id) ? 'ring-2 ring-primary' : ''}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      {isAdmin && (
+                        <Checkbox
+                          checked={selectedOrders.includes(order.id)}
+                          onCheckedChange={(checked) => handleSelectOrder(order.id, checked as boolean)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                      <div 
+                        className="flex-1 min-w-0 flex items-center gap-4"
+                        onClick={() => navigate(`/orders/${order.id}`)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold truncate">{order.customer_name}</p>
+                            <span className={`px-2.5 py-1 text-xs rounded-full font-medium inline-flex items-center gap-1 ${ORDER_STATUS_CONFIG[order.status].className}`}>
+                              {ORDER_STATUS_CONFIG[order.status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[order.status].label : ORDER_STATUS_CONFIG[order.status].labelEn}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
+                            <span>#{order.id.slice(0, 8)}</span>
+                            <span>•</span>
+                            <span>{order.order_items?.length || 0} {settings.language === 'es' ? 'producto' : 'product'}{(order.order_items?.length || 0) !== 1 ? 's' : ''}</span>
+                            <span>•</span>
+                            <span className="font-medium text-foreground">{formatCurrency(order.total)}</span>
+                            {order.vendedor_name && (
+                              <>
+                                <span>•</span>
+                                <span className="text-primary font-medium">🧑‍💼 {order.vendedor_name}</span>
+                              </>
+                            )}
+                          </div>
+                          {order.delivery_address && (
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span>📍 {order.delivery_address}</span>
+                            </div>
                           )}
                         </div>
-                        {order.delivery_address && (
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <span>📍 {order.delivery_address}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right hidden sm:block">
+                            <p className="text-sm font-medium">
+                              {format(new Date(order.created_at), 'dd MMM', { locale })}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(order.created_at), 'HH:mm')}
+                            </p>
                           </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-sm font-medium">
-                            {format(new Date(order.created_at), 'dd MMM', { locale })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(order.created_at), 'HH:mm')}
-                          </p>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </Tabs>
 
       {/* Delete Dialog */}
       <DeleteOrdersDialog
