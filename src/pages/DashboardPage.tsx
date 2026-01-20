@@ -14,6 +14,7 @@ import {
   Clock, 
   Truck, 
   CheckCircle2,
+  XCircle,
   Calendar,
   TrendingUp,
   Package
@@ -56,6 +57,7 @@ export default function DashboardPage() {
       ordersToday: todayOrders.length,
       pendingOrders: todayOrders.filter(o => o.status === 'pending').length,
       inDeliveryOrders: todayOrders.filter(o => o.status === 'delivery').length,
+      cancelledOrders: todayOrders.filter(o => o.status === 'cancelled').length,
       deliveredOrders: todayOrders.filter(o => o.status === 'delivered').length,
     };
   }, [orders]);
@@ -102,6 +104,13 @@ export default function DashboardPage() {
       icon: Truck, 
       color: 'text-[hsl(var(--status-delivery))]',
       bgColor: 'bg-[hsl(var(--status-delivery-bg))]' 
+    },
+    { 
+      title: 'Cancelados', 
+      value: stats.cancelledOrders, 
+      icon: XCircle, 
+      color: 'text-[hsl(var(--status-cancelled))]',
+      bgColor: 'bg-[hsl(var(--status-cancelled-bg))]' 
     },
     { 
       title: 'Entregados', 

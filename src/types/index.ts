@@ -150,6 +150,7 @@ export interface DashboardStats {
   ordersToday: number;
   pendingOrders: number;
   inDeliveryOrders: number;
+  cancelledOrders: number;
   deliveredOrders: number;
 }
 
