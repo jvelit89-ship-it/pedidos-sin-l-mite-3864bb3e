@@ -837,7 +837,7 @@ export default function InventoryPage() {
                           </p>
                           <p className="text-xs text-primary font-medium">
                             {settings.language === 'es' ? 'Registrado por: ' : 'Registered by: '}
-                            {item.profiles?.name || (settings.language === 'es' ? 'Desconocido' : 'Unknown')}
+                            {item.producer_name || (settings.language === 'es' ? 'Desconocido' : 'Unknown')}
                           </p>
                           {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
                         </div>

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
@@ -25,6 +25,11 @@ interface ProductionHistory {
   produced_by: string | null;
   company_id: string;
   produced_at: string;
+}
+
+interface ProductionHistoryWithProfile extends ProductionHistory {
+  products?: { name: string };
+  producer_name?: string;
 }
 
 async function getUserCompanyId(): Promise<string | null> {
@@ -135,13 +140,60 @@ export function useProducts() {
 }
 
 export function useProductionHistory(productId?: string) {
-  const { data: history, loading, error, refetch } = useRealtimeQuery<ProductionHistory & { products?: { name: string } }>('production_history', {
-    // NOTE: No FK exists between production_history.produced_by and profiles yet, so we can't join profiles here.
-    // Joining would throw PGRST200 and break the whole history query (and therefore deletions).
+  const { data: rawHistory, loading: historyLoading, error, refetch } = useRealtimeQuery<ProductionHistory & { products?: { name: string } }>('production_history', {
     select: '*, products(name)',
     filter: productId ? [{ column: 'product_id', value: productId }] : undefined,
     orderBy: { column: 'produced_at', ascending: false },
   });
+
+  const [history, setHistory] = useState<ProductionHistoryWithProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch profile names for produced_by UUIDs
+  useEffect(() => {
+    async function enrichWithProfileNames() {
+      if (!rawHistory || rawHistory.length === 0) {
+        setHistory([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique user IDs that are not null
+      const userIds = [...new Set(rawHistory.map(h => h.produced_by).filter(Boolean))] as string[];
+      
+      if (userIds.length === 0) {
+        setHistory(rawHistory.map(h => ({ ...h, producer_name: undefined })));
+        setLoading(false);
+        return;
+      }
+
+      // Fetch profiles for these user IDs
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name')
+        .in('user_id', userIds);
+
+      // Create a map of user_id -> name
+      const profileMap = new Map<string, string>();
+      profiles?.forEach(p => {
+        profileMap.set(p.user_id, p.name);
+      });
+
+      // Enrich history with producer names
+      const enrichedHistory = rawHistory.map(h => ({
+        ...h,
+        producer_name: h.produced_by ? profileMap.get(h.produced_by) : undefined,
+      }));
+
+      setHistory(enrichedHistory);
+      setLoading(false);
+    }
+
+    setLoading(historyLoading);
+    if (!historyLoading) {
+      enrichWithProfileNames();
+    }
+  }, [rawHistory, historyLoading]);
 
   const { refetch: refetchProducts } = useProducts();
 
