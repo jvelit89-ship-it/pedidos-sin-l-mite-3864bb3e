@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -47,6 +47,15 @@ export function DeleteProductionDialog({
   const [step, setStep] = useState<'confirm' | 'otp'>('confirm');
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Always reset internal state when the dialog closes (e.g. click outside / ESC)
+  useEffect(() => {
+    if (!open) {
+      setStep('confirm');
+      setOtpCode('');
+      setIsLoading(false);
+    }
+  }, [open]);
 
   const t = {
     es: {

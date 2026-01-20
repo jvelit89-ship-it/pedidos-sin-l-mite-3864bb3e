@@ -135,8 +135,10 @@ export function useProducts() {
 }
 
 export function useProductionHistory(productId?: string) {
-  const { data: history, loading, error, refetch } = useRealtimeQuery<ProductionHistory & { products?: { name: string }; profiles?: { name: string } }>('production_history', {
-    select: '*, products(name), profiles!production_history_produced_by_fkey(name)',
+  const { data: history, loading, error, refetch } = useRealtimeQuery<ProductionHistory & { products?: { name: string } }>('production_history', {
+    // NOTE: No FK exists between production_history.produced_by and profiles yet, so we can't join profiles here.
+    // Joining would throw PGRST200 and break the whole history query (and therefore deletions).
+    select: '*, products(name)',
     filter: productId ? [{ column: 'product_id', value: productId }] : undefined,
     orderBy: { column: 'produced_at', ascending: false },
   });
