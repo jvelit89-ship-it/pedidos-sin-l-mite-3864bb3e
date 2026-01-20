@@ -27,6 +27,20 @@ interface SalesNoteData {
   document_type?: 'dni' | 'ruc';
 }
 
+// HTML escape function to prevent XSS
+function escapeHtml(text: string | undefined | null): string {
+  if (text === undefined || text === null) return '';
+  const htmlEscapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '/': '&#x2F;'
+  };
+  return String(text).replace(/[&<>"'\/]/g, (char) => htmlEscapeMap[char]);
+}
+
 // Función para convertir número a texto en español
 function numberToWords(num: number): string {
   const units = ['', 'Uno', 'Dos', 'Tres', 'Cuatro', 'Cinco', 'Seis', 'Siete', 'Ocho', 'Nueve'];
@@ -78,7 +92,7 @@ function formatDateForPeru(dateString: string): string {
     const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     return `${day} de ${months[month]} de ${year}`;
   }
-  return dateString;
+  return escapeHtml(dateString);
 }
 
 serve(async (req) => {
@@ -357,9 +371,9 @@ serve(async (req) => {
   <div class="divider"></div>
 
   <div class="customer-section">
-    <p><span class="info-label">Cliente:</span> ${data.customer_name}</p>
-    ${data.customer_ruc ? `<p><span class="info-label">${data.document_type === 'ruc' ? 'RUC' : 'DNI'}:</span> ${data.customer_ruc}</p>` : ''}
-    <p><span class="info-label">Dirección:</span> ${data.customer_address}</p>
+    <p><span class="info-label">Cliente:</span> ${escapeHtml(data.customer_name)}</p>
+    ${data.customer_ruc ? `<p><span class="info-label">${data.document_type === 'ruc' ? 'RUC' : 'DNI'}:</span> ${escapeHtml(data.customer_ruc)}</p>` : ''}
+    <p><span class="info-label">Dirección:</span> ${escapeHtml(data.customer_address)}</p>
   </div>
 
   <div class="divider"></div>
@@ -376,10 +390,10 @@ serve(async (req) => {
     <tbody>
       ${data.order_items.map(item => `
         <tr>
-          <td class="qty">${item.quantity}</td>
-          <td class="description">${item.product_name}</td>
-          <td class="price">S/ ${item.unit_price.toFixed(2)}</td>
-          <td class="total">S/ ${item.total.toFixed(2)}</td>
+          <td class="qty">${Number(item.quantity)}</td>
+          <td class="description">${escapeHtml(item.product_name)}</td>
+          <td class="price">S/ ${Number(item.unit_price).toFixed(2)}</td>
+          <td class="total">S/ ${Number(item.total).toFixed(2)}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -409,18 +423,18 @@ serve(async (req) => {
   <div class="divider"></div>
 
   <div class="payment-info">
-    <p><span class="info-label">CONDICIÓN DE PAGO:</span> ${data.payment_method || 'Contado'}</p>
+    <p><span class="info-label">CONDICIÓN DE PAGO:</span> ${escapeHtml(data.payment_method) || 'Contado'}</p>
   </div>
 
   ${data.vendedor_name ? `
   <div class="seller-info">
-    <p><span class="info-label">Vendedor:</span> ${data.vendedor_name}</p>
+    <p><span class="info-label">Vendedor:</span> ${escapeHtml(data.vendedor_name)}</p>
   </div>
   ` : ''}
 
   ${data.notes ? `
   <div class="payment-info">
-    <p><span class="info-label">Notas:</span> ${data.notes}</p>
+    <p><span class="info-label">Notas:</span> ${escapeHtml(data.notes)}</p>
   </div>
   ` : ''}
 
