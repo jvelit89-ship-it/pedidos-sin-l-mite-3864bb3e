@@ -753,20 +753,61 @@ export default function InventoryPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Factory className="w-4 h-4" />
-                  {settings.language === 'es' ? 'Historial de Producción' : 'Production History'}
-                </h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Factory className="w-4 h-4" />
+                    {settings.language === 'es' ? 'Historial de Producción' : 'Production History'}
+                  </h3>
+                  {history && history.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-muted-foreground"
+                        checked={selectedProductionIds.length === history.length && history.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedProductionIds(history.map((h: any) => h.id));
+                          } else {
+                            setSelectedProductionIds([]);
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {settings.language === 'es' ? 'Sel. todo' : 'Select all'}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 {history && history.length > 0 && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-destructive hover:text-destructive gap-2"
-                    onClick={() => handleDeleteProductionHistory()}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">{settings.language === 'es' ? 'Eliminar Todo' : 'Delete All'}</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {selectedProductionIds.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {selectedProductionIds.length} {settings.language === 'es' ? 'seleccionados' : 'selected'}
+                      </span>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive gap-2"
+                      onClick={() => {
+                        if (selectedProductionIds.length > 0) {
+                          // Delete selected items
+                          setIsDeleteProductionOpen(true);
+                        } else {
+                          // Delete all
+                          handleDeleteProductionHistory();
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">
+                        {selectedProductionIds.length > 0 
+                          ? (settings.language === 'es' ? `Eliminar (${selectedProductionIds.length})` : `Delete (${selectedProductionIds.length})`)
+                          : (settings.language === 'es' ? 'Eliminar Todo' : 'Delete All')
+                        }
+                      </span>
+                    </Button>
+                  </div>
                 )}
               </div>
               {!history || history.length === 0 ? (
@@ -774,8 +815,20 @@ export default function InventoryPage() {
               ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
                   {history.map((item: any) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg ${selectedProductionIds.includes(item.id) ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted'}`}>
                       <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-muted-foreground"
+                          checked={selectedProductionIds.includes(item.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProductionIds([...selectedProductionIds, item.id]);
+                            } else {
+                              setSelectedProductionIds(selectedProductionIds.filter(id => id !== item.id));
+                            }
+                          }}
+                        />
                         <TrendingUp className="w-4 h-4 text-green-600" />
                         <div>
                           <p className="font-medium">{item.products?.name || 'Producto'}</p>
