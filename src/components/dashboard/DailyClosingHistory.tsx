@@ -20,7 +20,7 @@ import {
   BarChart3,
   History
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameMonth, subMonths, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface DayStats {
@@ -34,6 +34,41 @@ interface DayStats {
   topVendedor?: { name: string; orders: number };
   topRepartidor?: { name: string; deliveries: number };
 }
+
+// Helper to get current date in Lima timezone
+const getTodayInLima = (): string => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(new Date());
+};
+
+// Helper to check if a date is today in Lima timezone
+const isTodayInLima = (date: Date): boolean => {
+  const todayStr = getTodayInLima();
+  const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return dateFormatter.format(date) === todayStr;
+};
+
+// Helper to convert a UTC created_at to Lima date string (YYYY-MM-DD)
+const getDateInLima = (utcDateString: string): string => {
+  const date = new Date(utcDateString);
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(date);
+};
 
 export function DailyClosingHistory() {
   const { orders } = useOrders();
@@ -50,7 +85,8 @@ export function DailyClosingHistory() {
 
     return days.map(day => {
       const dayStr = format(day, 'yyyy-MM-dd');
-      const dayOrders = orders.filter(o => o.created_at.startsWith(dayStr));
+      // Convert order created_at to Lima timezone before comparing
+      const dayOrders = orders.filter(o => getDateInLima(o.created_at) === dayStr);
       
       const deliveredOrders = dayOrders.filter(o => o.status === 'delivered');
       const pendingOrders = dayOrders.filter(o => 
@@ -300,10 +336,10 @@ export function DailyClosingHistory() {
                 disabled={dayStats.totalOrders === 0}
                 className={`aspect-square p-1 rounded-lg transition-all ${getDayColor(dayStats)} ${
                   dayStats.totalOrders > 0 ? 'hover:ring-2 hover:ring-primary cursor-pointer' : 'cursor-default'
-                } ${isToday(dayStats.date) ? 'ring-2 ring-primary' : ''}`}
+                } ${isTodayInLima(dayStats.date) ? 'ring-2 ring-primary' : ''}`}
               >
                 <div className="h-full flex flex-col items-center justify-center">
-                  <span className={`text-xs ${isToday(dayStats.date) ? 'font-bold' : ''}`}>
+                  <span className={`text-xs ${isTodayInLima(dayStats.date) ? 'font-bold' : ''}`}>
                     {format(dayStats.date, 'd')}
                   </span>
                   {dayStats.totalOrders > 0 && (
