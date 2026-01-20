@@ -135,8 +135,8 @@ export function useProducts() {
 }
 
 export function useProductionHistory(productId?: string) {
-  const { data: history, loading, error, refetch } = useRealtimeQuery<ProductionHistory & { products?: { name: string } }>('production_history', {
-    select: '*, products(name)',
+  const { data: history, loading, error, refetch } = useRealtimeQuery<ProductionHistory & { products?: { name: string }; profiles?: { name: string } }>('production_history', {
+    select: '*, products(name), profiles!production_history_produced_by_fkey(name)',
     filter: productId ? [{ column: 'product_id', value: productId }] : undefined,
     orderBy: { column: 'produced_at', ascending: false },
   });
@@ -154,6 +154,10 @@ export function useProductionHistory(productId?: string) {
       return false;
     }
 
+    // Get current user id
+    const { data: { user } } = await supabase.auth.getUser();
+    const producedBy = user?.id || null;
+
     // First, add production record
     const { data: productionData, error: historyError } = await supabase
       .from('production_history')
@@ -162,6 +166,7 @@ export function useProductionHistory(productId?: string) {
         quantity,
         company_id: companyId,
         notes: notes || null,
+        produced_by: producedBy,
       })
       .select()
       .single();
@@ -209,11 +214,55 @@ export function useProductionHistory(productId?: string) {
     return true;
   }, [refetch, refetchProducts]);
 
+  const updateProduction = useCallback(async (
+    id: string,
+    updates: { quantity?: number; notes?: string; produced_at?: string },
+    oldQuantity: number,
+    productId: string
+  ) => {
+    // Calculate stock adjustment if quantity changed
+    if (updates.quantity !== undefined && updates.quantity !== oldQuantity) {
+      const quantityDiff = updates.quantity - oldQuantity;
+      
+      // Update product stock
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', productId)
+        .single();
+      
+      if (product) {
+        const newStock = product.stock + quantityDiff;
+        await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', productId);
+      }
+    }
+
+    const { error } = await supabase
+      .from('production_history')
+      .update(updates)
+      .eq('id', id);
+    
+    if (error) {
+      toast.error('Error al actualizar producción');
+      console.error('Error updating production:', error);
+      return false;
+    }
+    
+    toast.success('Producción actualizada');
+    refetch();
+    refetchProducts();
+    return true;
+  }, [refetch, refetchProducts]);
+
   return {
     history,
     loading,
     error,
     refetch,
     addProduction,
+    updateProduction,
   };
 }
