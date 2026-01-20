@@ -26,6 +26,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const URGENT_THRESHOLD_MINUTES = 90; // Alert when order is pending for 90+ minutes
+const REMINDER_INTERVAL_MINUTES = 5; // Reminder bell every 5 minutes for unmarked deliveries
 
 export default function DeliveriesPage() {
   const { user } = useAuth();
@@ -131,6 +132,33 @@ export default function DeliveriesPage() {
       setUrgentAlerts(newUrgentIds);
     }
   }, [urgentOrders]);
+
+  // Periodic reminder for unmarked "delivery" orders
+  useEffect(() => {
+    const pedidosEnCamino = deliveries.filter(d => d.status === 'delivery');
+    
+    // Only for repartidores with active "delivery" orders
+    if (!isRepartidor || pedidosEnCamino.length === 0) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const actuales = deliveries.filter(d => d.status === 'delivery');
+      
+      if (actuales.length > 0) {
+        playBellSound();
+        toast.warning(
+          `⏰ Tienes ${actuales.length} entrega(s) en camino`,
+          {
+            description: '¿Ya las entregaste? Recuerda marcarlas',
+            duration: 6000,
+          }
+        );
+      }
+    }, REMINDER_INTERVAL_MINUTES * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [deliveries, isRepartidor]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     try {
