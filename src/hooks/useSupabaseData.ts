@@ -24,7 +24,8 @@ export type SupabaseTable =
   | 'distributor_credits'
   | 'distributor_credit_usage'
   | 'production_recipes'
-  | 'production_waste';
+  | 'production_waste'
+  | 'customer_product_prices';
 
 interface QueryOptions {
   select?: string;

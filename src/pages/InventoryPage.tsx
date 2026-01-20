@@ -37,6 +37,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { VolumePricingManager } from '@/components/VolumePricingManager';
+import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { ProductionRecipesManager } from '@/components/ProductionRecipesManager';
 import { DeleteProductionDialog } from '@/components/DeleteProductionDialog';
 import { EditProductOTPDialog } from '@/components/EditProductOTPDialog';
@@ -949,7 +950,12 @@ export default function InventoryPage() {
         {/* Pricing Tab - Admin Only */}
         {isAdmin && (
         <TabsContent value="pricing" className="space-y-4">
-          <VolumePricingManager />
+          <div className="space-y-6">
+            <VolumePricingManager />
+            <div className="border-t pt-6">
+              <CustomerPricingManager />
+            </div>
+          </div>
         </TabsContent>
         )}
       </Tabs>
