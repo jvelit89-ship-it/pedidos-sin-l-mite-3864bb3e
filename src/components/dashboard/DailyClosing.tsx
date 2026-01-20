@@ -75,9 +75,17 @@ export function DailyClosing() {
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate today's statistics
+  // Calculate today's statistics using configured timezone
   const dailyStats = useMemo<DailyStats>(() => {
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's date in the configured timezone (e.g., America/Lima)
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Lima',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const today = formatter.format(now); // Returns YYYY-MM-DD in Lima timezone
     const todayOrders = orders.filter(o => o.created_at.startsWith(today));
 
     // Filter by role if needed
