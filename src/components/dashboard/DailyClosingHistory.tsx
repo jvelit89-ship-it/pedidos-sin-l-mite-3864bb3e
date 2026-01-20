@@ -35,39 +35,13 @@ interface DayStats {
   topRepartidor?: { name: string; deliveries: number };
 }
 
-// Helper to get current date in Lima timezone
-const getTodayInLima = (): string => {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return formatter.format(new Date());
-};
+import { getBusinessDateKey, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
 
-// Helper to check if a date is today in Lima timezone
-const isTodayInLima = (date: Date): boolean => {
-  const todayStr = getTodayInLima();
-  const dateFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return dateFormatter.format(date) === todayStr;
-};
-
-// Helper to convert a UTC created_at to Lima date string (YYYY-MM-DD)
-const getDateInLima = (utcDateString: string): string => {
-  const date = new Date(utcDateString);
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return formatter.format(date);
+// Helper to check if a date is today (business day)
+const isTodayBusinessDay = (date: Date): boolean => {
+  const todayStr = getTodayBusinessDateKey();
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return dateStr === todayStr;
 };
 
 export function DailyClosingHistory() {
@@ -85,8 +59,8 @@ export function DailyClosingHistory() {
 
     return days.map(day => {
       const dayStr = format(day, 'yyyy-MM-dd');
-      // Convert order created_at to Lima timezone before comparing
-      const dayOrders = orders.filter(o => getDateInLima(o.created_at) === dayStr);
+      // Convert order created_at to business day before comparing
+      const dayOrders = orders.filter(o => getBusinessDateKey(o.created_at) === dayStr);
       
       const deliveredOrders = dayOrders.filter(o => o.status === 'delivered');
       const pendingOrders = dayOrders.filter(o => 
@@ -336,10 +310,10 @@ export function DailyClosingHistory() {
                 disabled={dayStats.totalOrders === 0}
                 className={`aspect-square p-1 rounded-lg transition-all ${getDayColor(dayStats)} ${
                   dayStats.totalOrders > 0 ? 'hover:ring-2 hover:ring-primary cursor-pointer' : 'cursor-default'
-                } ${isTodayInLima(dayStats.date) ? 'ring-2 ring-primary' : ''}`}
+                } ${isTodayBusinessDay(dayStats.date) ? 'ring-2 ring-primary' : ''}`}
               >
                 <div className="h-full flex flex-col items-center justify-center">
-                  <span className={`text-xs ${isTodayInLima(dayStats.date) ? 'font-bold' : ''}`}>
+                  <span className={`text-xs ${isTodayBusinessDay(dayStats.date) ? 'font-bold' : ''}`}>
                     {format(dayStats.date, 'd')}
                   </span>
                   {dayStats.totalOrders > 0 && (
