@@ -17,8 +17,9 @@ import { MapView } from '@/components/MapView';
 import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard, Tag } from 'lucide-react';
 import { DistributorCreditsManager } from '@/components/DistributorCreditsManager';
+import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 
 interface Customer {
   id: string;
@@ -1121,7 +1122,10 @@ export default function CustomersPage() {
           </DialogHeader>
           {selectedCustomer && (
             <Tabs defaultValue={selectedCustomer.customer_type === 'distribuidor' ? 'credits' : 'info'} className="w-full">
-              <TabsList className={`grid w-full ${selectedCustomer.customer_type === 'distribuidor' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <TabsList className={`grid w-full ${
+                selectedCustomer.customer_type === 'distribuidor' ? 'grid-cols-4' : 
+                (selectedCustomer.customer_type === 'mayorista' && isAdmin) ? 'grid-cols-3' : 'grid-cols-2'
+              }`}>
                 <TabsTrigger value="info">
                   {settings.language === 'es' ? 'Información' : 'Information'}
                 </TabsTrigger>
@@ -1129,6 +1133,12 @@ export default function CustomersPage() {
                   <TabsTrigger value="credits" className="gap-1">
                     <CreditCard className="w-3.5 h-3.5" />
                     Créditos
+                  </TabsTrigger>
+                )}
+                {(selectedCustomer.customer_type === 'mayorista' || selectedCustomer.customer_type === 'distribuidor') && isAdmin && (
+                  <TabsTrigger value="pricing" className="gap-1">
+                    <Tag className="w-3.5 h-3.5" />
+                    Precios
                   </TabsTrigger>
                 )}
                 <TabsTrigger value="history" className="gap-1">
@@ -1144,6 +1154,13 @@ export default function CustomersPage() {
                     customerId={selectedCustomer.id} 
                     customerName={selectedCustomer.name}
                   />
+                </TabsContent>
+              )}
+
+              {/* Pricing Tab for Mayoristas and Distribuidores - Admin only */}
+              {(selectedCustomer.customer_type === 'mayorista' || selectedCustomer.customer_type === 'distribuidor') && isAdmin && (
+                <TabsContent value="pricing" className="mt-4">
+                  <CustomerPricingManager customerId={selectedCustomer.id} />
                 </TabsContent>
               )}
 

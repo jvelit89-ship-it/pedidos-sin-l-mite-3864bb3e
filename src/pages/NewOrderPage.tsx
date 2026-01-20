@@ -18,6 +18,7 @@ import { useTeam } from '@/hooks/useTeam';
 import { useOrders } from '@/hooks/useOrders';
 import { useSalesNote } from '@/hooks/useSalesNote';
 import { useVolumePricing } from '@/hooks/useVolumePricing';
+import { useCustomerPricing } from '@/hooks/useCustomerPricing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +33,8 @@ import {
   Loader2,
   CheckCircle2,
   Tag,
-  Search
+  Search,
+  User
 } from 'lucide-react';
 
 export default function NewOrderPage() {
@@ -45,6 +47,7 @@ export default function NewOrderPage() {
   const { createOrder } = useOrders();
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   const { rules: volumePricingRules, getApplicablePrice } = useVolumePricing();
+  const { prices: customerPrices, getCustomerPrice } = useCustomerPricing();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQueryingDocument, setIsQueryingDocument] = useState(false);
@@ -202,11 +205,35 @@ export default function NewOrderPage() {
     setOrderItems(items => items.filter(item => item.productId !== productId));
   };
 
-  // Calculate pricing with volume discounts
+  // Calculate pricing with customer-specific prices first, then volume discounts
   const getItemPricing = useCallback((productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
-    if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false };
+    if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false, hasCustomerPrice: false };
     
+    // Check for customer-specific price first
+    if (selectedCustomerId) {
+      const { price: customerPrice, hasCustomPrice, customerPrice: customerPriceData } = getCustomerPrice(
+        selectedCustomerId,
+        productId,
+        product.price,
+        customerPrices
+      );
+      
+      if (hasCustomPrice) {
+        const discount = product.price - customerPrice;
+        return {
+          unitPrice: customerPrice,
+          total: customerPrice * quantity,
+          appliedRule: null,
+          discount,
+          hasDiscount: discount > 0,
+          hasCustomerPrice: true,
+          basePrice: product.price,
+        };
+      }
+    }
+    
+    // Fall back to volume pricing
     const { price, appliedRule, discount } = getApplicablePrice(
       productId,
       quantity,
@@ -220,9 +247,10 @@ export default function NewOrderPage() {
       appliedRule,
       discount,
       hasDiscount: discount > 0,
+      hasCustomerPrice: false,
       basePrice: product.price,
     };
-  }, [products, volumePricingRules, getApplicablePrice]);
+  }, [products, volumePricingRules, getApplicablePrice, selectedCustomerId, customerPrices, getCustomerPrice]);
 
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => {
@@ -231,12 +259,23 @@ export default function NewOrderPage() {
     }, 0);
   };
 
-  // Check if any item has a volume discount applied
-  const hasAnyVolumeDiscount = useMemo(() => {
-    return orderItems.some(item => {
-      const { hasDiscount } = getItemPricing(item.productId, item.quantity);
-      return hasDiscount;
-    });
+  // Check if any item has a discount applied (volume or customer-specific)
+  const discountInfo = useMemo(() => {
+    let hasVolumeDiscount = false;
+    let hasCustomerDiscount = false;
+    
+    for (const item of orderItems) {
+      const pricing = getItemPricing(item.productId, item.quantity);
+      if (pricing.hasDiscount) {
+        if (pricing.hasCustomerPrice) {
+          hasCustomerDiscount = true;
+        } else {
+          hasVolumeDiscount = true;
+        }
+      }
+    }
+    
+    return { hasVolumeDiscount, hasCustomerDiscount, hasAnyDiscount: hasVolumeDiscount || hasCustomerDiscount };
   }, [orderItems, getItemPricing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -576,13 +615,24 @@ export default function NewOrderPage() {
                           </p>
                         </div>
                         
-                        {/* Volume discount badge */}
+                        {/* Discount badge - customer or volume */}
                         {pricing.hasDiscount && (
                           <div className="flex items-center gap-1">
-                            <Tag className="w-3 h-3 text-green-600" />
-                            <span className="text-xs text-green-600">
-                              Mayorista ({pricing.appliedRule?.min_quantity}+ uds)
-                            </span>
+                            {pricing.hasCustomerPrice ? (
+                              <>
+                                <User className="w-3 h-3 text-blue-600" />
+                                <span className="text-xs text-blue-600">
+                                  Precio especial cliente
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Tag className="w-3 h-3 text-green-600" />
+                                <span className="text-xs text-green-600">
+                                  Mayorista ({pricing.appliedRule?.min_quantity}+ uds)
+                                </span>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -593,7 +643,15 @@ export default function NewOrderPage() {
 
               {orderItems.length > 0 && (
                 <div className="space-y-3 pt-4 border-t">
-                  {hasAnyVolumeDiscount && (
+                  {discountInfo.hasCustomerDiscount && (
+                    <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <User className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm text-blue-700 dark:text-blue-400 font-medium">
+                        Precio especial de cliente aplicado
+                      </span>
+                    </div>
+                  )}
+                  {discountInfo.hasVolumeDiscount && (
                     <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                       <Tag className="w-4 h-4 text-green-600" />
                       <span className="text-sm text-green-700 dark:text-green-400 font-medium">

@@ -169,6 +169,64 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_product_prices: {
+        Row: {
+          company_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          product_id: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          product_id: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          product_id?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_product_prices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_product_prices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
