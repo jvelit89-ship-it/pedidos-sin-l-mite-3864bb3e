@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { DeleteOrdersDialog } from '@/components/DeleteOrdersDialog';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
@@ -18,6 +19,7 @@ import { useVendedores, useRepartidores } from '@/hooks/useTeam';
 import { supabase } from '@/integrations/supabase/client';
 import { ORDER_STATUS_CONFIG, OrderStatus } from '@/types';
 import { getTodayBusinessDateKey, getBusinessDateKey } from '@/lib/limaTime';
+import { exportToPDF, exportToXLS, ExportOrder } from '@/lib/orderExport';
 import { toast } from 'sonner';
 import { 
   Plus, 
@@ -36,7 +38,9 @@ import {
   Flame,
   History,
   CheckCircle2,
-  XCircle
+  XCircle,
+  FileText,
+  MoreVertical
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -289,68 +293,55 @@ export default function OrdersPage() {
   const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
 
-  // Export orders to CSV
-  const exportOrdersToCSV = (ordersToExport: Order[], fileName: string) => {
+  // Status labels for export
+  const statusLabels = Object.fromEntries(
+    Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => [key, config.label])
+  );
+
+  // Export handlers
+  const handleExport = (ordersToExport: Order[], fileName: string, type: 'pdf' | 'xls') => {
     if (ordersToExport.length === 0) {
       toast.error(settings.language === 'es' ? 'No hay pedidos para exportar' : 'No orders to export');
       return;
     }
 
-    const headers = [
-      'ID',
-      'Cliente',
-      'Estado',
-      'Total',
-      'Vendedor',
-      'Repartidor',
-      'Dirección',
-      'Productos',
-      'Fecha Creación',
-      'Fecha Entrega'
-    ];
+    const exportOrders: ExportOrder[] = ordersToExport.map(o => ({
+      id: o.id,
+      customer_name: o.customer_name,
+      status: o.status,
+      total: o.total,
+      vendedor_name: o.vendedor_name,
+      repartidor_name: o.repartidor_name,
+      delivery_address: o.delivery_address,
+      created_at: o.created_at,
+      delivered_at: o.delivered_at,
+      order_items: o.order_items,
+    }));
 
-    const rows = ordersToExport.map(order => {
-      const products = order.order_items?.map(item => 
-        `${item.product_name} x${item.quantity}`
-      ).join('; ') || '';
-      
-      const statusLabel = ORDER_STATUS_CONFIG[order.status]?.label || order.status;
-      
-      return [
-        order.id.slice(0, 8),
-        `"${order.customer_name}"`,
-        statusLabel,
-        order.total.toFixed(2),
-        order.vendedor_name || '-',
-        order.repartidor_name || '-',
-        `"${order.delivery_address || '-'}"`,
-        `"${products}"`,
-        format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
-        order.delivered_at ? format(new Date(order.delivered_at), 'dd/MM/yyyy HH:mm') : '-'
-      ];
-    });
+    const options = {
+      orders: exportOrders,
+      fileName,
+      formatCurrency,
+      statusLabels,
+    };
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${fileName}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
-    toast.success(settings.language === 'es' ? 'Pedidos exportados' : 'Orders exported');
+    if (type === 'pdf') {
+      exportToPDF(options);
+      toast.success('Abriendo PDF para imprimir...');
+    } else {
+      exportToXLS(options);
+      toast.success('Excel descargado');
+    }
   };
 
-  const handleExportFiltered = () => {
-    exportOrdersToCSV(filteredOrders, 'pedidos_filtrados');
+  const handleExportFiltered = (type: 'pdf' | 'xls') => {
+    handleExport(filteredOrders, 'pedidos_filtrados', type);
   };
 
-  const handleExportByStatus = (status: OrderStatus) => {
+  const handleExportByStatus = (status: OrderStatus, type: 'pdf' | 'xls') => {
     const statusOrders = currentOrders.filter((o: Order) => o.status === status);
     const statusName = ORDER_STATUS_CONFIG[status].label.toLowerCase().replace(/\s+/g, '_');
-    exportOrdersToCSV(statusOrders, `pedidos_${statusName}`);
+    handleExport(statusOrders, `pedidos_${statusName}`, type);
   };
 
   // Count stats for tabs
@@ -561,52 +552,55 @@ export default function OrdersPage() {
               </Select>
             </div>
             
-            {/* Export Buttons */}
-            {isAdmin && (
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
-                <span className="text-sm text-muted-foreground mr-1">
-                  <Download className="w-4 h-4 inline mr-1" />
-                  {settings.language === 'es' ? 'Exportar:' : 'Export:'}
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleExportFiltered}
-                  className="gap-1"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  {settings.language === 'es' ? 'Vista actual' : 'Current view'} ({filteredOrders.length})
-                </Button>
-                {activeTab === 'active' && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleExportByStatus('pending')}
-                    className="gap-1"
-                  >
-                    🕐 {settings.language === 'es' ? 'Pendientes' : 'Pending'}
-                  </Button>
-                )}
-                {activeTab === 'history' && (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleExportByStatus('delivered')}
-                      className="gap-1"
-                    >
-                      ✅ {settings.language === 'es' ? 'Entregados' : 'Delivered'}
+            {/* Export Dropdown - Hidden in menu */}
+            {isAdmin && filteredOrders.length > 0 && (
+              <div className="flex items-center justify-end pt-2 border-t">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Exportar ({filteredOrders.length})
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleExportByStatus('cancelled')}
-                      className="gap-1"
-                    >
-                      ❌ {settings.language === 'es' ? 'Cancelados' : 'Cancelled'}
-                    </Button>
-                  </>
-                )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => handleExportFiltered('pdf')}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      📄 Vista actual (PDF)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportFiltered('xls')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      📊 Vista actual (Excel)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {activeTab === 'active' && (
+                      <>
+                        <DropdownMenuItem onClick={() => handleExportByStatus('pending', 'pdf')}>
+                          🕐 Pendientes (PDF)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportByStatus('pending', 'xls')}>
+                          🕐 Pendientes (Excel)
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {activeTab === 'history' && (
+                      <>
+                        <DropdownMenuItem onClick={() => handleExportByStatus('delivered', 'pdf')}>
+                          ✅ Entregados (PDF)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportByStatus('delivered', 'xls')}>
+                          ✅ Entregados (Excel)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleExportByStatus('cancelled', 'pdf')}>
+                          ❌ Cancelados (PDF)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportByStatus('cancelled', 'xls')}>
+                          ❌ Cancelados (Excel)
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
           </CardContent>

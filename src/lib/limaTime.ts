@@ -12,10 +12,13 @@ const limaDateFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
-const limaTimeFormatter = new Intl.DateTimeFormat('en-US', {
+const limaFullFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: LIMA_TIMEZONE,
-  hour: 'numeric',
-  minute: 'numeric',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
   hour12: false,
 });
 
@@ -29,6 +32,22 @@ export function getLimaDateKey(date: Date | string): string {
 }
 
 /**
+ * Get Lima time components (hours, minutes, date parts) from a Date
+ */
+function getLimaTimeParts(date: Date): { hours: number; minutes: number; month: number; day: number; year: number } {
+  const parts = limaFullFormatter.formatToParts(date);
+  const getValue = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  
+  return {
+    hours: getValue('hour'),
+    minutes: getValue('minute'),
+    day: getValue('day'),
+    month: getValue('month'),
+    year: getValue('year'),
+  };
+}
+
+/**
  * Returns the "business day" (YYYY-MM-DD) based on 22:30-22:30 cutoff.
  * Orders created after 22:30 belong to the NEXT day.
  * Example: Order at 23:00 on Jan 20 → belongs to Jan 21
@@ -36,9 +55,8 @@ export function getLimaDateKey(date: Date | string): string {
 export function getBusinessDateKey(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   
-  // Get Lima time components
-  const limaTimeStr = limaTimeFormatter.format(d);
-  const [hours, minutes] = limaTimeStr.split(':').map(Number);
+  // Get Lima time components using formatToParts for accuracy
+  const { hours, minutes } = getLimaTimeParts(d);
   
   // If after 22:30, the order belongs to the next business day
   if (hours > BUSINESS_DAY_CUTOFF_HOUR || 
