@@ -542,7 +542,7 @@ export default function InventoryPage() {
                     <Input
                       type="number"
                       min="0"
-                      step="0.01"
+                      step="0.0001"
                       value={formData.price || ''}
                       onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                       onFocus={(e) => e.target.select()}

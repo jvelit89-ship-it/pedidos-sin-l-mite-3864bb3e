@@ -356,8 +356,8 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
                     <Label>Ratio (materiales por unidad producida)</Label>
                     <Input
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="0.0001"
+                      step="0.0001"
                       value={recipeForm.quantityRatio}
                       onChange={(e) => setRecipeForm({ ...recipeForm, quantityRatio: parseFloat(e.target.value) || 1 })}
                     />

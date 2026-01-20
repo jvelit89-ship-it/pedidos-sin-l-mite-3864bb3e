@@ -537,9 +537,9 @@ export default function CommissionsPage() {
                               value={newAmount}
                               onChange={(e) => setNewAmount(e.target.value)}
                               className="w-24 text-right"
-                              placeholder="0.00"
+                              placeholder="0.0000"
                               min="0"
-                              step="0.10"
+                              step="0.0001"
                             />
                           </div>
                         ) : (
@@ -557,9 +557,9 @@ export default function CommissionsPage() {
                               value={newAmount}
                               onChange={(e) => setNewAmount(e.target.value)}
                               className="w-24 text-right"
-                              placeholder="0.00"
+                              placeholder="0.0000"
                               min="0"
-                              step="0.10"
+                              step="0.0001"
                             />
                           </div>
                         ) : (

@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { DailyClosingHistory } from './DailyClosingHistory';
 import { 
   Calendar, 
   CheckCircle2, 
@@ -19,7 +21,9 @@ import {
   DollarSign,
   Timer,
   Award,
-  ClipboardCheck
+  ClipboardCheck,
+  History,
+  ShoppingCart
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -249,7 +253,7 @@ export function DailyClosing() {
             Cierre del Día
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
@@ -260,145 +264,184 @@ export function DailyClosing() {
             </p>
           </DialogHeader>
 
-          <div className="space-y-4 mt-4">
-            {/* Main KPIs */}
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="bg-[hsl(var(--status-delivered-bg))]">
-                <CardContent className="p-3 text-center">
-                  <CheckCircle2 className="w-6 h-6 mx-auto mb-1 text-[hsl(var(--status-delivered))]" />
-                  <p className="text-2xl font-bold">{dailyStats.deliveredOrders}</p>
-                  <p className="text-xs text-muted-foreground">Entregados</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-[hsl(var(--status-pending-bg))]">
-                <CardContent className="p-3 text-center">
-                  <Clock className="w-6 h-6 mx-auto mb-1 text-[hsl(var(--status-pending))]" />
-                  <p className="text-2xl font-bold">{dailyStats.pendingOrders}</p>
-                  <p className="text-xs text-muted-foreground">Pendientes</p>
-                </CardContent>
-              </Card>
-            </div>
+          <Tabs defaultValue="today" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="today" className="gap-2">
+                <ClipboardCheck className="w-4 h-4" />
+                Hoy
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="history" className="gap-2">
+                  <History className="w-4 h-4" />
+                  Historial
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-            {/* Financial Summary */}
-            {(isAdmin || isVendedor) && (
-              <Card>
+            <TabsContent value="today" className="space-y-4 mt-4">
+              {/* Total Orders Banner */}
+              <Card className="bg-primary/10 border-primary/20">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-[hsl(var(--status-delivered))]" />
-                      <span className="text-sm text-muted-foreground">Ingresos del día</span>
+                    <div className="flex items-center gap-3">
+                      <ShoppingCart className="w-8 h-8 text-primary" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Pedidos (00:00 - 23:59)</p>
+                        <p className="text-3xl font-bold text-primary">{dailyStats.totalOrders}</p>
+                      </div>
                     </div>
-                    <span className="text-2xl font-bold text-[hsl(var(--status-delivered))]">
-                      {formatCurrency(dailyStats.totalRevenue)}
-                    </span>
+                    <Badge variant="outline" className="text-lg px-3 py-1">
+                      {format(new Date(), 'dd/MM/yyyy')}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Performance Metrics */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  Métricas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Tasa de entrega</span>
-                  <Badge variant={dailyStats.deliveryRate >= 80 ? 'default' : 'secondary'}>
-                    {dailyStats.deliveryRate}%
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Tiempo promedio</span>
-                  <Badge variant="outline">
-                    <Timer className="w-3 h-3 mr-1" />
-                    {dailyStats.avgDeliveryTime > 0 ? formatTime(dailyStats.avgDeliveryTime) : '--'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total pedidos</span>
-                  <Badge variant="outline">
-                    <Package className="w-3 h-3 mr-1" />
-                    {dailyStats.totalOrders}
-                  </Badge>
-                </div>
-                {dailyStats.cancelledOrders > 0 && (
-                  <div className="flex items-center justify-between text-destructive">
-                    <span className="text-sm">Cancelados</span>
-                    <Badge variant="destructive">
-                      <XCircle className="w-3 h-3 mr-1" />
-                      {dailyStats.cancelledOrders}
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              {/* Main KPIs */}
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="bg-[hsl(var(--status-delivered-bg))]">
+                  <CardContent className="p-3 text-center">
+                    <CheckCircle2 className="w-6 h-6 mx-auto mb-1 text-[hsl(var(--status-delivered))]" />
+                    <p className="text-2xl font-bold">{dailyStats.deliveredOrders}</p>
+                    <p className="text-xs text-muted-foreground">Entregados</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-[hsl(var(--status-pending-bg))]">
+                  <CardContent className="p-3 text-center">
+                    <Clock className="w-6 h-6 mx-auto mb-1 text-[hsl(var(--status-pending))]" />
+                    <p className="text-2xl font-bold">{dailyStats.pendingOrders}</p>
+                    <p className="text-xs text-muted-foreground">Pendientes</p>
+                  </CardContent>
+                </Card>
+              </div>
 
-            {/* Top Products */}
-            {dailyStats.topProducts.length > 0 && (
+              {/* Financial Summary */}
+              {(isAdmin || isVendedor) && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-5 h-5 text-[hsl(var(--status-delivered))]" />
+                        <span className="text-sm text-muted-foreground">Ingresos del día</span>
+                      </div>
+                      <span className="text-2xl font-bold text-[hsl(var(--status-delivered))]">
+                        {formatCurrency(dailyStats.totalRevenue)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Performance Metrics */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    Productos más vendidos
+                    <TrendingUp className="w-4 h-4" />
+                    Métricas
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {dailyStats.topProducts.map((product, index) => (
-                      <div key={product.name} className="flex items-center justify-between">
-                        <span className="text-sm truncate flex-1">
-                          {index + 1}. {product.name}
-                        </span>
-                        <Badge variant="secondary" className="ml-2">
-                          x{product.quantity}
-                        </Badge>
-                      </div>
-                    ))}
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Tasa de entrega</span>
+                    <Badge variant={dailyStats.deliveryRate >= 80 ? 'default' : 'secondary'}>
+                      {dailyStats.deliveryRate}%
+                    </Badge>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Top Performers (Admin only) */}
-            {isAdmin && (dailyStats.topVendedor || dailyStats.topRepartidor) && (
-              <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Award className="w-4 h-4 text-primary" />
-                    Destacados del día
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {dailyStats.topVendedor && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">🏆 Mejor vendedor</span>
-                      <span className="font-medium">
-                        {dailyStats.topVendedor.name} ({dailyStats.topVendedor.orders})
-                      </span>
-                    </div>
-                  )}
-                  {dailyStats.topRepartidor && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">🚀 Mejor repartidor</span>
-                      <span className="font-medium">
-                        {dailyStats.topRepartidor.name} ({dailyStats.topRepartidor.deliveries})
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Tiempo promedio</span>
+                    <Badge variant="outline">
+                      <Timer className="w-3 h-3 mr-1" />
+                      {dailyStats.avgDeliveryTime > 0 ? formatTime(dailyStats.avgDeliveryTime) : '--'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total pedidos</span>
+                    <Badge variant="outline">
+                      <Package className="w-3 h-3 mr-1" />
+                      {dailyStats.totalOrders}
+                    </Badge>
+                  </div>
+                  {dailyStats.cancelledOrders > 0 && (
+                    <div className="flex items-center justify-between text-destructive">
+                      <span className="text-sm">Cancelados</span>
+                      <Badge variant="destructive">
+                        <XCircle className="w-3 h-3 mr-1" />
+                        {dailyStats.cancelledOrders}
+                      </Badge>
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Top Products */}
+              {dailyStats.topProducts.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Package className="w-4 h-4" />
+                      Productos más vendidos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {dailyStats.topProducts.map((product, index) => (
+                        <div key={product.name} className="flex items-center justify-between">
+                          <span className="text-sm truncate flex-1">
+                            {index + 1}. {product.name}
+                          </span>
+                          <Badge variant="secondary" className="ml-2">
+                            x{product.quantity}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Top Performers (Admin only) */}
+              {isAdmin && (dailyStats.topVendedor || dailyStats.topRepartidor) && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Award className="w-4 h-4 text-primary" />
+                      Destacados del día
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {dailyStats.topVendedor && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">🏆 Mejor vendedor</span>
+                        <span className="font-medium">
+                          {dailyStats.topVendedor.name} ({dailyStats.topVendedor.orders})
+                        </span>
+                      </div>
+                    )}
+                    {dailyStats.topRepartidor && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">🚀 Mejor repartidor</span>
+                        <span className="font-medium">
+                          {dailyStats.topRepartidor.name} ({dailyStats.topRepartidor.deliveries})
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <Separator />
+
+              <p className="text-center text-xs text-muted-foreground">
+                Horario laboral: {WORK_START_HOUR}:00 - {WORK_END_HOUR}:00
+              </p>
+            </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="history" className="mt-4">
+                <DailyClosingHistory />
+              </TabsContent>
             )}
-
-            <Separator />
-
-            <p className="text-center text-xs text-muted-foreground">
-              Horario laboral: {WORK_START_HOUR}:00 - {WORK_END_HOUR}:00
-            </p>
-          </div>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </>

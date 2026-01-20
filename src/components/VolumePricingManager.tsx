@@ -179,8 +179,8 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
                   <Label>{settings.language === 'es' ? 'Precio Unitario' : 'Unit Price'}</Label>
                   <Input
                     type="number"
-                    min="0.01"
-                    step="0.01"
+                    min="0.0001"
+                    step="0.0001"
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
                     required
