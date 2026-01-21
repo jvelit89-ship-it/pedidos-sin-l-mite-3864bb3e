@@ -67,7 +67,10 @@ export function DailyClosingHistory() {
         o.status !== 'delivered' && o.status !== 'cancelled'
       );
       const cancelledOrders = dayOrders.filter(o => o.status === 'cancelled');
-      const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+      // Exclude distributors from revenue (they use prepaid credits)
+      const totalRevenue = deliveredOrders
+        .filter(o => o.customers?.customer_type !== 'distribuidor')
+        .reduce((sum, o) => sum + o.total, 0);
 
       // Top products
       const productCounts = new Map<string, number>();
