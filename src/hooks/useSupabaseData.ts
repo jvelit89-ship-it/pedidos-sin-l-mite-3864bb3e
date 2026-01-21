@@ -154,22 +154,69 @@ export function useRealtimeQuery<T>(table: SupabaseTable, options?: QueryOptions
   refetchRef.current = refetch;
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`realtime-query-${table}-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table },
-        () => {
-          console.log(`[Realtime] Change detected on ${table}, refreshing data...`);
-          refetchRef.current();
-        }
-      )
-      .subscribe((status) => {
-        console.log(`[Realtime Query] Subscription status for ${table}: ${status}`);
-      });
+    let retryCount = 0;
+    const maxRetries = 3;
+    let channel: RealtimeChannel | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+    const subscribe = () => {
+      // Clean up existing channel
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+
+      channel = supabase
+        .channel(`realtime-query-${table}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table },
+          () => {
+            console.log(`[Realtime] Change detected on ${table}, refreshing data...`);
+            refetchRef.current();
+          }
+        )
+        .subscribe((status) => {
+          console.log(`[Realtime Query] Subscription status for ${table}: ${status}`);
+          
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            // Start polling as fallback when realtime fails
+            if (!pollingInterval) {
+              console.log(`[Realtime] Starting polling fallback for ${table}`);
+              pollingInterval = setInterval(() => {
+                refetchRef.current();
+              }, 10000); // Poll every 10 seconds
+            }
+
+            // Try to reconnect
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.log(`[Realtime] Retrying subscription for ${table} (attempt ${retryCount}/${maxRetries})`);
+              retryTimeout = setTimeout(subscribe, 2000 * retryCount);
+            }
+          } else if (status === 'SUBSCRIBED') {
+            // Connected successfully, stop polling
+            retryCount = 0;
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              pollingInterval = null;
+            }
+          }
+        });
+    };
+
+    subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
     };
   }, [table]);
 

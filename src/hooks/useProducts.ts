@@ -259,12 +259,25 @@ export function useProductionHistory(productId?: string) {
       
       if (updateError) {
         console.error('Error updating stock:', updateError);
+        toast.error('Error al actualizar stock del producto');
+        // Still refetch to show the production record was created
       }
     }
     
     toast.success('Producción registrada');
-    refetch();
-    refetchProducts();
+    
+    // Force immediate refetch to ensure UI updates even if realtime fails
+    await Promise.all([
+      refetch(),
+      refetchProducts(),
+    ]);
+    
+    // Additional delayed refetch as fallback
+    setTimeout(() => {
+      refetch();
+      refetchProducts();
+    }, 1000);
+    
     return true;
   }, [refetch, refetchProducts]);
 
