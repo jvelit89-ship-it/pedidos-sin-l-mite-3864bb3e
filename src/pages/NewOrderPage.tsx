@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,14 @@ export default function NewOrderPage() {
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [selectedVendedorId, setSelectedVendedorId] = useState(autoVendedorId || '');
+  const [selectedVendedorId, setSelectedVendedorId] = useState('');
+
+  // Auto-assign vendedor when user profile loads (fixes timing issue)
+  useEffect(() => {
+    if (autoVendedorId && !selectedVendedorId) {
+      setSelectedVendedorId(autoVendedorId);
+    }
+  }, [autoVendedorId]);
   const [selectedRepartidorId, setSelectedRepartidorId] = useState('');
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
