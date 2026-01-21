@@ -96,8 +96,11 @@ export function DailyClosing() {
     );
     const cancelledOrders = filteredOrders.filter(o => o.status === 'cancelled');
 
-    // Calculate total revenue
-    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+    // Calculate total revenue (excluding distributor prepaid pickups - they pay upfront)
+    // Distributors use prepaid credits, so their orders shouldn't count as daily revenue
+    const totalRevenue = deliveredOrders
+      .filter(o => o.customers?.customer_type !== 'distribuidor')
+      .reduce((sum, o) => sum + o.total, 0);
 
     // Calculate average delivery time
     const deliveryTimes = deliveredOrders

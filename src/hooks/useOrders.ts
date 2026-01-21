@@ -23,6 +23,9 @@ interface Order {
   updated_at: string;
   delivered_at: string | null;
   tracking_code: string | null;
+  customers?: {
+    customer_type: string | null;
+  };
 }
 
 interface OrderItem {
@@ -41,7 +44,7 @@ interface OrderWithItems extends Order {
 
 export function useOrders() {
   const { data: orders, loading, error, refetch } = useRealtimeQuery<OrderWithItems>('orders', {
-    select: '*, order_items(*)',
+    select: '*, order_items(*), customers(customer_type)',
     orderBy: { column: 'created_at', ascending: false },
   });
 
