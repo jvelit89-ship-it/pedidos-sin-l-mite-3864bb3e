@@ -212,12 +212,32 @@ export default function NewOrderPage() {
     setOrderItems(items => items.filter(item => item.productId !== productId));
   };
 
+  // Get selected customer details for pricing rules
+  const selectedCustomer = useMemo(() => 
+    customers.find(c => c.id === selectedCustomerId),
+    [customers, selectedCustomerId]
+  );
+
   // Calculate pricing with customer-specific prices first, then volume discounts
+  // Regular customers (minorista) do NOT receive any discounts
   const getItemPricing = useCallback((productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
     if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false, hasCustomerPrice: false };
     
-    // Check for customer-specific price first
+    // Regular customers (minorista) pay base price - no discounts
+    if (selectedCustomer?.customer_type === 'minorista') {
+      return {
+        unitPrice: product.price,
+        total: product.price * quantity,
+        appliedRule: null,
+        discount: 0,
+        hasDiscount: false,
+        hasCustomerPrice: false,
+        basePrice: product.price,
+      };
+    }
+    
+    // Check for customer-specific price first (mayorista/distribuidor only)
     if (selectedCustomerId) {
       const { price: customerPrice, hasCustomPrice, customerPrice: customerPriceData } = getCustomerPrice(
         selectedCustomerId,
@@ -240,7 +260,7 @@ export default function NewOrderPage() {
       }
     }
     
-    // Fall back to volume pricing
+    // Fall back to volume pricing (mayorista/distribuidor only)
     const { price, appliedRule, discount } = getApplicablePrice(
       productId,
       quantity,
@@ -257,7 +277,7 @@ export default function NewOrderPage() {
       hasCustomerPrice: false,
       basePrice: product.price,
     };
-  }, [products, volumePricingRules, getApplicablePrice, selectedCustomerId, customerPrices, getCustomerPrice]);
+  }, [products, volumePricingRules, getApplicablePrice, selectedCustomerId, customerPrices, getCustomerPrice, selectedCustomer]);
 
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => {

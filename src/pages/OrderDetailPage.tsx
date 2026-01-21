@@ -38,6 +38,7 @@ interface OrderWithItems {
   id: string;
   customer_id: string;
   customer_name: string;
+  customer_type?: 'minorista' | 'mayorista' | 'distribuidor' | null;
   delivery_address: string | null;
   customer_latitude: number | null;
   customer_longitude: number | null;
@@ -79,7 +80,7 @@ export default function OrderDetailPage() {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, customers(customer_type)')
         .eq('id', id)
         .maybeSingle();
 
@@ -95,6 +96,7 @@ export default function OrderDetailPage() {
 
         setOrder({
           ...orderData,
+          customer_type: (orderData as any).customers?.customer_type || null,
           items: itemsData || [],
         });
       }
@@ -525,6 +527,8 @@ export default function OrderDetailPage() {
           order={{
             id: order.id,
             company_id: order.company_id,
+            customer_id: order.customer_id,
+            customer_type: order.customer_type,
             delivery_address: order.delivery_address,
             delivery_date: order.delivery_date,
             notes: order.notes,

@@ -18,7 +18,8 @@ import {
   DollarSign,
   Award,
   BarChart3,
-  History
+  History,
+  Truck
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -30,6 +31,8 @@ interface DayStats {
   pendingOrders: number;
   cancelledOrders: number;
   totalRevenue: number;
+  distributorOrders: number;
+  distributorAmount: number;
   topProducts: { name: string; quantity: number }[];
   topVendedor?: { name: string; orders: number };
   topRepartidor?: { name: string; deliveries: number };
@@ -67,7 +70,13 @@ export function DailyClosingHistory() {
         o.status !== 'delivered' && o.status !== 'cancelled'
       );
       const cancelledOrders = dayOrders.filter(o => o.status === 'cancelled');
-      // Exclude distributors from revenue (they use prepaid credits)
+      
+      // Distributor orders (prepaid credits - not counted in revenue)
+      const distributorDelivered = deliveredOrders.filter(o => o.customers?.customer_type === 'distribuidor');
+      const distributorOrders = distributorDelivered.length;
+      const distributorAmount = distributorDelivered.reduce((sum, o) => sum + o.total, 0);
+      
+      // Revenue excludes distributors (they use prepaid credits)
       const totalRevenue = deliveredOrders
         .filter(o => o.customers?.customer_type !== 'distribuidor')
         .reduce((sum, o) => sum + o.total, 0);
@@ -116,6 +125,8 @@ export function DailyClosingHistory() {
         pendingOrders: pendingOrders.length,
         cancelledOrders: cancelledOrders.length,
         totalRevenue,
+        distributorOrders,
+        distributorAmount,
         topProducts,
         topVendedor,
         topRepartidor,
@@ -129,6 +140,8 @@ export function DailyClosingHistory() {
     const totalDelivered = monthStats.reduce((sum, d) => sum + d.deliveredOrders, 0);
     const totalRevenue = monthStats.reduce((sum, d) => sum + d.totalRevenue, 0);
     const totalCancelled = monthStats.reduce((sum, d) => sum + d.cancelledOrders, 0);
+    const totalDistributorOrders = monthStats.reduce((sum, d) => sum + d.distributorOrders, 0);
+    const totalDistributorAmount = monthStats.reduce((sum, d) => sum + d.distributorAmount, 0);
     
     // Best selling product of the month
     const productCounts = new Map<string, number>();
@@ -168,6 +181,8 @@ export function DailyClosingHistory() {
       totalDelivered,
       totalRevenue,
       totalCancelled,
+      totalDistributorOrders,
+      totalDistributorAmount,
       deliveryRate: totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0,
       bestProduct: bestProduct ? { name: bestProduct[0], quantity: bestProduct[1] } : null,
       bestVendedor: bestVendedor ? { name: bestVendedor[0], orders: bestVendedor[1] } : null,
@@ -248,6 +263,24 @@ export function DailyClosingHistory() {
               <p className="text-xs text-muted-foreground">Tasa Entrega</p>
             </div>
           </div>
+
+          {/* Distributor Info (prepaid - not in revenue) */}
+          {monthSummary.totalDistributorOrders > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+              <Truck className="w-5 h-5 text-orange-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                  Distribuidores (Pago Anticipado)
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  {monthSummary.totalDistributorOrders} pedidos • Monto: {formatCurrency(monthSummary.totalDistributorAmount)}
+                </p>
+              </div>
+              <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300">
+                No suma a ingresos
+              </Badge>
+            </div>
+          )}
 
           {(monthSummary.bestProduct || monthSummary.bestVendedor || monthSummary.bestRepartidor) && (
             <>
@@ -376,6 +409,24 @@ export function DailyClosingHistory() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Distributor Info */}
+                {selectedDay.distributorOrders > 0 && (
+                  <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <Truck className="w-5 h-5 text-orange-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                        Distribuidores (Prepago)
+                      </p>
+                      <p className="text-xs text-orange-600 dark:text-orange-400">
+                        {selectedDay.distributorOrders} pedidos • {formatCurrency(selectedDay.distributorAmount)}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300 text-[10px] shrink-0">
+                      No en ingresos
+                    </Badge>
+                  </div>
+                )}
 
                 {/* Metrics */}
                 <Card>

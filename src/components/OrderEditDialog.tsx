@@ -30,6 +30,8 @@ interface OrderEditDialogProps {
   order: {
     id: string;
     company_id: string;
+    customer_id: string;
+    customer_type?: 'minorista' | 'mayorista' | 'distribuidor' | null;
     delivery_address: string | null;
     delivery_date: string | null;
     notes: string | null;
@@ -81,10 +83,24 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
   }, [open, order]);
 
   // Calculate pricing with volume discounts
+  // Regular customers (minorista) do NOT receive any discounts
   const getItemPricing = useCallback((productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
     if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false };
     
+    // Regular customers (minorista) pay base price - no discounts
+    if (order.customer_type === 'minorista') {
+      return {
+        unitPrice: product.price,
+        total: product.price * quantity,
+        appliedRule: null,
+        discount: 0,
+        hasDiscount: false,
+        basePrice: product.price,
+      };
+    }
+    
+    // Apply volume pricing for mayorista/distribuidor customers
     const { price, appliedRule, discount } = getApplicablePrice(
       productId,
       quantity,
@@ -100,7 +116,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
       hasDiscount: discount > 0,
       basePrice: product.price,
     };
-  }, [products, volumePricingRules, getApplicablePrice]);
+  }, [products, volumePricingRules, getApplicablePrice, order.customer_type]);
 
   const calculateTotal = useMemo(() => {
     return orderItems.reduce((sum, item) => {
