@@ -209,8 +209,21 @@ export function useProductionHistory(productId?: string) {
     }
 
     // Get current user id
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error('Error getting user for production:', authError);
+    }
+    
     const producedBy = user?.id || null;
+    
+    console.log('[Production] Registering production:', {
+      productId,
+      quantity,
+      producedBy,
+      userId: user?.id,
+      userEmail: user?.email,
+    });
 
     // First, add production record
     const { data: productionData, error: historyError } = await supabase
