@@ -30,6 +30,7 @@ import { AllRepartidoresLoad } from '@/components/dashboard/RepartidorLoadSummar
 import { NewOrderBadge } from '@/components/dashboard/NewOrderBadge';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPanel';
+import { PendingProductionPanel } from '@/components/PendingProductionPanel';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -191,6 +192,9 @@ export default function DashboardPage() {
 
           {/* Invoice Requests Panel */}
           <InvoiceRequestsPanel />
+
+          {/* Pending Production Panel */}
+          <PendingProductionPanel />
         </>
       )}
 
