@@ -1278,7 +1278,8 @@ export default function CustomersPage() {
               <TabsContent value="history" className="mt-4">
                 <CustomerPurchaseHistory 
                   customerId={selectedCustomer.id} 
-                  customerName={selectedCustomer.name} 
+                  customerName={selectedCustomer.name}
+                  customerType={selectedCustomer.customer_type}
                 />
               </TabsContent>
             </Tabs>

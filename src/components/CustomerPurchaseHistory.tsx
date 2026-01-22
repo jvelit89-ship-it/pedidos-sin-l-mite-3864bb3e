@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ShoppingBag, TrendingUp, Calendar, Package, DollarSign, BarChart3 } from 'lucide-react';
+import { Loader2, ShoppingBag, TrendingUp, Calendar, Package, DollarSign, BarChart3, Wallet, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useDistributorCredits, useCreditUsage } from '@/hooks/useDistributorCredits';
 
 interface OrderItem {
   id: string;
@@ -41,6 +42,7 @@ interface CustomerStats {
 interface CustomerPurchaseHistoryProps {
   customerId: string;
   customerName: string;
+  customerType?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -61,11 +63,140 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Cancelado',
 };
 
-export function CustomerPurchaseHistory({ customerId, customerName }: CustomerPurchaseHistoryProps) {
+// Distributor Stats Component
+function DistributorStats({ customerId }: { customerId: string }) {
+  const { settings } = useSettings();
+  const { credits, loading } = useDistributorCredits(customerId);
+
+  const formatCurrency = (value: number) => {
+    const symbol = settings.currency === 'USD' ? '$' : 'S/';
+    return `${symbol} ${value.toFixed(2)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Calculate distributor-specific stats
+  const activeCredits = credits.filter(c => c.is_active);
+  const totalPrepaid = credits.reduce((sum, c) => sum + Number(c.amount_paid), 0);
+  const totalCredits = credits.reduce((sum, c) => sum + c.total_credits, 0);
+  const remainingCredits = activeCredits.reduce((sum, c) => sum + c.remaining_credits, 0);
+  const usedCredits = totalCredits - remainingCredits;
+  const lastPurchase = credits.length > 0 ? credits[0].purchase_date : null;
+
+  if (credits.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Wallet className="w-12 h-12 mx-auto mb-2 opacity-50" />
+        <p>Este distribuidor no tiene paquetes de créditos</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Key metrics for distributors */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+          <CardContent className="p-3 text-center">
+            <Package className="w-5 h-5 mx-auto mb-1 text-green-600" />
+            <p className="text-2xl font-bold text-green-700 dark:text-green-400">{remainingCredits}</p>
+            <p className="text-xs text-green-600">Recargas Disponibles</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <RefreshCw className="w-5 h-5 mx-auto mb-1 text-blue-600" />
+            <p className="text-2xl font-bold">{usedCredits}</p>
+            <p className="text-xs text-muted-foreground">Recargas Entregadas</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <Wallet className="w-5 h-5 mx-auto mb-1 text-purple-600" />
+            <p className="text-2xl font-bold">{formatCurrency(totalPrepaid)}</p>
+            <p className="text-xs text-muted-foreground">Total Prepagado</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <ShoppingBag className="w-5 h-5 mx-auto mb-1 text-orange-600" />
+            <p className="text-2xl font-bold">{totalCredits}</p>
+            <p className="text-xs text-muted-foreground">Total Comprado</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Active packages */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Paquetes Activos</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-3">
+          {activeCredits.map((credit) => (
+            <div key={credit.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium text-sm">{credit.package_name}</span>
+                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                  Activo
+                </Badge>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Disponibles</span>
+                <span className="font-bold text-foreground">{credit.remaining_credits} / {credit.total_credits}</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full transition-all"
+                  style={{ width: `${(credit.remaining_credits / credit.total_credits) * 100}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Pagado: {formatCurrency(Number(credit.amount_paid))}</span>
+                <span>{format(new Date(credit.purchase_date), 'dd MMM yyyy', { locale: es })}</span>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Summary info */}
+      <Card>
+        <CardContent className="p-4 space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-muted-foreground">Paquetes totales</span>
+            <span className="font-medium">{credits.length}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-muted-foreground">Paquetes activos</span>
+            <Badge variant="secondary">{activeCredits.length}</Badge>
+          </div>
+          {lastPurchase && (
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Última compra</span>
+              <span className="font-medium">
+                {format(new Date(lastPurchase), 'dd MMM yyyy', { locale: es })}
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function CustomerPurchaseHistory({ customerId, customerName, customerType }: CustomerPurchaseHistoryProps) {
   const { settings } = useSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<CustomerStats | null>(null);
+  
+  const isDistribuidor = customerType === 'distribuidor';
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -84,7 +215,7 @@ export function CustomerPurchaseHistory({ customerId, customerName }: CustomerPu
 
         setOrders(data || []);
         
-        // Calculate stats
+        // Calculate stats (only for non-distributors or as secondary info)
         if (data && data.length > 0) {
           const deliveredOrders = data.filter(o => o.status === 'delivered');
           const totalSpent = deliveredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -151,6 +282,75 @@ export function CustomerPurchaseHistory({ customerId, customerName }: CustomerPu
     );
   }
 
+  // For distributors, show credit-based stats
+  if (isDistribuidor) {
+    return (
+      <Tabs defaultValue="stats" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="stats" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Estadísticas
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="gap-2">
+            <ShoppingBag className="w-4 h-4" />
+            Entregas ({orders.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stats" className="mt-4">
+          <DistributorStats customerId={customerId} />
+        </TabsContent>
+
+        <TabsContent value="orders" className="mt-4">
+          <ScrollArea className="h-[300px]">
+            {orders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Sin entregas registradas</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order) => (
+                  <Card key={order.id} className="overflow-hidden">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+                          </span>
+                        </div>
+                        <Badge className={statusColors[order.status] || statusColors.pending}>
+                          {statusLabels[order.status] || order.status}
+                        </Badge>
+                      </div>
+                      
+                      <div className="text-sm space-y-1">
+                        {(order.order_items || []).slice(0, 3).map((item: OrderItem) => (
+                          <div key={item.id} className="flex justify-between text-muted-foreground">
+                            <span className="truncate max-w-[60%]">{item.product_name}</span>
+                            <span>x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-2 pt-2 border-t">
+                        <span className="text-xs text-muted-foreground">
+                          Entrega de créditos prepagados
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+    );
+  }
+
+  // Regular customers
   if (orders.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
