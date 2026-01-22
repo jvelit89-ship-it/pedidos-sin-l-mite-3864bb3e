@@ -437,6 +437,63 @@ export type Database = {
           },
         ]
       }
+      distributor_empty_containers: {
+        Row: {
+          company_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          notes: string | null
+          quantity: number
+          registered_at: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          quantity: number
+          registered_at?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          registered_at?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distributor_empty_containers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_empty_containers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_requests: {
         Row: {
           company_id: string

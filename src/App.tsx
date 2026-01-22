@@ -32,6 +32,7 @@ import NotFound from './pages/NotFound';
 // Public pages (no auth required)
 import OrderTrackingPage from './pages/OrderTrackingPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
+import DistributorPortalPage from './pages/DistributorPortalPage';
 
 const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => <AppLayout>{children}</AppLayout>;
@@ -49,6 +50,7 @@ const App = () => {
                 <Routes>
                   {/* Public routes - Customer Portal */}
                   <Route path="/track" element={<CustomerPortalPage />} />
+                  <Route path="/distribuidor" element={<DistributorPortalPage />} />
                   <Route path="/track/:trackingCode" element={<OrderTrackingPage />} />
                   
                   {/* Auth routes */}
