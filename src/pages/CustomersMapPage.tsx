@@ -393,7 +393,11 @@ export default function CustomersMapPage() {
 
               <TabsContent value="history" className="p-4">
                 {selectedCustomer && (
-                  <CustomerPurchaseHistory customerId={selectedCustomer.id} customerName={selectedCustomer.name} />
+                  <CustomerPurchaseHistory 
+                    customerId={selectedCustomer.id} 
+                    customerName={selectedCustomer.name}
+                    customerType={selectedCustomer.customer_type}
+                  />
                 )}
               </TabsContent>
             </Tabs>
