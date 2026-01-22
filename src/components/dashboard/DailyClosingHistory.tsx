@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOrders } from '@/hooks/useOrders';
 import { useSettings } from '@/contexts/SettingsContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Calendar, 
   ChevronLeft, 
@@ -19,7 +20,8 @@ import {
   Award,
   BarChart3,
   History,
-  Truck
+  Truck,
+  Wallet
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -33,9 +35,15 @@ interface DayStats {
   totalRevenue: number;
   distributorOrders: number;
   distributorAmount: number;
+  distributorPrepayments: number;
   topProducts: { name: string; quantity: number }[];
   topVendedor?: { name: string; orders: number };
   topRepartidor?: { name: string; deliveries: number };
+}
+
+interface DistributorCredit {
+  amount_paid: number;
+  purchase_date: string;
 }
 
 import { getBusinessDateKey, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
@@ -53,6 +61,22 @@ export function DailyClosingHistory() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<DayStats | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [distributorCredits, setDistributorCredits] = useState<DistributorCredit[]>([]);
+
+  // Fetch distributor credits (prepayments)
+  useEffect(() => {
+    const fetchDistributorCredits = async () => {
+      const { data, error } = await supabase
+        .from('distributor_credits')
+        .select('amount_paid, purchase_date');
+      
+      if (!error && data) {
+        setDistributorCredits(data);
+      }
+    };
+
+    fetchDistributorCredits();
+  }, [selectedMonth]);
 
   // Calculate stats for each day of the month
   const monthStats = useMemo(() => {
@@ -75,6 +99,11 @@ export function DailyClosingHistory() {
       const distributorDelivered = deliveredOrders.filter(o => o.customers?.customer_type === 'distribuidor');
       const distributorOrders = distributorDelivered.length;
       const distributorAmount = distributorDelivered.reduce((sum, o) => sum + o.total, 0);
+      
+      // Distributor prepayments for this day
+      const dayPrepayments = distributorCredits
+        .filter(c => getBusinessDateKey(c.purchase_date) === dayStr)
+        .reduce((sum, c) => sum + Number(c.amount_paid), 0);
       
       // Revenue excludes distributors (they use prepaid credits)
       const totalRevenue = deliveredOrders
@@ -127,12 +156,13 @@ export function DailyClosingHistory() {
         totalRevenue,
         distributorOrders,
         distributorAmount,
+        distributorPrepayments: dayPrepayments,
         topProducts,
         topVendedor,
         topRepartidor,
       };
     });
-  }, [orders, selectedMonth]);
+  }, [orders, selectedMonth, distributorCredits]);
 
   // Summary for the month
   const monthSummary = useMemo(() => {
@@ -142,6 +172,7 @@ export function DailyClosingHistory() {
     const totalCancelled = monthStats.reduce((sum, d) => sum + d.cancelledOrders, 0);
     const totalDistributorOrders = monthStats.reduce((sum, d) => sum + d.distributorOrders, 0);
     const totalDistributorAmount = monthStats.reduce((sum, d) => sum + d.distributorAmount, 0);
+    const totalDistributorPrepayments = monthStats.reduce((sum, d) => sum + d.distributorPrepayments, 0);
     
     // Best selling product of the month
     const productCounts = new Map<string, number>();
@@ -183,6 +214,7 @@ export function DailyClosingHistory() {
       totalCancelled,
       totalDistributorOrders,
       totalDistributorAmount,
+      totalDistributorPrepayments,
       deliveryRate: totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0,
       bestProduct: bestProduct ? { name: bestProduct[0], quantity: bestProduct[1] } : null,
       bestVendedor: bestVendedor ? { name: bestVendedor[0], orders: bestVendedor[1] } : null,
@@ -255,8 +287,8 @@ export function DailyClosingHistory() {
               <p className="text-xs text-muted-foreground">Entregados</p>
             </div>
             <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-2xl font-bold text-blue-600">{formatCurrency(monthSummary.totalRevenue)}</p>
-              <p className="text-xs text-muted-foreground">Ingresos</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(monthSummary.totalRevenue + monthSummary.totalDistributorPrepayments)}</p>
+              <p className="text-xs text-muted-foreground">Ingresos Totales</p>
             </div>
             <div className="text-center p-3 bg-primary/10 rounded-lg">
               <p className="text-2xl font-bold text-primary">{monthSummary.deliveryRate}%</p>
@@ -264,21 +296,35 @@ export function DailyClosingHistory() {
             </div>
           </div>
 
-          {/* Distributor Info (prepaid - not in revenue) */}
-          {monthSummary.totalDistributorOrders > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <Truck className="w-5 h-5 text-orange-600" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                  Distribuidores (Pago Anticipado)
-                </p>
-                <p className="text-xs text-orange-600 dark:text-orange-400">
-                  {monthSummary.totalDistributorOrders} pedidos • Monto: {formatCurrency(monthSummary.totalDistributorAmount)}
-                </p>
+          {/* Revenue breakdown */}
+          {(monthSummary.totalDistributorPrepayments > 0 || monthSummary.totalDistributorOrders > 0) && (
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between text-sm p-2 bg-muted/30 rounded">
+                <span className="text-muted-foreground">Ventas regulares</span>
+                <span>{formatCurrency(monthSummary.totalRevenue)}</span>
               </div>
-              <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300">
-                No suma a ingresos
-              </Badge>
+              {monthSummary.totalDistributorPrepayments > 0 && (
+                <div className="flex items-center justify-between text-sm p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
+                  <span className="flex items-center gap-1 text-purple-700 dark:text-purple-300">
+                    <Wallet className="w-3 h-3" />
+                    Prepagos distribuidores
+                  </span>
+                  <span className="font-medium text-purple-700 dark:text-purple-300">{formatCurrency(monthSummary.totalDistributorPrepayments)}</span>
+                </div>
+              )}
+              {monthSummary.totalDistributorOrders > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
+                  <Truck className="w-4 h-4 text-orange-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                      {monthSummary.totalDistributorOrders} entregas a distribuidores ({formatCurrency(monthSummary.totalDistributorAmount)})
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300 text-[10px]">
+                    Prepagado
+                  </Badge>
+                </div>
+              )}
             </div>
           )}
 
@@ -397,33 +443,52 @@ export function DailyClosingHistory() {
 
                 {/* Revenue */}
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-5 h-5 text-green-600" />
-                        <span className="text-sm text-muted-foreground">Ingresos del día</span>
+                        <span className="text-sm font-medium">Ingresos del día</span>
                       </div>
                       <span className="text-2xl font-bold text-green-600">
-                        {formatCurrency(selectedDay.totalRevenue)}
+                        {formatCurrency(selectedDay.totalRevenue + selectedDay.distributorPrepayments)}
                       </span>
                     </div>
+                    
+                    {/* Breakdown */}
+                    {(selectedDay.distributorPrepayments > 0 || selectedDay.distributorOrders > 0) && (
+                      <div className="text-sm space-y-1 pt-2 border-t">
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Ventas regulares</span>
+                          <span>{formatCurrency(selectedDay.totalRevenue)}</span>
+                        </div>
+                        {selectedDay.distributorPrepayments > 0 && (
+                          <div className="flex items-center justify-between text-purple-600">
+                            <span className="flex items-center gap-1">
+                              <Wallet className="w-3 h-3" />
+                              Prepagos distribuidores
+                            </span>
+                            <span className="font-medium">{formatCurrency(selectedDay.distributorPrepayments)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
-                {/* Distributor Info */}
+                {/* Distributor deliveries (not income) */}
                 {selectedDay.distributorOrders > 0 && (
                   <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
                     <Truck className="w-5 h-5 text-orange-600 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                        Distribuidores (Prepago)
+                        Entregas a Distribuidores
                       </p>
                       <p className="text-xs text-orange-600 dark:text-orange-400">
-                        {selectedDay.distributorOrders} pedidos • {formatCurrency(selectedDay.distributorAmount)}
+                        {selectedDay.distributorOrders} entregas • {formatCurrency(selectedDay.distributorAmount)}
                       </p>
                     </div>
                     <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300 text-[10px] shrink-0">
-                      No en ingresos
+                      Prepagado
                     </Badge>
                   </div>
                 )}
