@@ -31,6 +31,7 @@ import { NewOrderBadge } from '@/components/dashboard/NewOrderBadge';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPanel';
 import { PendingProductionPanel } from '@/components/PendingProductionPanel';
+import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPanel';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -195,6 +196,9 @@ export default function DashboardPage() {
 
           {/* Pending Production Panel */}
           <PendingProductionPanel />
+
+          {/* Empty Containers Panel */}
+          <EmptyContainersPanel />
         </>
       )}
 
