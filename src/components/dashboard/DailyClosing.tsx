@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { getBusinessDateKey, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
 import { DailyClosingHistory } from './DailyClosingHistory';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Calendar, 
   CheckCircle2, 
@@ -24,7 +25,8 @@ import {
   Award,
   ClipboardCheck,
   History,
-  ShoppingCart
+  ShoppingCart,
+  Wallet
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -38,6 +40,7 @@ interface DailyStats {
   pendingOrders: number;
   cancelledOrders: number;
   totalRevenue: number;
+  distributorPrepayments: number;
   avgDeliveryTime: number;
   deliveryRate: number;
   topProducts: { name: string; quantity: number }[];
@@ -51,10 +54,41 @@ export function DailyClosing() {
   const { formatCurrency } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [showAutoReminder, setShowAutoReminder] = useState(false);
+  const [distributorPrepayments, setDistributorPrepayments] = useState(0);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isVendedor = user?.role === 'vendedor';
   const isRepartidor = user?.role === 'repartidor';
+
+  // Fetch distributor prepayments for today
+  useEffect(() => {
+    const fetchDistributorPrepayments = async () => {
+      const today = getTodayBusinessDateKey();
+      
+      const { data, error } = await supabase
+        .from('distributor_credits')
+        .select('amount_paid, purchase_date');
+      
+      if (error) {
+        console.error('Error fetching distributor prepayments:', error);
+        return;
+      }
+
+      // Filter by business day
+      const todayPrepayments = (data || []).filter(credit => 
+        getBusinessDateKey(credit.purchase_date) === today
+      );
+
+      const total = todayPrepayments.reduce((sum, c) => sum + Number(c.amount_paid), 0);
+      setDistributorPrepayments(total);
+    };
+
+    fetchDistributorPrepayments();
+    
+    // Refetch every 30 seconds
+    const interval = setInterval(fetchDistributorPrepayments, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Check if it's closing time (7pm)
   useEffect(() => {
@@ -97,7 +131,7 @@ export function DailyClosing() {
     const cancelledOrders = filteredOrders.filter(o => o.status === 'cancelled');
 
     // Calculate total revenue (excluding distributor prepaid pickups - they pay upfront)
-    // Distributors use prepaid credits, so their orders shouldn't count as daily revenue
+    // Distributors use prepaid credits, so their delivery orders shouldn't count as daily revenue
     const totalRevenue = deliveredOrders
       .filter(o => o.customers?.customer_type !== 'distribuidor')
       .reduce((sum, o) => sum + o.total, 0);
@@ -180,13 +214,14 @@ export function DailyClosing() {
       pendingOrders: pendingOrders.length,
       cancelledOrders: cancelledOrders.length,
       totalRevenue,
+      distributorPrepayments,
       avgDeliveryTime,
       deliveryRate,
       topProducts,
       topVendedor,
       topRepartidor,
     };
-  }, [orders, user, isAdmin, isVendedor, isRepartidor]);
+  }, [orders, user, isAdmin, isVendedor, isRepartidor, distributorPrepayments]);
 
   const formatTime = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`;
@@ -323,15 +358,33 @@ export function DailyClosing() {
               {/* Financial Summary */}
               {(isAdmin || isVendedor) && (
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 space-y-3">
+                    {/* Total Revenue (including prepayments) */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-5 h-5 text-[hsl(var(--status-delivered))]" />
-                        <span className="text-sm text-muted-foreground">Ingresos del día</span>
+                        <span className="text-sm font-medium">Ingresos del día</span>
                       </div>
                       <span className="text-2xl font-bold text-[hsl(var(--status-delivered))]">
-                        {formatCurrency(dailyStats.totalRevenue)}
+                        {formatCurrency(dailyStats.totalRevenue + dailyStats.distributorPrepayments)}
                       </span>
+                    </div>
+                    
+                    {/* Breakdown */}
+                    <div className="text-sm space-y-1 pt-2 border-t">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Ventas regulares</span>
+                        <span>{formatCurrency(dailyStats.totalRevenue)}</span>
+                      </div>
+                      {dailyStats.distributorPrepayments > 0 && (
+                        <div className="flex items-center justify-between text-purple-600">
+                          <span className="flex items-center gap-1">
+                            <Wallet className="w-3 h-3" />
+                            Prepagos distribuidores
+                          </span>
+                          <span className="font-medium">{formatCurrency(dailyStats.distributorPrepayments)}</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
