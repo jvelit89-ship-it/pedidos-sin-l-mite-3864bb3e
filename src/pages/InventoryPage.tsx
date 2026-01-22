@@ -12,6 +12,7 @@ import { SyncIndicator } from '@/components/SyncIndicator';
 import { useProducts, useProductionHistory } from '@/hooks/useProducts';
 import { useStockMovements, useStockReports } from '@/hooks/useStockMovements';
 import { useProductionRecipes } from '@/hooks/useProductionRecipes';
+import { usePendingProduction } from '@/hooks/usePendingProduction';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -41,6 +42,7 @@ import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { ProductionRecipesManager } from '@/components/ProductionRecipesManager';
 import { DeleteProductionDialog } from '@/components/DeleteProductionDialog';
 import { EditProductOTPDialog } from '@/components/EditProductOTPDialog';
+import { PendingProductionPanel } from '@/components/PendingProductionPanel';
 
 interface Product {
   id: string;
@@ -62,8 +64,9 @@ export default function InventoryPage() {
   const { movements, loading: loadingMovements, refetch: refetchMovements } = useStockMovements();
   const { getProductSummary } = useStockReports();
   const { recipes } = useProductionRecipes();
+  const { submitForApproval, checkDuplicate, pendingCount, submitting: pendingSubmitting, refetch: refetchPending } = usePendingProduction();
   const { formatCurrency, settings, t } = useSettings();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isProductionDialogOpen, setIsProductionDialogOpen] = useState(false);
@@ -180,12 +183,30 @@ export default function InventoryPage() {
       toast.error(settings.language === 'es' ? 'Selecciona un producto y cantidad' : 'Select a product and quantity');
       return;
     }
+
+    // Check for duplicates first (same product, same quantity within 30 seconds)
+    const isDuplicate = await checkDuplicate(selectedProductId, productionQuantity);
+    if (isDuplicate) {
+      toast.error('Registro duplicado detectado. Por favor espera 30 segundos antes de registrar el mismo producto y cantidad.');
+      return;
+    }
     
-    const success = await addProduction(selectedProductId, productionQuantity, productionNotes);
+    let success = false;
+    
+    if (isAdmin) {
+      // Admins can register directly
+      success = await addProduction(selectedProductId, productionQuantity, productionNotes);
+    } else if (isOperario) {
+      // Operarios must submit for approval
+      success = await submitForApproval(selectedProductId, productionQuantity, productionNotes);
+    }
     
     if (success) {
-      await refetchProducts();
-      await refetchMovements();
+      if (isAdmin) {
+        await refetchProducts();
+        await refetchMovements();
+      }
+      await refetchPending();
       setIsProductionDialogOpen(false);
       setSelectedProductId('');
       setProductionQuantity(0);
@@ -252,7 +273,6 @@ export default function InventoryPage() {
     return labels[period]?.[settings.language] || period;
   };
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isOperario = user?.role === 'operario';
   const canViewHistory = isAdmin || isOperario;
   const canRegisterProduction = isAdmin || isOperario;
@@ -438,6 +458,18 @@ export default function InventoryPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {/* Warning for operarios that requires approval */}
+                {isOperario && (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-200">
+                    <div className="flex items-center gap-2 font-medium mb-1">
+                      <AlertTriangle className="h-4 w-4" />
+                      Requiere aprobación del administrador
+                    </div>
+                    <p className="text-amber-700 dark:text-amber-300">
+                      Tu registro será enviado para aprobación. El administrador debe confirmar antes de que se agregue al inventario.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>{settings.language === 'es' ? 'Producto' : 'Product'}</Label>
                   <Select value={selectedProductId} onValueChange={setSelectedProductId}>
@@ -472,8 +504,17 @@ export default function InventoryPage() {
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setIsProductionDialogOpen(false)}>
                     {t.cancel}
                   </Button>
-                  <Button className="flex-1" onClick={handleProduction}>
-                    {settings.language === 'es' ? 'Registrar' : 'Register'}
+                  <Button className="flex-1" onClick={handleProduction} disabled={pendingSubmitting}>
+                    {pendingSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : isOperario ? (
+                      'Enviar para Aprobación'
+                    ) : (
+                      settings.language === 'es' ? 'Registrar' : 'Register'
+                    )}
                   </Button>
                 </div>
               </div>
