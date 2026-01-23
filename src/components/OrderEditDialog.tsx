@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useTeam } from '@/hooks/useTeam';
 import { useProducts } from '@/hooks/useProducts';
 import { useVolumePricing } from '@/hooks/useVolumePricing';
@@ -13,7 +14,8 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Plus, Minus, Trash2, Package, Tag, User } from 'lucide-react';
+import { Loader2, Pencil, Plus, Minus, Trash2, Package, Tag, User, CalendarClock, AlertTriangle } from 'lucide-react';
+import { getLimaDateKey } from '@/lib/limaTime';
 
 interface OrderItem {
   id: string;
@@ -39,6 +41,7 @@ interface OrderEditDialogProps {
     repartidor_name: string | null;
     vendedor_id: string | null;
     vendedor_name: string | null;
+    created_at: string;
     items: OrderItem[];
   };
   onSuccess: () => void;
@@ -57,6 +60,10 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
   const [notes, setNotes] = useState(order.notes || '');
   const [selectedRepartidorId, setSelectedRepartidorId] = useState(order.repartidor_id || '');
   const [selectedVendedorId, setSelectedVendedorId] = useState(order.vendedor_id || '');
+  
+  // Admin date override state
+  const [useCustomDate, setUseCustomDate] = useState(false);
+  const [customCreatedDate, setCustomCreatedDate] = useState('');
   
   // Product editing state
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number; originalQty: number }[]>([]);
@@ -79,6 +86,9 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
         quantity: item.quantity,
         originalQty: item.quantity,
       })));
+      // Reset custom date state
+      setUseCustomDate(false);
+      setCustomCreatedDate(getLimaDateKey(order.created_at));
     }
   }, [open, order]);
 
@@ -180,20 +190,29 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
       const repartidor = repartidores.find(r => r.id === selectedRepartidorId);
       const vendedor = vendedores.find(v => v.id === selectedVendedorId);
       
+      // Build update object
+      const orderUpdate: Record<string, unknown> = {
+        delivery_address: deliveryAddress,
+        delivery_date: deliveryDate || null,
+        notes: notes || null,
+        repartidor_id: selectedRepartidorId,
+        repartidor_name: repartidor?.name || null,
+        vendedor_id: selectedVendedorId || order.vendedor_id,
+        vendedor_name: vendedor?.name || order.vendedor_name,
+        total: calculateTotal,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Admin can change created_at date
+      if (isAdmin && useCustomDate && customCreatedDate) {
+        const newCreatedAt = new Date(`${customCreatedDate}T12:00:00-05:00`);
+        orderUpdate.created_at = newCreatedAt.toISOString();
+      }
+
       // Update order details
       const { error: orderError } = await supabase
         .from('orders')
-        .update({
-          delivery_address: deliveryAddress,
-          delivery_date: deliveryDate || null,
-          notes: notes || null,
-          repartidor_id: selectedRepartidorId,
-          repartidor_name: repartidor?.name || null,
-          vendedor_id: selectedVendedorId || order.vendedor_id,
-          vendedor_name: vendedor?.name || order.vendedor_name,
-          total: calculateTotal,
-          updated_at: new Date().toISOString(),
-        })
+        .update(orderUpdate)
         .eq('id', order.id);
 
       if (orderError) throw orderError;
@@ -447,6 +466,39 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {/* Admin Date Override Section */}
+            {isAdmin && (
+              <div className="space-y-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                    <CalendarClock className="w-4 h-4" />
+                    Cambiar fecha de registro
+                  </Label>
+                  <Switch
+                    checked={useCustomDate}
+                    onCheckedChange={setUseCustomDate}
+                  />
+                </div>
+                
+                {useCustomDate && (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2 p-2 bg-amber-100 dark:bg-amber-900/30 rounded text-xs text-amber-700 dark:text-amber-300">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        Cambiar la fecha moverá este pedido al cierre de día correspondiente.
+                      </span>
+                    </div>
+                    <Input
+                      type="date"
+                      value={customCreatedDate}
+                      onChange={(e) => setCustomCreatedDate(e.target.value)}
+                      className="border-amber-300 dark:border-amber-700"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
