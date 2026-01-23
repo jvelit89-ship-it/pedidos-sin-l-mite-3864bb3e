@@ -64,13 +64,18 @@ export function useOrders() {
   }, []);
 
   const createOrder = useCallback(async (
-    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code'>,
+    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code'> & { created_at?: string },
     items: Omit<OrderItem, 'id' | 'order_id'>[]
   ) => {
+    // Build order data, including optional custom created_at for backdated orders
+    const orderToInsert = order.created_at 
+      ? { ...order, created_at: order.created_at }
+      : order;
+
     // Insert order
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
-      .insert(order)
+      .insert(orderToInsert)
       .select()
       .single();
     

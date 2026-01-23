@@ -34,8 +34,10 @@ import {
   CheckCircle2,
   Tag,
   Search,
-  User
+  User,
+  CalendarClock
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function NewOrderPage() {
   const navigate = useNavigate();
@@ -71,6 +73,11 @@ export default function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
+  
+  // Backdated order for admins
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const [useBackdatedOrder, setUseBackdatedOrder] = useState(false);
+  const [backdatedDate, setBackdatedDate] = useState('');
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
@@ -378,6 +385,14 @@ export default function NewOrderPage() {
         };
       });
 
+      // If backdating, create a timestamp at 12:00 noon of that date (Lima time)
+      let customCreatedAt: string | undefined;
+      if (isAdmin && useBackdatedOrder && backdatedDate) {
+        // Create a date at noon Lima time for the backdated date
+        const backdatedTimestamp = new Date(`${backdatedDate}T12:00:00-05:00`);
+        customCreatedAt = backdatedTimestamp.toISOString();
+      }
+
       const orderData = await createOrder({
         company_id: customer.company_id,
         customer_id: customer.id,
@@ -395,6 +410,7 @@ export default function NewOrderPage() {
         notes: requiresDocument && documentNumber 
           ? `${receiptType.toUpperCase()} - ${documentType.toUpperCase()}: ${documentNumber}${notes ? ` | ${notes}` : ''}`
           : notes || null,
+        ...(customCreatedAt && { created_at: customCreatedAt }),
       }, items);
 
       if (orderData) {
@@ -909,6 +925,47 @@ export default function NewOrderPage() {
                   rows={3}
                 />
               </div>
+
+              {/* Backdated Order - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="backdated-order"
+                      checked={useBackdatedOrder}
+                      onCheckedChange={(checked) => {
+                        setUseBackdatedOrder(checked === true);
+                        if (!checked) setBackdatedDate('');
+                      }}
+                    />
+                    <Label htmlFor="backdated-order" className="flex items-center gap-2 cursor-pointer">
+                      <CalendarClock className="w-4 h-4 text-amber-600" />
+                      <span className="text-amber-700 dark:text-amber-400 font-medium">
+                        Registrar venta de día anterior
+                      </span>
+                    </Label>
+                  </div>
+                  
+                  {useBackdatedOrder && (
+                    <div className="space-y-2">
+                      <Label className="text-sm text-amber-700 dark:text-amber-400">
+                        Fecha de la venta *
+                      </Label>
+                      <Input
+                        type="date"
+                        value={backdatedDate}
+                        onChange={(e) => setBackdatedDate(e.target.value)}
+                        max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
+                        required={useBackdatedOrder}
+                        className="border-amber-500/50"
+                      />
+                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                        Esta venta se registrará con la fecha seleccionada y aparecerá en el cierre de ese día.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -916,7 +973,7 @@ export default function NewOrderPage() {
         <Button
           type="submit"
           className="w-full h-12 gap-2"
-          disabled={isSubmitting || !selectedCustomerId || orderItems.length === 0 || !selectedVendedorId || !selectedRepartidorId || (requiresDocument && !documentNumber)}
+          disabled={isSubmitting || !selectedCustomerId || orderItems.length === 0 || !selectedVendedorId || !selectedRepartidorId || (requiresDocument && !documentNumber) || (useBackdatedOrder && !backdatedDate)}
         >
           {isSubmitting ? (
             <Loader2 className="w-5 h-5 animate-spin" />
