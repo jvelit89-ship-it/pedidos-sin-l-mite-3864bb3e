@@ -26,10 +26,12 @@ import {
   ClipboardCheck,
   History,
   ShoppingCart,
-  Wallet
+  Wallet,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 const WORK_START_HOUR = 7;
 const WORK_END_HOUR = 19;
@@ -49,46 +51,65 @@ interface DailyStats {
 }
 
 export function DailyClosing() {
-  const { orders } = useOrders();
+  const { orders, refetch } = useOrders();
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [showAutoReminder, setShowAutoReminder] = useState(false);
   const [distributorPrepayments, setDistributorPrepayments] = useState(0);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isVendedor = user?.role === 'vendedor';
   const isRepartidor = user?.role === 'repartidor';
 
+  // Fetch distributor prepayments
+  const fetchDistributorPrepayments = async () => {
+    const today = getTodayBusinessDateKey();
+    
+    const { data, error } = await supabase
+      .from('distributor_credits')
+      .select('amount_paid, purchase_date');
+    
+    if (error) {
+      console.error('Error fetching distributor prepayments:', error);
+      return;
+    }
+
+    // Filter by business day
+    const todayPrepayments = (data || []).filter(credit => 
+      getBusinessDateKey(credit.purchase_date) === today
+    );
+
+    const total = todayPrepayments.reduce((sum, c) => sum + Number(c.amount_paid), 0);
+    setDistributorPrepayments(total);
+  };
+
   // Fetch distributor prepayments for today
   useEffect(() => {
-    const fetchDistributorPrepayments = async () => {
-      const today = getTodayBusinessDateKey();
-      
-      const { data, error } = await supabase
-        .from('distributor_credits')
-        .select('amount_paid, purchase_date');
-      
-      if (error) {
-        console.error('Error fetching distributor prepayments:', error);
-        return;
-      }
-
-      // Filter by business day
-      const todayPrepayments = (data || []).filter(credit => 
-        getBusinessDateKey(credit.purchase_date) === today
-      );
-
-      const total = todayPrepayments.reduce((sum, c) => sum + Number(c.amount_paid), 0);
-      setDistributorPrepayments(total);
-    };
-
     fetchDistributorPrepayments();
     
     // Refetch every 30 seconds
     const interval = setInterval(fetchDistributorPrepayments, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Manual recalculate function
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    try {
+      await Promise.all([
+        refetch(),
+        fetchDistributorPrepayments()
+      ]);
+      toast.success('Cierre del día recalculado');
+    } catch (error) {
+      console.error('Error recalculating:', error);
+      toast.error('Error al recalcular');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
 
   // Check if it's closing time (7pm)
   useEffect(() => {
@@ -319,6 +340,22 @@ export function DailyClosing() {
             </TabsList>
 
             <TabsContent value="today" className="space-y-4 mt-4">
+              {/* Recalculate Button */}
+              {isAdmin && (
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRecalculate}
+                    disabled={isRecalculating}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRecalculating ? 'animate-spin' : ''}`} />
+                    {isRecalculating ? 'Recalculando...' : 'Recalcular'}
+                  </Button>
+                </div>
+              )}
+
               {/* Total Orders Banner */}
               <Card className="bg-primary/10 border-primary/20">
                 <CardContent className="p-4">

@@ -21,10 +21,12 @@ import {
   BarChart3,
   History,
   Truck,
-  Wallet
+  Wallet,
+  RefreshCw
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface DayStats {
   date: Date;
@@ -56,27 +58,45 @@ const isTodayBusinessDay = (date: Date): boolean => {
 };
 
 export function DailyClosingHistory() {
-  const { orders } = useOrders();
+  const { orders, refetch } = useOrders();
   const { formatCurrency } = useSettings();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<DayStats | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [distributorCredits, setDistributorCredits] = useState<DistributorCredit[]>([]);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   // Fetch distributor credits (prepayments)
-  useEffect(() => {
-    const fetchDistributorCredits = async () => {
-      const { data, error } = await supabase
-        .from('distributor_credits')
-        .select('amount_paid, purchase_date');
-      
-      if (!error && data) {
-        setDistributorCredits(data);
-      }
-    };
+  const fetchDistributorCredits = async () => {
+    const { data, error } = await supabase
+      .from('distributor_credits')
+      .select('amount_paid, purchase_date');
+    
+    if (!error && data) {
+      setDistributorCredits(data);
+    }
+  };
 
+  useEffect(() => {
     fetchDistributorCredits();
   }, [selectedMonth]);
+
+  // Manual recalculate function
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    try {
+      await Promise.all([
+        refetch(),
+        fetchDistributorCredits()
+      ]);
+      toast.success('Historial recalculado');
+    } catch (error) {
+      console.error('Error recalculating:', error);
+      toast.error('Error al recalcular');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
 
   // Calculate stats for each day of the month
   const monthStats = useMemo(() => {
@@ -251,6 +271,16 @@ export function DailyClosingHistory() {
           <h3 className="text-lg font-semibold">Historial de Cierres</h3>
         </div>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRecalculate}
+            disabled={isRecalculating}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRecalculating ? 'animate-spin' : ''}`} />
+            {isRecalculating ? 'Recalculando...' : 'Recalcular'}
+          </Button>
           <Button variant="outline" size="icon" onClick={() => navigateMonth('prev')}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
