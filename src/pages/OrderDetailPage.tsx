@@ -536,6 +536,7 @@ export default function OrderDetailPage() {
             repartidor_name: order.repartidor_name,
             vendedor_id: order.vendedor_id,
             vendedor_name: order.vendedor_name,
+            created_at: order.created_at,
             items: order.items.map(item => ({
               id: item.id,
               product_id: item.product_id,
