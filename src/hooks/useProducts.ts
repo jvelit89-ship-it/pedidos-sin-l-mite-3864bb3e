@@ -217,15 +217,22 @@ export function useProductionHistory(productId?: string) {
     
     const producedBy = user?.id || null;
     
+    if (!producedBy) {
+      console.error('[Production] No user ID found for production');
+      toast.error('Error de autenticación');
+      return false;
+    }
+    
     console.log('[Production] Registering production:', {
       productId,
       quantity,
       producedBy,
       userId: user?.id,
-      userEmail: user?.email,
     });
 
-    // First, add production record
+    // SOLO insertamos el registro de producción
+    // El trigger auto_update_stock_on_production_insert se encarga
+    // AUTOMÁTICAMENTE de actualizar el stock del producto
     const { data: productionData, error: historyError } = await supabase
       .from('production_history')
       .insert({
@@ -244,48 +251,28 @@ export function useProductionHistory(productId?: string) {
       return false;
     }
 
-    // Add stock movement record
+    // Registrar movimiento de stock para trazabilidad
     await supabase
       .from('stock_movements')
       .insert({
         product_id: productId,
         company_id: companyId,
         movement_type: 'production',
-        quantity: quantity, // positive for production
+        quantity: quantity,
         reference_id: productionData?.id || null,
         notes: notes || null,
       });
 
-    // Then, update the product stock
-    const { data: product } = await supabase
-      .from('products')
-      .select('stock')
-      .eq('id', productId)
-      .single();
-    
-    if (product) {
-      const newStock = product.stock + quantity;
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', productId);
-      
-      if (updateError) {
-        console.error('Error updating stock:', updateError);
-        toast.error('Error al actualizar stock del producto');
-        // Still refetch to show the production record was created
-      }
-    }
-    
+    // El stock ya fue actualizado por el trigger, no necesitamos hacerlo manualmente
     toast.success('Producción registrada');
     
-    // Force immediate refetch to ensure UI updates even if realtime fails
+    // Refetch para actualizar la UI
     await Promise.all([
       refetch(),
       refetchProducts(),
     ]);
     
-    // Additional delayed refetch as fallback
+    // Fallback delayed refetch
     setTimeout(() => {
       refetch();
       refetchProducts();
@@ -300,25 +287,8 @@ export function useProductionHistory(productId?: string) {
     oldQuantity: number,
     productId: string
   ) => {
-    // Calculate stock adjustment if quantity changed
-    if (updates.quantity !== undefined && updates.quantity !== oldQuantity) {
-      const quantityDiff = updates.quantity - oldQuantity;
-      
-      // Update product stock
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', productId)
-        .single();
-      
-      if (product) {
-        const newStock = product.stock + quantityDiff;
-        await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', productId);
-      }
-    }
+    // El trigger auto_update_stock_on_production_update se encarga
+    // AUTOMÁTICAMENTE de ajustar el stock cuando cambia la cantidad
 
     const { error } = await supabase
       .from('production_history')
