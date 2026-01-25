@@ -146,6 +146,8 @@ export function useProductionWaste() {
 
     const { data: { user } } = await supabase.auth.getUser();
 
+    // Solo insertamos el registro - el trigger auto_deduct_stock_on_waste_insert
+    // se encarga automáticamente de actualizar el stock
     const { error } = await supabase
       .from('production_waste')
       .insert({
@@ -162,31 +164,16 @@ export function useProductionWaste() {
       return false;
     }
 
-    // Deduct from stock
-    const { data: product } = await supabase
-      .from('products')
-      .select('stock')
-      .eq('id', productId)
-      .single();
-
-    if (product) {
-      const newStock = Math.max(0, product.stock - quantity);
-      await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', productId);
-
-      // Create stock movement for waste
-      await supabase
-        .from('stock_movements')
-        .insert({
-          product_id: productId,
-          company_id: companyId,
-          movement_type: 'adjustment',
-          quantity: -quantity,
-          notes: `Merma: ${reason || 'Sin descripción'}`,
-        });
-    }
+    // Registrar movimiento de stock para trazabilidad
+    await supabase
+      .from('stock_movements')
+      .insert({
+        product_id: productId,
+        company_id: companyId,
+        movement_type: 'adjustment',
+        quantity: -quantity,
+        notes: `Merma: ${reason || 'Sin descripción'}`,
+      });
 
     toast.success('Merma registrada');
     refetch();
@@ -204,7 +191,6 @@ export function useProductionWaste() {
 
 export function useAdvancedProduction() {
   const { getRecipesForProduct, recipes } = useProductionRecipes();
-  const { registerWaste } = useProductionWaste();
 
   const produceWithRecipe = useCallback(async (
     outputProductId: string,
@@ -221,7 +207,7 @@ export function useAdvancedProduction() {
 
     const productRecipes = getRecipesForProduct(outputProductId);
     
-    // Check if we have enough input materials
+    // Validar stock de materiales ANTES de insertar
     for (const recipe of productRecipes) {
       const requiredAmount = quantity * recipe.quantity_ratio;
       
@@ -242,41 +228,21 @@ export function useAdvancedProduction() {
       }
     }
 
-    // Deduct input materials
-    for (const recipe of productRecipes) {
-      const requiredAmount = quantity * recipe.quantity_ratio;
-      
-      const { data: inputProduct } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', recipe.input_product_id)
-        .single();
-
-      if (inputProduct) {
-        const newStock = inputProduct.stock - requiredAmount;
-        await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', recipe.input_product_id);
-
-        // Create stock movement for input deduction
-        await supabase
-          .from('stock_movements')
-          .insert({
-            product_id: recipe.input_product_id,
-            company_id: companyId,
-            movement_type: 'adjustment',
-            quantity: -requiredAmount,
-            notes: `Consumido en producción`,
-          });
-      }
-    }
-
     // Get current user id
     const { data: { user } } = await supabase.auth.getUser();
     const producedBy = user?.id || null;
 
-    // Add production record for output product
+    if (!producedBy) {
+      console.error('No se pudo obtener el ID del usuario para producción');
+      toast.error('Error de autenticación');
+      return false;
+    }
+
+    // SOLO insertamos el registro de producción
+    // El trigger auto_update_stock_on_production se encarga de:
+    // 1. Aumentar el stock del producto producido
+    // 2. Deducir los materiales de entrada según las recetas
+    // 3. Registrar los movimientos de stock
     const { data: productionData, error: historyError } = await supabase
       .from('production_history')
       .insert({
@@ -295,7 +261,7 @@ export function useAdvancedProduction() {
       return false;
     }
 
-    // Add stock movement for production
+    // Registrar movimiento de producción para trazabilidad
     await supabase
       .from('stock_movements')
       .insert({
@@ -307,30 +273,22 @@ export function useAdvancedProduction() {
         notes: notes || null,
       });
 
-    // Update output product stock
-    const { data: outputProduct } = await supabase
-      .from('products')
-      .select('stock')
-      .eq('id', outputProductId)
-      .single();
-
-    if (outputProduct) {
-      const newStock = outputProduct.stock + quantity;
-      await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', outputProductId);
-    }
-
-    // Register waste if any
+    // Registrar merma si hay (esto activa su propio trigger)
     if (wasteQuantity > 0 && productRecipes.length > 0) {
-      // Register waste for the first input material (the one being transformed)
-      await registerWaste(productRecipes[0].input_product_id, wasteQuantity, wasteReason);
+      await supabase
+        .from('production_waste')
+        .insert({
+          company_id: companyId,
+          product_id: productRecipes[0].input_product_id,
+          quantity: wasteQuantity,
+          reason: wasteReason || null,
+          registered_by: producedBy,
+        });
     }
 
     toast.success('Producción registrada con éxito');
     return true;
-  }, [getRecipesForProduct, registerWaste]);
+  }, [getRecipesForProduct]);
 
   return {
     produceWithRecipe,
