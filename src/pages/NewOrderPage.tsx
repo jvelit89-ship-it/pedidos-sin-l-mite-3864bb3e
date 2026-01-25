@@ -414,15 +414,7 @@ export default function NewOrderPage() {
       }, items);
 
       if (orderData) {
-        // Deduct stock
-        for (const item of orderItems) {
-          const product = products.find(p => p.id === item.productId);
-          if (product) {
-            await updateProduct(product.id, {
-              stock: Math.max(0, product.stock - item.quantity),
-            });
-          }
-        }
+        // Stock is already deducted in createOrder hook - no need to deduct again
 
         // Create invoice request if boleta/factura was selected
         if (requiresDocument && documentNumber) {
