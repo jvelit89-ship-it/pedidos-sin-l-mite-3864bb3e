@@ -49,6 +49,7 @@ export default function CustomersPage() {
   const { vendedores } = useVendedores();
   const { searchAddress, reverseGeocode } = useGeocoding();
   const [searchTerm, setSearchTerm] = useState('');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -594,9 +595,20 @@ export default function CustomersPage() {
     return vendedor?.name || null;
   };
 
-  const filtered = customers.filter((c: Customer) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = customers.filter((c: Customer) => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (c.phone?.includes(searchTerm) ?? false);
+    const matchesType = customerTypeFilter === 'all' || c.customer_type === customerTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const customerTypeCounts = {
+    all: customers.length,
+    minorista: customers.filter((c: Customer) => c.customer_type === 'minorista').length,
+    mayorista: customers.filter((c: Customer) => c.customer_type === 'mayorista').length,
+    distribuidor: customers.filter((c: Customer) => c.customer_type === 'distribuidor').length,
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -975,7 +987,7 @@ export default function CustomersPage() {
       </div>
 
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -984,6 +996,58 @@ export default function CustomersPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
             />
+          </div>
+          
+          {/* Customer Type Filters */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={customerTypeFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCustomerTypeFilter('all')}
+              className="gap-1.5"
+            >
+              <Users className="w-3.5 h-3.5" />
+              Todos
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {customerTypeCounts.all}
+              </span>
+            </Button>
+            <Button
+              variant={customerTypeFilter === 'minorista' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCustomerTypeFilter('minorista')}
+              className="gap-1.5"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              Minoristas
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {customerTypeCounts.minorista}
+              </span>
+            </Button>
+            <Button
+              variant={customerTypeFilter === 'mayorista' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCustomerTypeFilter('mayorista')}
+              className="gap-1.5"
+            >
+              <Store className="w-3.5 h-3.5" />
+              Mayoristas
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {customerTypeCounts.mayorista}
+              </span>
+            </Button>
+            <Button
+              variant={customerTypeFilter === 'distribuidor' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCustomerTypeFilter('distribuidor')}
+              className="gap-1.5"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              Distribuidores
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {customerTypeCounts.distribuidor}
+              </span>
+            </Button>
           </div>
         </CardContent>
       </Card>
