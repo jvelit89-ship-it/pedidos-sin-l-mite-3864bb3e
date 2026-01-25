@@ -100,33 +100,10 @@ export function useOrders() {
       // Order was created but items failed - still return order
     }
 
-    // Register stock movements for each item sold (negative quantity)
-    for (const item of items) {
-      await supabase
-        .from('stock_movements')
-        .insert({
-          product_id: item.product_id,
-          company_id: order.company_id,
-          movement_type: 'sale',
-          quantity: -item.quantity, // negative for sales
-          reference_id: orderData.id,
-          notes: `Venta - Pedido para ${order.customer_name}`,
-        });
-
-      // Update product stock
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', item.product_id)
-        .single();
-
-      if (product) {
-        await supabase
-          .from('products')
-          .update({ stock: Math.max(0, product.stock - item.quantity) })
-          .eq('id', item.product_id);
-      }
-    }
+    // Stock deduction and stock_movements are now handled automatically
+    // by the database trigger 'deduct_stock_on_order_item_insert'
+    // This ensures stock is ALWAYS deducted regardless of user role/permissions
+    console.log('Order items created - stock deduction handled by database trigger');
 
     
     toast.success('Pedido creado');
