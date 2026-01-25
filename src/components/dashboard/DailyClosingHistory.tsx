@@ -343,15 +343,15 @@ export function DailyClosingHistory() {
                 </div>
               )}
               {monthSummary.totalDistributorOrders > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
-                  <Truck className="w-4 h-4 text-orange-600 shrink-0" />
+                <div className="flex items-center gap-2 p-2 bg-muted/30 rounded border border-muted">
+                  <Truck className="w-4 h-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-orange-700 dark:text-orange-300">
-                      {monthSummary.totalDistributorOrders} entregas a distribuidores ({formatCurrency(monthSummary.totalDistributorAmount)})
+                    <p className="text-xs text-muted-foreground">
+                      {monthSummary.totalDistributorOrders} entregas a distribuidores (consumo de créditos)
                     </p>
                   </div>
-                  <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300 text-[10px]">
-                    Prepagado
+                  <Badge variant="secondary" className="text-[10px]">
+                    No suma
                   </Badge>
                 </div>
               )}
@@ -505,20 +505,20 @@ export function DailyClosingHistory() {
                   </CardContent>
                 </Card>
 
-                {/* Distributor deliveries (not income) */}
+                {/* Distributor deliveries (informational - not income) */}
                 {selectedDay.distributorOrders > 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                    <Truck className="w-5 h-5 text-orange-600 shrink-0" />
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-muted">
+                    <Truck className="w-5 h-5 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                        Entregas a Distribuidores
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Entregas a distribuidores
                       </p>
-                      <p className="text-xs text-orange-600 dark:text-orange-400">
-                        {selectedDay.distributorOrders} entregas • {formatCurrency(selectedDay.distributorAmount)}
+                      <p className="text-xs text-muted-foreground">
+                        {selectedDay.distributorOrders} {selectedDay.distributorOrders === 1 ? 'entrega' : 'entregas'} (consumo de créditos prepagados)
                       </p>
                     </div>
-                    <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300 text-[10px] shrink-0">
-                      Prepagado
+                    <Badge variant="secondary" className="text-[10px] shrink-0">
+                      No suma
                     </Badge>
                   </div>
                 )}
