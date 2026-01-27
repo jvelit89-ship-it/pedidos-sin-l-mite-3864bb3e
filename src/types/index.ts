@@ -208,26 +208,29 @@ export const STATUS_CHANGE_PERMISSIONS: Record<UserRole, OrderStatus[]> = {
   operario: ['preparation', 'ready'],
 };
 
-// All statuses array for admin full control
-const ALL_STATUSES: OrderStatus[] = ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'];
+// All statuses array for admin full control (excluding transitions from delivered)
+const ALL_STATUSES_EXCEPT_DELIVERED: OrderStatus[] = ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'];
+
+// IMPORTANT: Once an order is 'delivered', it CANNOT be cancelled or changed
+// Stock is deducted only upon delivery, so reversing would require manual intervention
 
 // Status-based change permissions (what current status allows changing to)
 export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus, OrderStatus[]>> = {
   superadmin: {
-    pending: ALL_STATUSES,
-    preparation: ALL_STATUSES,
-    ready: ALL_STATUSES,
-    delivery: ALL_STATUSES,
-    delivered: ALL_STATUSES,
-    cancelled: ALL_STATUSES,
+    pending: ALL_STATUSES_EXCEPT_DELIVERED,
+    preparation: ALL_STATUSES_EXCEPT_DELIVERED,
+    ready: ALL_STATUSES_EXCEPT_DELIVERED,
+    delivery: ALL_STATUSES_EXCEPT_DELIVERED,
+    delivered: [], // Cannot change from delivered - stock already deducted
+    cancelled: [], // Cannot uncancel orders
   },
   admin: {
-    pending: ALL_STATUSES,
-    preparation: ALL_STATUSES,
-    ready: ALL_STATUSES,
-    delivery: ALL_STATUSES,
-    delivered: ALL_STATUSES,
-    cancelled: ALL_STATUSES,
+    pending: ALL_STATUSES_EXCEPT_DELIVERED,
+    preparation: ALL_STATUSES_EXCEPT_DELIVERED,
+    ready: ALL_STATUSES_EXCEPT_DELIVERED,
+    delivery: ALL_STATUSES_EXCEPT_DELIVERED,
+    delivered: [], // Cannot change from delivered - stock already deducted
+    cancelled: [], // Cannot uncancel orders
   },
   vendedor: {
     pending: ['pending', 'preparation', 'ready'],
@@ -242,7 +245,7 @@ export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus,
     preparation: [],
     ready: ['delivery', 'delivered', 'cancelled'],
     delivery: ['delivery', 'delivered', 'cancelled'],
-    delivered: [],
+    delivered: [], // Cannot change from delivered
     cancelled: [],
   },
   operario: {

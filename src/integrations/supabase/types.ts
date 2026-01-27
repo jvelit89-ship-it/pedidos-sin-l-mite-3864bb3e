@@ -1083,6 +1083,7 @@ export type Database = {
           notes: string | null
           operario_commission_amount: number
           price: number
+          reserved_stock: number
           sku: string
           stock: number
           updated_at: string
@@ -1098,6 +1099,7 @@ export type Database = {
           notes?: string | null
           operario_commission_amount?: number
           price?: number
+          reserved_stock?: number
           sku: string
           stock?: number
           updated_at?: string
@@ -1113,6 +1115,7 @@ export type Database = {
           notes?: string | null
           operario_commission_amount?: number
           price?: number
+          reserved_stock?: number
           sku?: string
           stock?: number
           updated_at?: string
