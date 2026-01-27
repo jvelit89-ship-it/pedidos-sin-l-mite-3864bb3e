@@ -1421,6 +1421,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      recalculate_company_stock: {
+        Args: { _company_id: string }
+        Returns: number
+      }
+      recalculate_my_company_stock: { Args: never; Returns: number }
     }
     Enums: {
       customer_category: "regular" | "premium" | "vip"
