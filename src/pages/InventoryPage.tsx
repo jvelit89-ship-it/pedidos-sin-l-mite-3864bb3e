@@ -35,7 +35,8 @@ import {
   FileSpreadsheet,
   FileText,
   Percent,
-  Trash2
+  Trash2,
+  Truck
 } from 'lucide-react';
 import { VolumePricingManager } from '@/components/VolumePricingManager';
 import { CustomerPricingManager } from '@/components/CustomerPricingManager';
@@ -50,6 +51,7 @@ interface Product {
   sku: string;
   category: string | null;
   stock: number;
+  reserved_stock: number; // Stock en tránsito (cargado en vehículos pero no entregado)
   min_stock: number;
   price: number;
   notes: string | null;
@@ -237,11 +239,15 @@ export default function InventoryPage() {
     (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Calculate available stock (stock - reserved)
+  const getAvailableStock = (product: Product) => Math.max(0, product.stock - (product.reserved_stock || 0));
+  
   const stats = {
     total: products.length,
     normal: products.filter((p: Product) => p.stock > p.min_stock).length,
     low: products.filter((p: Product) => p.stock > 0 && p.stock <= p.min_stock).length,
     out: products.filter((p: Product) => p.stock === 0).length,
+    inTransit: products.reduce((sum: number, p: Product) => sum + (p.reserved_stock || 0), 0),
   };
 
   const getMovementIcon = (type: string) => {
@@ -667,7 +673,7 @@ export default function InventoryPage() {
 
         <TabsContent value="inventory" className="space-y-4">
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-bold">{stats.total}</p>
@@ -690,6 +696,12 @@ export default function InventoryPage() {
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-bold stock-out">{stats.out}</p>
                 <p className="text-xs text-muted-foreground">{settings.language === 'es' ? 'Agotado' : 'Out'}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
+              <CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.inTransit}</p>
+                <p className="text-xs text-orange-600/80 dark:text-orange-400/80">{settings.language === 'es' ? 'En Tránsito' : 'In Transit'}</p>
               </CardContent>
             </Card>
           </div>
@@ -762,13 +774,22 @@ export default function InventoryPage() {
                         </div>
                         
                         <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center gap-2">
-                            {stockInfo.status === 'out' && <AlertTriangle className="w-4 h-4 stock-out" />}
-                            {stockInfo.status === 'low' && <AlertTriangle className="w-4 h-4 stock-low" />}
-                            {stockInfo.status === 'normal' && <CheckCircle2 className="w-4 h-4 stock-normal" />}
-                            <span className={`text-sm font-medium ${stockInfo.className}`}>
-                              {product.stock} {settings.language === 'es' ? 'unidades' : 'units'}
-                            </span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              {stockInfo.status === 'out' && <AlertTriangle className="w-4 h-4 stock-out" />}
+                              {stockInfo.status === 'low' && <AlertTriangle className="w-4 h-4 stock-low" />}
+                              {stockInfo.status === 'normal' && <CheckCircle2 className="w-4 h-4 stock-normal" />}
+                              <span className={`text-sm font-medium ${stockInfo.className}`}>
+                                {product.stock} {settings.language === 'es' ? 'unidades' : 'units'}
+                              </span>
+                            </div>
+                            {/* Show in-transit stock if any */}
+                            {(product.reserved_stock || 0) > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                                <Truck className="w-3 h-3" />
+                                <span>{product.reserved_stock} en tránsito</span>
+                              </div>
+                            )}
                           </div>
                           <p className="font-bold">{formatCurrency(product.price)}</p>
                         </div>
