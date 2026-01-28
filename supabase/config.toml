@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.get-customer-orders]
 verify_jwt = false
+
+[functions.send-restore-otp]
+verify_jwt = false
+
+[functions.execute-restore]
+verify_jwt = false

@@ -1215,6 +1215,39 @@ export type Database = {
           },
         ]
       }
+      restore_otp_codes: {
+        Row: {
+          backup_data: Json
+          created_at: string
+          expires_at: string
+          id: string
+          otp_code: string
+          selected_tables: string[]
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          backup_data: Json
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          selected_tables: string[]
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          backup_data?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          selected_tables?: string[]
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           company_id: string
