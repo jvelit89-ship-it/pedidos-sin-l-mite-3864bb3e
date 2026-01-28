@@ -13,8 +13,9 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useUpdateOwnPassword } from '@/hooks/useTeam';
 import { generateSecurePassword } from '@/lib/passwordGenerator';
 import { Language, Currency, Timezone, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
-import { User, LogOut, RefreshCw, Wifi, WifiOff, Globe, DollarSign, Key, Eye, EyeOff, Copy, Clock } from 'lucide-react';
+import { User, LogOut, RefreshCw, Wifi, WifiOff, Globe, Key, Eye, EyeOff, Copy, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { BackupRecoveryPanel } from '@/components/settings/BackupRecoveryPanel';
 
 export default function SettingsPage() {
   const { user, logout, isAdmin } = useAuth();
@@ -184,6 +185,8 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {isAdmin && <BackupRecoveryPanel />}
 
       <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}><LogOut className="w-4 h-4" /> {t.logout}</Button>
     </div>
