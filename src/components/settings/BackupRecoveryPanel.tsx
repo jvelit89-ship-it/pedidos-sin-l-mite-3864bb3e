@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Database, 
   Download, 
@@ -17,7 +20,9 @@ import {
   RotateCcw,
   FileJson,
   Table2,
-  Loader2
+  Loader2,
+  FileUp,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +38,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface BackupInfo {
   tableName: string;
@@ -40,20 +53,45 @@ interface BackupInfo {
   lastUpdated: string | null;
 }
 
+interface ParsedBackup {
+  data: Record<string, unknown[]>;
+  tables: { name: string; count: number }[];
+}
+
+const SUPPORTED_TABLES = [
+  { key: 'orders', label: 'Pedidos' },
+  { key: 'customers', label: 'Clientes' },
+  { key: 'products', label: 'Productos' },
+  { key: 'production_history', label: 'Historial Producción' },
+  { key: 'stock_movements', label: 'Movimientos Stock' },
+  { key: 'order_items', label: 'Items de Pedidos' },
+];
+
 export function BackupRecoveryPanel() {
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Export state
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [backupInfo, setBackupInfo] = useState<BackupInfo[]>([]);
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState<Date | null>(null);
 
+  // Restore state
+  const [parsedBackup, setParsedBackup] = useState<ParsedBackup | null>(null);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+  const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState('');
+
   const fetchBackupInfo = async () => {
     setIsLoadingInfo(true);
     try {
       const info: BackupInfo[] = [];
-
-      // Fetch counts for each table
       const [ordersRes, customersRes, productsRes, productionRes, stockRes] = await Promise.all([
         supabase.from('orders').select('*', { count: 'exact', head: true }),
         supabase.from('customers').select('*', { count: 'exact', head: true }),
@@ -122,7 +160,6 @@ export function BackupRecoveryPanel() {
         const blob = new Blob([JSON.stringify(exportDataObj, null, 2)], { type: 'application/json' });
         downloadBlob(blob, `backup_${timestamp}.json`);
       } else {
-        // Export each table as separate CSV
         for (const [tableName, records] of Object.entries(exportDataObj)) {
           if (records.length > 0) {
             const csv = convertToCSV(records as Record<string, unknown>[]);
@@ -132,6 +169,7 @@ export function BackupRecoveryPanel() {
         }
       }
 
+      setExportProgress(100);
       toast.success(`Respaldo exportado exitosamente en formato ${format.toUpperCase()}`);
       setLastBackupDate(new Date());
     } catch (error) {
@@ -145,7 +183,6 @@ export function BackupRecoveryPanel() {
 
   const convertToCSV = (data: Record<string, unknown>[]): string => {
     if (data.length === 0) return '';
-    
     const headers = Object.keys(data[0]);
     const rows = data.map(row => 
       headers.map(header => {
@@ -155,7 +192,6 @@ export function BackupRecoveryPanel() {
         return String(value);
       }).join(',')
     );
-    
     return [headers.join(','), ...rows].join('\n');
   };
 
@@ -173,14 +209,139 @@ export function BackupRecoveryPanel() {
   const recalculateStock = async () => {
     try {
       const { data, error } = await supabase.rpc('recalculate_my_company_stock');
-      
       if (error) throw error;
-      
       toast.success(`Stock recalculado: ${data} productos actualizados`);
     } catch (error) {
       console.error('Recalculate error:', error);
       toast.error('Error al recalcular stock');
     }
+  };
+
+  // Restore functions
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast.error('Solo se aceptan archivos JSON');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      const tables: { name: string; count: number }[] = [];
+      for (const tableInfo of SUPPORTED_TABLES) {
+        if (data[tableInfo.key] && Array.isArray(data[tableInfo.key])) {
+          tables.push({
+            name: tableInfo.key,
+            count: data[tableInfo.key].length,
+          });
+        }
+      }
+
+      if (tables.length === 0) {
+        toast.error('El archivo no contiene tablas válidas para restaurar');
+        return;
+      }
+
+      setParsedBackup({ data, tables });
+      setSelectedTables(tables.map(t => t.name));
+      setIsRestoreDialogOpen(true);
+    } catch (error) {
+      console.error('Error parsing backup file:', error);
+      toast.error('Error al leer el archivo de respaldo');
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleTableToggle = (tableName: string) => {
+    setSelectedTables(prev => 
+      prev.includes(tableName) 
+        ? prev.filter(t => t !== tableName)
+        : [...prev, tableName]
+    );
+  };
+
+  const handleRequestOtp = async () => {
+    if (selectedTables.length === 0) {
+      toast.error('Selecciona al menos una tabla para restaurar');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-restore-otp', {
+        body: {
+          backupData: parsedBackup?.data,
+          selectedTables,
+        },
+      });
+
+      if (error) throw error;
+
+      setMaskedEmail(data.email || '');
+      setIsRestoreDialogOpen(false);
+      setIsOtpDialogOpen(true);
+      toast.success('Código de verificación enviado a tu email');
+    } catch (error) {
+      console.error('Error sending OTP:', error);
+      toast.error('Error al enviar código de verificación');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyAndRestore = async () => {
+    if (otpCode.length !== 6) {
+      toast.error('Ingresa el código de 6 dígitos');
+      return;
+    }
+
+    setIsRestoring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('execute-restore', {
+        body: { otpCode },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Restauración completada exitosamente');
+        
+        // Show results
+        const results = data.results;
+        for (const [table, result] of Object.entries(results)) {
+          const r = result as { inserted: number; error?: string };
+          if (r.error) {
+            toast.error(`${table}: ${r.error}`);
+          } else {
+            toast.info(`${table}: ${r.inserted} registros restaurados`);
+          }
+        }
+
+        setIsOtpDialogOpen(false);
+        setParsedBackup(null);
+        setSelectedTables([]);
+        setOtpCode('');
+        fetchBackupInfo();
+      } else {
+        toast.error(data.error || 'Error en la restauración');
+      }
+    } catch (error) {
+      console.error('Restore error:', error);
+      toast.error('Error al restaurar datos');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const getTableLabel = (key: string) => {
+    return SUPPORTED_TABLES.find(t => t.key === key)?.label || key;
   };
 
   return (
@@ -373,20 +534,29 @@ export function BackupRecoveryPanel() {
               </AlertDialogContent>
             </AlertDialog>
 
-            <div className="p-4 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-sm text-amber-800 dark:text-amber-200">
-                    Restauración desde Respaldo
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                    Para restaurar datos desde un respaldo anterior, contacta al soporte técnico. 
-                    Los respaldos automáticos se mantienen por 7 días.
-                  </p>
-                </div>
+            {/* Restore from Backup */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <Button 
+              variant="outline" 
+              className="justify-start gap-3 h-auto py-3"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="p-2 rounded-md bg-amber-100 dark:bg-amber-900/30">
+                <Upload className="w-4 h-4 text-amber-600" />
               </div>
-            </div>
+              <div className="text-left">
+                <p className="font-medium text-sm">Restaurar desde Backup</p>
+                <p className="text-xs text-muted-foreground">
+                  Selecciona un archivo JSON de respaldo para restaurar
+                </p>
+              </div>
+            </Button>
           </div>
         </div>
 
@@ -398,6 +568,142 @@ export function BackupRecoveryPanel() {
           </p>
         </div>
       </CardContent>
+
+      {/* Restore Selection Dialog */}
+      <Dialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="w-5 h-5 text-amber-500" />
+              Seleccionar Tablas a Restaurar
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona qué datos deseas restaurar desde el backup. Los datos existentes serán reemplazados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-sm font-medium">Acción Irreversible</span>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Esta acción reemplazará los datos existentes. Asegúrate de tener un respaldo actual.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Tablas disponibles en el backup:</Label>
+              {parsedBackup?.tables.map((table) => (
+                <div 
+                  key={table.name}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-background/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id={table.name}
+                      checked={selectedTables.includes(table.name)}
+                      onCheckedChange={() => handleTableToggle(table.name)}
+                    />
+                    <Label htmlFor={table.name} className="cursor-pointer">
+                      {getTableLabel(table.name)}
+                    </Label>
+                  </div>
+                  <Badge variant="secondary">{table.count} registros</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRestoreDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleRequestOtp}
+              disabled={selectedTables.length === 0 || isSendingOtp}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isSendingOtp ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Shield className="w-4 h-4 mr-2" />
+                  Solicitar Verificación
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* OTP Verification Dialog */}
+      <Dialog open={isOtpDialogOpen} onOpenChange={setIsOtpDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-amber-500" />
+              Verificación de Seguridad
+            </DialogTitle>
+            <DialogDescription>
+              Ingresa el código de 6 dígitos enviado a {maskedEmail}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Código de verificación</Label>
+              <Input
+                type="text"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="text-center text-2xl tracking-widest font-mono"
+              />
+            </div>
+
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              <p className="text-xs text-red-700 dark:text-red-300">
+                ⚠️ Al confirmar, los datos de las tablas seleccionadas serán reemplazados con los del backup.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsOtpDialogOpen(false);
+                setOtpCode('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleVerifyAndRestore}
+              disabled={otpCode.length !== 6 || isRestoring}
+              variant="destructive"
+            >
+              {isRestoring ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Restaurando...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Confirmar Restauración
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
