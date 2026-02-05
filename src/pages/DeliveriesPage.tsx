@@ -12,6 +12,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { RepartidorLoadSummary } from '@/components/dashboard/RepartidorLoadSummary';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Truck, 
   MapPin,
@@ -26,7 +27,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const URGENT_THRESHOLD_MINUTES = 90; // Alert when order is pending for 90+ minutes
-const REMINDER_INTERVAL_MINUTES = 5; // Reminder bell every 5 minutes for unmarked deliveries
+const REMINDER_INTERVAL_MINUTES = 2; // Reminder bell every 2 minutes for unmarked deliveries
+const ADMIN_ALERT_THRESHOLD_MINUTES = 30; // Alert admin after 30 minutes without marking delivery
 
 export default function DeliveriesPage() {
   const { user } = useAuth();
@@ -34,9 +36,11 @@ export default function DeliveriesPage() {
   const { orders, loading, updateOrderStatus } = useOrders();
   const { getRepartidorLoad, newOrdersCount } = useDashboardStats();
   const [urgentAlerts, setUrgentAlerts] = useState<string[]>([]);
+  const [adminAlertsSent, setAdminAlertsSent] = useState<Set<string>>(new Set());
   const previousOrdersRef = useRef<string[]>([]);
   const initialLoadRef = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const reminderCountRef = useRef<Map<string, number>>(new Map());
 
   const isRepartidor = user?.role === 'repartidor';
   const repartidorId = user?.repartidorId;
@@ -146,12 +150,22 @@ export default function DeliveriesPage() {
       const actuales = deliveries.filter(d => d.status === 'delivery');
       
       if (actuales.length > 0) {
+        // Increment reminder count for each order
+        actuales.forEach(d => {
+          const count = reminderCountRef.current.get(d.id) || 0;
+          reminderCountRef.current.set(d.id, count + 1);
+        });
+
         playBellSound();
+        playBellSound(); // Double bell for urgency
+        
+        const reminderNum = Math.max(...actuales.map(d => reminderCountRef.current.get(d.id) || 1));
+        
         toast.warning(
-          `⏰ Tienes ${actuales.length} entrega(s) en camino`,
+          `🔔 RECORDATORIO #${reminderNum}: ${actuales.length} entrega(s) sin marcar`,
           {
-            description: '¿Ya las entregaste? Recuerda marcarlas',
-            duration: 6000,
+            description: '¡Marca como ENTREGADO cuando termines!',
+            duration: 8000,
           }
         );
       }
@@ -159,6 +173,77 @@ export default function DeliveriesPage() {
 
     return () => clearInterval(intervalId);
   }, [deliveries, isRepartidor]);
+
+  // Send alerts to admin for long-pending deliveries
+  useEffect(() => {
+    if (isRepartidor) return; // Only run for admins
+
+    const checkAndAlertAdmin = async () => {
+      const now = Date.now();
+      const longPendingDeliveries = deliveries.filter(d => {
+        if (d.status !== 'delivery') return false;
+        const updatedAt = new Date(d.updated_at).getTime();
+        const minutesInDelivery = (now - updatedAt) / (1000 * 60);
+        return minutesInDelivery >= ADMIN_ALERT_THRESHOLD_MINUTES;
+      });
+
+      for (const delivery of longPendingDeliveries) {
+        // Skip if we already sent an alert for this order
+        if (adminAlertsSent.has(delivery.id)) continue;
+
+        const updatedAt = new Date(delivery.updated_at).getTime();
+        const minutesInDelivery = Math.round((now - updatedAt) / (1000 * 60));
+
+        // Mark as alerted to avoid duplicates
+        setAdminAlertsSent(prev => new Set([...prev, delivery.id]));
+
+        // Show toast alert to admin
+        toast.error(
+          `⚠️ Entrega sin marcar: ${delivery.repartidor_name || 'Sin repartidor'}`,
+          {
+            description: `${delivery.customer_name} - ${minutesInDelivery} min sin actualizar`,
+            duration: 10000,
+            action: {
+              label: 'Ver pedido',
+              onClick: () => window.location.href = `/orders/${delivery.id}`,
+            },
+          }
+        );
+
+        // Log the alert
+        try {
+          await supabase.from('logs').insert({
+            action: 'delivery_unmarked_alert',
+            entity: 'orders',
+            entity_id: delivery.id,
+            company_id: delivery.company_id,
+            details: {
+              repartidor_id: delivery.repartidor_id,
+              repartidor_name: delivery.repartidor_name,
+              customer_name: delivery.customer_name,
+              minutes_without_update: minutesInDelivery,
+            },
+          });
+        } catch (e) {
+          console.error('Error logging admin alert:', e);
+        }
+      }
+    };
+
+    // Check immediately and then every minute
+    checkAndAlertAdmin();
+    const intervalId = setInterval(checkAndAlertAdmin, 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [deliveries, isRepartidor, adminAlertsSent]);
+
+  // Clear reminder counts when orders are marked as delivered
+  useEffect(() => {
+    const deliveredIds = deliveries.filter(d => d.status === 'delivered').map(d => d.id);
+    deliveredIds.forEach(id => {
+      reminderCountRef.current.delete(id);
+    });
+  }, [deliveries]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -356,14 +441,26 @@ export default function DeliveriesPage() {
                               )}
                               
                               {delivery.status === 'delivery' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(delivery.id, 'delivered')}
-                                  className="gap-2 bg-[hsl(var(--status-delivered))] hover:bg-[hsl(var(--status-delivered))]/90"
+                                <motion.div
+                                  animate={{ 
+                                    scale: [1, 1.05, 1],
+                                    boxShadow: [
+                                      '0 0 0 0 hsl(var(--status-delivered) / 0)',
+                                      '0 0 0 8px hsl(var(--status-delivered) / 0.3)',
+                                      '0 0 0 0 hsl(var(--status-delivered) / 0)',
+                                    ],
+                                  }}
+                                  transition={{ duration: 1.5, repeat: Infinity }}
                                 >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  Marcar Entregado
-                                </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleStatusUpdate(delivery.id, 'delivered')}
+                                    className="gap-2 bg-[hsl(var(--status-delivered))] hover:bg-[hsl(var(--status-delivered))]/90 font-bold"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    ¡MARCAR ENTREGADO!
+                                  </Button>
+                                </motion.div>
                               )}
                             </div>
                           </CardContent>
