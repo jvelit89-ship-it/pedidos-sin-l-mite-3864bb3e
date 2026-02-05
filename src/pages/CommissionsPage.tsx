@@ -11,10 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench } from 'lucide-react';
+ import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+ import { supabase } from '@/integrations/supabase/client';
+ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 interface CommissionSummary {
   id: string;
@@ -48,6 +51,15 @@ export default function CommissionsPage() {
   const [selectedPerson, setSelectedPerson] = useState<CommissionSummary | null>(null);
   const [viewMode, setViewMode] = useState<'monthly' | 'daily'>('monthly');
   const [adminTab, setAdminTab] = useState<'vendedores' | 'operarios'>('vendedores');
+ 
+   // Delete commission states
+   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+   const [deleteTarget, setDeleteTarget] = useState<CommissionSummary | null>(null);
+   const [deleteType, setDeleteType] = useState<'vendedor' | 'operario'>('vendedor');
+   const [otpValue, setOtpValue] = useState('');
+   const [sendingOtp, setSendingOtp] = useState(false);
+   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   const { calculateCommissions: calcVendedorCommissions, loading: calcVendedorLoading } = useVendorCommissions(selectedYear, selectedMonth);
   const { calculateCommissions: calcOperarioCommissions, loading: calcOperarioLoading } = useOperarioCommissions(selectedYear, selectedMonth);
@@ -131,6 +143,73 @@ export default function CommissionsPage() {
   };
 
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
+ 
+   const handleDeleteCommissions = (person: CommissionSummary, type: 'vendedor' | 'operario') => {
+     setDeleteTarget(person);
+     setDeleteType(type);
+     setDeleteDialogOpen(true);
+   };
+ 
+   const handleSendOtp = async () => {
+     if (!deleteTarget) return;
+     
+     setSendingOtp(true);
+     try {
+       // Get record IDs based on type
+       const recordIds = deleteTarget.details.map(d => 
+         deleteType === 'vendedor' ? d.order_id : d.production_id
+       );
+ 
+       const { data, error } = await supabase.functions.invoke('send-commission-delete-otp', {
+         body: {
+           commissionType: deleteType,
+           targetId: deleteTarget.id,
+           targetName: deleteTarget.name,
+           recordIds,
+           year: selectedYear,
+           month: selectedMonth,
+         },
+       });
+ 
+       if (error) throw error;
+ 
+       toast.success('Código OTP enviado a tu correo');
+       setDeleteDialogOpen(false);
+       setOtpDialogOpen(true);
+     } catch (error: any) {
+       console.error('Error sending OTP:', error);
+       toast.error(error.message || 'Error al enviar código OTP');
+     } finally {
+       setSendingOtp(false);
+     }
+   };
+ 
+   const handleVerifyOtp = async () => {
+     if (otpValue.length !== 6) {
+       toast.error('Ingresa el código completo de 6 dígitos');
+       return;
+     }
+ 
+     setVerifyingOtp(true);
+     try {
+       const { data, error } = await supabase.functions.invoke('verify-commission-delete-otp', {
+         body: { otpCode: otpValue },
+       });
+ 
+       if (error) throw error;
+ 
+       toast.success(data.message || 'Comisiones eliminadas correctamente');
+       setOtpDialogOpen(false);
+       setOtpValue('');
+       setDeleteTarget(null);
+       loadCommissions();
+     } catch (error: any) {
+       console.error('Error verifying OTP:', error);
+       toast.error(error.message || 'Código OTP inválido');
+     } finally {
+       setVerifyingOtp(false);
+     }
+   };
 
   const totalVendedorCommissions = vendedorCommissions.reduce((sum, c) => sum + c.total_commission, 0);
   const totalVendedorUnits = vendedorCommissions.reduce((sum, c) => sum + c.total_units, 0);
@@ -482,13 +561,25 @@ export default function CommissionsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedPerson(c)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                           <div className="flex justify-end gap-1">
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               onClick={() => setSelectedPerson(c)}
+                             >
+                               <Eye className="h-4 w-4" />
+                             </Button>
+                             {c.details.length > 0 && (
+                               <Button
+                                 size="sm"
+                                 variant="outline"
+                                 className="text-destructive hover:text-destructive"
+                                 onClick={() => handleDeleteCommissions(c, adminTab === 'vendedores' ? 'vendedor' : 'operario')}
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             )}
+                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -666,6 +757,111 @@ export default function CommissionsPage() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
+       {/* Delete confirmation dialog */}
+       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle className="text-destructive flex items-center gap-2">
+               <Trash2 className="h-5 w-5" />
+               Eliminar Comisiones
+             </AlertDialogTitle>
+             <AlertDialogDescription className="space-y-2">
+               <p>
+                 Estás a punto de eliminar <strong>{deleteTarget?.details.length || 0} registros</strong> de comisiones 
+                 de <strong>{deleteTarget?.name}</strong> para {monthNames[selectedMonth - 1]} {selectedYear}.
+               </p>
+               <p className="text-destructive font-medium">
+                 {deleteType === 'vendedor' 
+                   ? 'Esto eliminará los pedidos asociados y restaurará el stock.'
+                   : 'Esto eliminará los registros de producción y reducirá el stock.'}
+               </p>
+               <p>Esta acción no se puede deshacer. Se enviará un código OTP a tu correo para confirmar.</p>
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel disabled={sendingOtp}>Cancelar</AlertDialogCancel>
+             <AlertDialogAction
+               onClick={(e) => {
+                 e.preventDefault();
+                 handleSendOtp();
+               }}
+               disabled={sendingOtp}
+               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+             >
+               {sendingOtp ? (
+                 <>
+                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                   Enviando...
+                 </>
+               ) : (
+                 'Enviar código OTP'
+               )}
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+ 
+       {/* OTP verification dialog */}
+       <Dialog open={otpDialogOpen} onOpenChange={(open) => {
+         if (!open) {
+           setOtpDialogOpen(false);
+           setOtpValue('');
+         }
+       }}>
+         <DialogContent className="sm:max-w-md">
+           <DialogHeader>
+             <DialogTitle className="text-destructive">Verificar eliminación</DialogTitle>
+           </DialogHeader>
+           <div className="space-y-4">
+             <p className="text-sm text-muted-foreground">
+               Ingresa el código de 6 dígitos enviado a tu correo para confirmar la eliminación 
+               de las comisiones de <strong>{deleteTarget?.name}</strong>.
+             </p>
+             <div className="flex justify-center">
+               <InputOTP
+                 maxLength={6}
+                 value={otpValue}
+                 onChange={setOtpValue}
+               >
+                 <InputOTPGroup>
+                   <InputOTPSlot index={0} />
+                   <InputOTPSlot index={1} />
+                   <InputOTPSlot index={2} />
+                   <InputOTPSlot index={3} />
+                   <InputOTPSlot index={4} />
+                   <InputOTPSlot index={5} />
+                 </InputOTPGroup>
+               </InputOTP>
+             </div>
+             <div className="flex justify-end gap-2">
+               <Button
+                 variant="outline"
+                 onClick={() => {
+                   setOtpDialogOpen(false);
+                   setOtpValue('');
+                 }}
+                 disabled={verifyingOtp}
+               >
+                 Cancelar
+               </Button>
+               <Button
+                 variant="destructive"
+                 onClick={handleVerifyOtp}
+                 disabled={verifyingOtp || otpValue.length !== 6}
+               >
+                 {verifyingOtp ? (
+                   <>
+                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                     Verificando...
+                   </>
+                 ) : (
+                   'Confirmar eliminación'
+                 )}
+               </Button>
+             </div>
+           </div>
+         </DialogContent>
+       </Dialog>
+     </div>
+   );
+ }

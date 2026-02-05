@@ -85,6 +85,54 @@ export type Database = {
           },
         ]
       }
+      commission_delete_otp_codes: {
+        Row: {
+          commission_type: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          month: number
+          otp_code: string
+          period: number | null
+          record_ids: string[]
+          target_id: string
+          target_name: string
+          used: boolean | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          commission_type: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          month: number
+          otp_code: string
+          period?: number | null
+          record_ids: string[]
+          target_id: string
+          target_name: string
+          used?: boolean | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          commission_type?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          month?: number
+          otp_code?: string
+          period?: number | null
+          record_ids?: string[]
+          target_id?: string
+          target_name?: string
+          used?: boolean | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       commission_payments: {
         Row: {
           company_id: string
