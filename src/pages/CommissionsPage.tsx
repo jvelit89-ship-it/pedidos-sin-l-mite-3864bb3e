@@ -55,7 +55,14 @@ export default function CommissionsPage() {
    // Delete commission states
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
    const [otpDialogOpen, setOtpDialogOpen] = useState(false);
-   const [deleteTarget, setDeleteTarget] = useState<CommissionSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    personId: string;
+    personName: string;
+    recordId: string;
+    productName: string;
+    quantity: number;
+    commission: number;
+  } | null>(null);
    const [deleteType, setDeleteType] = useState<'vendedor' | 'operario'>('vendedor');
    const [otpValue, setOtpValue] = useState('');
    const [sendingOtp, setSendingOtp] = useState(false);
@@ -144,8 +151,23 @@ export default function CommissionsPage() {
 
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
  
-   const handleDeleteCommissions = (person: CommissionSummary, type: 'vendedor' | 'operario') => {
-     setDeleteTarget(person);
+   const handleDeleteSingleCommission = (
+     personId: string,
+     personName: string,
+     recordId: string,
+     productName: string,
+     quantity: number,
+     commission: number,
+     type: 'vendedor' | 'operario'
+   ) => {
+     setDeleteTarget({
+       personId,
+       personName,
+       recordId,
+       productName,
+       quantity,
+       commission,
+     });
      setDeleteType(type);
      setDeleteDialogOpen(true);
    };
@@ -155,19 +177,19 @@ export default function CommissionsPage() {
      
      setSendingOtp(true);
      try {
-       // Get record IDs based on type
-       const recordIds = deleteTarget.details.map(d => 
-         deleteType === 'vendedor' ? d.order_id : d.production_id
-       );
+       // Single record ID
+       const recordIds = [deleteTarget.recordId];
  
        const { data, error } = await supabase.functions.invoke('send-commission-delete-otp', {
          body: {
            commissionType: deleteType,
-           targetId: deleteTarget.id,
-           targetName: deleteTarget.name,
+           targetId: deleteTarget.personId,
+           targetName: deleteTarget.personName,
            recordIds,
            year: selectedYear,
            month: selectedMonth,
+           productName: deleteTarget.productName,
+           quantity: deleteTarget.quantity,
          },
        });
  
@@ -561,25 +583,13 @@ export default function CommissionsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                           <div className="flex justify-end gap-1">
-                             <Button
-                               size="sm"
-                               variant="outline"
-                               onClick={() => setSelectedPerson(c)}
-                             >
-                               <Eye className="h-4 w-4" />
-                             </Button>
-                             {c.details.length > 0 && (
-                               <Button
-                                 size="sm"
-                                 variant="outline"
-                                 className="text-destructive hover:text-destructive"
-                                 onClick={() => handleDeleteCommissions(c, adminTab === 'vendedores' ? 'vendedor' : 'operario')}
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>
-                             )}
-                           </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedPerson(c)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -726,6 +736,7 @@ export default function CommissionsPage() {
                   <TableHead className="text-right">Cant.</TableHead>
                   <TableHead className="text-right">Com/U</TableHead>
                   <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -743,11 +754,29 @@ export default function CommissionsPage() {
                     <TableCell className={`text-right font-medium ${adminTab === 'vendedores' ? 'text-green-600' : 'text-blue-600'}`}>
                       {formatCurrency(d.total_commission)}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteSingleCommission(
+                          selectedPerson.id,
+                          selectedPerson.name,
+                          d.order_id || d.production_id,
+                          d.product_name,
+                          d.quantity,
+                          d.total_commission,
+                          adminTab === 'vendedores' ? 'vendedor' : 'operario'
+                        )}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(!selectedPerson?.details || selectedPerson.details.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No hay detalles disponibles
                     </TableCell>
                   </TableRow>
@@ -763,17 +792,21 @@ export default function CommissionsPage() {
            <AlertDialogHeader>
              <AlertDialogTitle className="text-destructive flex items-center gap-2">
                <Trash2 className="h-5 w-5" />
-               Eliminar Comisiones
+               Eliminar Comisión
              </AlertDialogTitle>
              <AlertDialogDescription className="space-y-2">
                <p>
-                 Estás a punto de eliminar <strong>{deleteTarget?.details.length || 0} registros</strong> de comisiones 
-                 de <strong>{deleteTarget?.name}</strong> para {monthNames[selectedMonth - 1]} {selectedYear}.
+                 Estás a punto de eliminar el registro de comisión de <strong>{deleteTarget?.personName}</strong>:
                </p>
+               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
+                 <p><strong>Producto:</strong> {deleteTarget?.productName}</p>
+                 <p><strong>Cantidad:</strong> {deleteTarget?.quantity} unidades</p>
+                 <p><strong>Comisión:</strong> {formatCurrency(deleteTarget?.commission || 0)}</p>
+               </div>
                <p className="text-destructive font-medium">
                  {deleteType === 'vendedor' 
-                   ? 'Esto eliminará los pedidos asociados y restaurará el stock.'
-                   : 'Esto eliminará los registros de producción y reducirá el stock.'}
+                   ? 'Esto eliminará el pedido asociado y restaurará el stock.'
+                   : 'Esto eliminará el registro de producción y reducirá el stock.'}
                </p>
                <p>Esta acción no se puede deshacer. Se enviará un código OTP a tu correo para confirmar.</p>
              </AlertDialogDescription>
@@ -814,8 +847,8 @@ export default function CommissionsPage() {
            </DialogHeader>
            <div className="space-y-4">
              <p className="text-sm text-muted-foreground">
-               Ingresa el código de 6 dígitos enviado a tu correo para confirmar la eliminación 
-               de las comisiones de <strong>{deleteTarget?.name}</strong>.
+               Ingresa el código de 6 dígitos enviado a tu correo para confirmar la eliminación
+               del registro de <strong>{deleteTarget?.personName}</strong> - {deleteTarget?.productName}.
              </p>
              <div className="flex justify-center">
                <InputOTP
