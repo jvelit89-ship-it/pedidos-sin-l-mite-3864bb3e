@@ -33,5 +33,14 @@ verify_jwt = false
 [functions.send-restore-otp]
 verify_jwt = false
 
-[functions.execute-restore]
-verify_jwt = false
+ [functions.execute-restore]
+ verify_jwt = false
+ 
+ [functions.send-commission-delete-otp]
+ verify_jwt = false
+ 
+ [functions.verify-commission-delete-otp]
+ verify_jwt = false
+ 
+ [functions.get-distributor-data]
+ verify_jwt = false
