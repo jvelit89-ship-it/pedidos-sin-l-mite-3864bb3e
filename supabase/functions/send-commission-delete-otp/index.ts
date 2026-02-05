@@ -59,8 +59,9 @@
        );
      }
  
-     const { commissionType, targetId, targetName, recordIds, year, month, period } = await req.json();
- 
+     const body = await req.json();
+     const { commissionType, targetId, targetName, recordIds, year, month, period, productName, quantity } = body;
+
      if (!commissionType || !targetId || !targetName || !recordIds || recordIds.length === 0) {
        return new Response(
          JSON.stringify({ error: 'Datos incompletos' }),
@@ -123,23 +124,22 @@
      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
      
-     const periodLabel = period === 1 ? 'Periodo 1 (1-15)' : 
-                         period === 2 ? `Periodo 2 (16-${new Date(year, month, 0).getDate()})` : 
-                         'Mes completo';
+      const isSingleRecord = recordIds.length === 1;
  
      const { error: emailError } = await resend.emails.send({
        from: 'Sistema <onboarding@resend.dev>',
        to: [profile.email],
-       subject: `Código OTP - Eliminar comisiones de ${targetName}`,
+        subject: `Código OTP - Eliminar ${isSingleRecord ? 'comisión' : 'comisiones'} de ${targetName}`,
        html: `
-         <h2>Confirmación de eliminación de comisiones</h2>
-         <p>Se ha solicitado eliminar comisiones con los siguientes detalles:</p>
+          <h2>Confirmación de eliminación de ${isSingleRecord ? 'comisión' : 'comisiones'}</h2>
+          <p>Se ha solicitado eliminar ${isSingleRecord ? 'un registro de comisión' : 'comisiones'} con los siguientes detalles:</p>
          <ul>
            <li><strong>Tipo:</strong> ${typeLabel}</li>
            <li><strong>Nombre:</strong> ${targetName}</li>
            <li><strong>Mes:</strong> ${monthNames[month - 1]} ${year}</li>
-           <li><strong>Periodo:</strong> ${periodLabel}</li>
-           <li><strong>Registros a eliminar:</strong> ${recordIds.length}</li>
+            ${isSingleRecord && productName ? `<li><strong>Producto:</strong> ${productName}</li>` : ''}
+            ${isSingleRecord && quantity ? `<li><strong>Cantidad:</strong> ${quantity} unidades</li>` : ''}
+            ${!isSingleRecord ? `<li><strong>Registros a eliminar:</strong> ${recordIds.length}</li>` : ''}
          </ul>
          <p style="font-size: 24px; font-weight: bold; color: #e11d48;">
            Código OTP: ${otpCode}
