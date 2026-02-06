@@ -40,7 +40,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { usePurchases, NewSupplierData } from '@/hooks/usePurchases';
+import { usePurchases } from '@/hooks/usePurchases';
+import { useSuppliers, SupplierFormData } from '@/hooks/useSuppliers';
 import { useProducts } from '@/hooks/useProducts';
 import { useSettings } from '@/contexts/SettingsContext';
 import { format } from 'date-fns';
@@ -70,13 +71,15 @@ export default function NewPurchasePage() {
   const navigate = useNavigate();
   const { formatCurrency } = useSettings();
   const { 
-    suppliers, 
-    loadingSuppliers,
-    createSupplier,
     createPurchase,
-    isCreatingSupplier,
     isCreatingPurchase,
   } = usePurchases();
+  const {
+    suppliers,
+    loadingSuppliers,
+    createSupplier,
+    isCreating: isCreatingSupplier,
+  } = useSuppliers();
   const { products, loading: loadingProducts } = useProducts();
 
   // Form state
@@ -93,7 +96,7 @@ export default function NewPurchasePage() {
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [productOpen, setProductOpen] = useState<string | null>(null);
   const [newSupplierDialogOpen, setNewSupplierDialogOpen] = useState(false);
-  const [newSupplierData, setNewSupplierData] = useState<NewSupplierData>({ name: '' });
+  const [newSupplierData, setNewSupplierData] = useState<SupplierFormData>({ name: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const addItem = () => {

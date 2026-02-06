@@ -2,21 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-export interface Supplier {
-  id: string;
-  name: string;
-  ruc: string | null;
-  address: string | null;
-  phone: string | null;
-  email: string | null;
-  contact_name: string | null;
-  notes: string | null;
-  is_active: boolean;
-  company_id: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Supplier } from '@/hooks/useSuppliers';
 
 export interface Purchase {
   id: string;
@@ -70,36 +56,10 @@ export interface NewPurchaseData {
   }[];
 }
 
-export interface NewSupplierData {
-  name: string;
-  ruc?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  contact_name?: string;
-  notes?: string;
-}
-
 export function usePurchases() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Fetch all suppliers
-  const { data: suppliers = [], isLoading: loadingSuppliers } = useQuery({
-    queryKey: ['suppliers', user?.companyId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('suppliers')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      return data as Supplier[];
-    },
-    enabled: !!user?.companyId,
-  });
 
   // Fetch all purchases with supplier info
   const { data: purchases = [], isLoading: loadingPurchases, refetch: refetchPurchases } = useQuery({
@@ -146,37 +106,6 @@ export function usePurchases() {
       };
     },
     enabled: !!user?.companyId,
-  });
-
-  // Create supplier mutation
-  const createSupplierMutation = useMutation({
-    mutationFn: async (data: NewSupplierData) => {
-      const { data: result, error } = await supabase
-        .from('suppliers')
-        .insert({
-          ...data,
-          company_id: user?.companyId,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return result as Supplier;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      toast({
-        title: 'Proveedor creado',
-        description: 'El proveedor se ha registrado correctamente.',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
   });
 
   // Create purchase mutation
@@ -302,16 +231,12 @@ export function usePurchases() {
   };
 
   return {
-    suppliers,
-    loadingSuppliers,
     purchases,
     loadingPurchases,
     stats,
     refetchPurchases,
-    createSupplier: createSupplierMutation.mutateAsync,
     createPurchase: createPurchaseMutation.mutateAsync,
     cancelPurchase: cancelPurchaseMutation.mutateAsync,
-    isCreatingSupplier: createSupplierMutation.isPending,
     isCreatingPurchase: createPurchaseMutation.isPending,
     isCancellingPurchase: cancelPurchaseMutation.isPending,
     getPurchaseDetails,
