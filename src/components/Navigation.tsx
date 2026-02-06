@@ -18,12 +18,13 @@ import {
   FileText,
   Wrench,
   DollarSign,
-  BookOpen
+  BookOpen,
+  ShoppingBag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, ShoppingCart, Truck, Package, Box, Users, UserCheck, Bike, Settings, Building2, Map, Route, FileText, Wrench, DollarSign, BookOpen,
+  LayoutDashboard, ShoppingCart, Truck, Package, Box, Users, UserCheck, Bike, Settings, Building2, Map, Route, FileText, Wrench, DollarSign, BookOpen, ShoppingBag,
 };
 
 export function BottomNavigation() {
