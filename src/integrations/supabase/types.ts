@@ -1476,9 +1476,12 @@ export type Database = {
       suppliers: {
         Row: {
           address: string | null
+          business_name: string | null
+          city: string | null
           company_id: string
           contact_name: string | null
           created_at: string
+          document_type: string | null
           email: string | null
           id: string
           is_active: boolean
@@ -1490,9 +1493,12 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          business_name?: string | null
+          city?: string | null
           company_id: string
           contact_name?: string | null
           created_at?: string
+          document_type?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
@@ -1504,9 +1510,12 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          business_name?: string | null
+          city?: string | null
           company_id?: string
           contact_name?: string | null
           created_at?: string
+          document_type?: string | null
           email?: string | null
           id?: string
           is_active?: boolean

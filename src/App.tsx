@@ -30,6 +30,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import NotFound from './pages/NotFound';
 import PurchasesPage from './pages/PurchasesPage';
 import NewPurchasePage from './pages/NewPurchasePage';
+import SuppliersPage from './pages/SuppliersPage';
 
 // Public pages (no auth required)
 import OrderTrackingPage from './pages/OrderTrackingPage';
@@ -72,6 +73,7 @@ const App = () => {
                   <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
                   <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
                   <Route path="/purchases/new" element={<ProtectedRoute><NewPurchasePage /></ProtectedRoute>} />
+                  <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
                   <Route path="/customers-map" element={<ProtectedRoute><CustomersMapPage /></ProtectedRoute>} />
                   <Route path="/vendedores" element={<ProtectedRoute><VendedoresPage /></ProtectedRoute>} />
