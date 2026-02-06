@@ -1219,6 +1219,135 @@ export type Database = {
           },
         ]
       }
+      purchase_items: {
+        Row: {
+          id: string
+          product_id: string
+          product_name: string
+          product_sku: string
+          purchase_id: string
+          quantity: number
+          stock_updated: boolean
+          subtotal: number
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          product_name: string
+          product_sku: string
+          purchase_id: string
+          quantity: number
+          stock_updated?: boolean
+          subtotal?: number
+          unit_cost: number
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          product_name?: string
+          product_sku?: string
+          purchase_id?: string
+          quantity?: number
+          stock_updated?: boolean
+          subtotal?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          issue_date: string
+          notes: string | null
+          receipt_number: string
+          receipt_series: string | null
+          receipt_type: string
+          status: string
+          subtotal: number
+          supplier_id: string
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          receipt_number: string
+          receipt_series?: string | null
+          receipt_type?: string
+          status?: string
+          subtotal?: number
+          supplier_id: string
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          receipt_number?: string
+          receipt_series?: string | null
+          receipt_type?: string
+          status?: string
+          subtotal?: number
+          supplier_id?: string
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repartidores: {
         Row: {
           active: boolean | null
@@ -1340,6 +1469,59 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          company_id: string
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          ruc: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          ruc?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          ruc?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
