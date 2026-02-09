@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
- import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2 } from 'lucide-react';
+ import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -150,6 +150,112 @@ export default function CommissionsPage() {
   };
 
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
+
+  const exportCommissionsPDF = (type: 'vendedores' | 'operarios') => {
+    const data = type === 'vendedores' ? vendedorCommissions : operarioCommissions;
+    if (data.length === 0) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+    const totalCommission = data.reduce((sum, c) => sum + c.total_commission, 0);
+    const totalUnits = data.reduce((sum, c) => sum + c.total_units, 0);
+    const title = type === 'vendedores' ? 'Comisiones de Vendedores' : 'Comisiones de Operarios';
+    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;font-size:11px;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:20px}
+      .header{text-align:center;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #333}
+      .header h1{font-size:18px;margin-bottom:5px}
+      .header p{font-size:12px;color:#666}
+      .summary{display:flex;justify-content:space-around;margin-bottom:20px;padding:10px;background:#f5f5f5;border-radius:5px}
+      .summary-item{text-align:center}
+      .summary-item .value{font-size:16px;font-weight:bold;color:#333}
+      .summary-item .label{font-size:10px;color:#666}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;font-size:10px}
+      th{background:#333!important;color:#fff!important;font-weight:bold}
+      tr:nth-child(even){background:#f9f9f9}
+      .text-right{text-align:right}
+      .total-row{background:#e8f5e9!important;font-weight:bold}
+      .footer{margin-top:20px;text-align:center;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:10px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}th{background:#333!important;color:#fff!important}}
+    </style></head><body>
+      <div class="header">
+        <h1>📋 ${title}</h1>
+        <p>${monthNames[selectedMonth - 1]} ${selectedYear}</p>
+        <p>Generado el ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}</p>
+      </div>
+      <div class="summary">
+        <div class="summary-item"><div class="value">${data.length}</div><div class="label">${type === 'vendedores' ? 'Vendedores' : 'Operarios'}</div></div>
+        <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
+        <div class="summary-item"><div class="value">${formatCurrency(totalCommission)}</div><div class="label">Total Comisiones</div></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>${type === 'vendedores' ? 'Vendedor' : 'Operario'}</th>
+          <th class="text-right">P1 (1-15) Uds</th>
+          <th class="text-right">P1 Comisión</th>
+          <th class="text-right">P2 (16-${lastDay}) Uds</th>
+          <th class="text-right">P2 Comisión</th>
+          <th class="text-right">Total Uds</th>
+          <th class="text-right">Total Comisión</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(c => `<tr>
+            <td>${c.name}</td>
+            <td class="text-right">${c.period1_units}</td>
+            <td class="text-right">${formatCurrency(c.period1_commission)}</td>
+            <td class="text-right">${c.period2_units}</td>
+            <td class="text-right">${formatCurrency(c.period2_commission)}</td>
+            <td class="text-right">${c.total_units}</td>
+            <td class="text-right" style="font-weight:bold">${formatCurrency(c.total_commission)}</td>
+          </tr>`).join('')}
+          <tr class="total-row">
+            <td>TOTAL</td>
+            <td class="text-right">${data.reduce((s, c) => s + c.period1_units, 0)}</td>
+            <td class="text-right">${formatCurrency(data.reduce((s, c) => s + c.period1_commission, 0))}</td>
+            <td class="text-right">${data.reduce((s, c) => s + c.period2_units, 0)}</td>
+            <td class="text-right">${formatCurrency(data.reduce((s, c) => s + c.period2_commission, 0))}</td>
+            <td class="text-right">${totalUnits}</td>
+            <td class="text-right">${formatCurrency(totalCommission)}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${data.map(c => c.details.length > 0 ? `
+        <h3 style="margin-top:20px;margin-bottom:5px;font-size:13px">${c.name} - Detalle</h3>
+        <table>
+          <thead><tr>
+            <th>Fecha</th>
+            <th>${type === 'vendedores' ? 'Cliente' : 'Producción'}</th>
+            <th>Producto</th>
+            <th class="text-right">Cant.</th>
+            <th class="text-right">Com/U</th>
+            <th class="text-right">Total</th>
+          </tr></thead>
+          <tbody>
+            ${c.details.map((d: any) => `<tr>
+              <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
+              <td>${d.customer_name || 'Producción'}</td>
+              <td>${d.product_name}</td>
+              <td class="text-right">${d.quantity}</td>
+              <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
+              <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      ` : '').join('')}
+      <div class="footer"><p>Sistema de Pedidos y Entregas - ${format(new Date(), 'yyyy')}</p></div>
+    </body></html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.onload = () => printWindow.print();
+    }
+  };
+
  
    const handleDeleteSingleCommission = (
      personId: string,
@@ -524,22 +630,32 @@ export default function CommissionsPage() {
 
         <TabsContent value="commissions" className="mt-4 space-y-4">
           {/* Sub-tabs for vendedores/operarios */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center justify-between">
+            <div className="flex gap-2">
+              <Button
+                variant={adminTab === 'vendedores' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAdminTab('vendedores')}
+              >
+                <Users className="h-4 w-4 mr-1" />
+                Vendedores
+              </Button>
+              <Button
+                variant={adminTab === 'operarios' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAdminTab('operarios')}
+              >
+                <Wrench className="h-4 w-4 mr-1" />
+                Operarios
+              </Button>
+            </div>
             <Button
-              variant={adminTab === 'vendedores' ? 'default' : 'outline'}
+              variant="outline"
               size="sm"
-              onClick={() => setAdminTab('vendedores')}
+              onClick={() => exportCommissionsPDF(adminTab)}
             >
-              <Users className="h-4 w-4 mr-1" />
-              Vendedores
-            </Button>
-            <Button
-              variant={adminTab === 'operarios' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setAdminTab('operarios')}
-            >
-              <Wrench className="h-4 w-4 mr-1" />
-              Operarios
+              <FileDown className="h-4 w-4 mr-1" />
+              Descargar PDF
             </Button>
           </div>
 
