@@ -17,6 +17,8 @@ interface CommissionDetail {
   quantity: number;
   commission_per_unit: number;
   total_commission: number;
+  unit_price?: number;
+  sale_total?: number;
 }
 
 interface VendedorCommissionSummary {
@@ -126,7 +128,9 @@ export function useVendorCommissions(year: number, month: number) {
           order_items (
             product_id,
             product_name,
-            quantity
+            quantity,
+            unit_price,
+            total
           )
         `)
         .eq('company_id', companyId)
@@ -177,6 +181,8 @@ export function useVendorCommissions(year: number, month: number) {
               quantity: item.quantity,
               commission_per_unit: commissionPerUnit,
               total_commission: totalCommission,
+              unit_price: item.unit_price || 0,
+              sale_total: item.total || 0,
             });
           });
         });
@@ -230,7 +236,9 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
           order_items (
             product_id,
             product_name,
-            quantity
+            quantity,
+            unit_price,
+            total
           )
         `)
         .eq('vendedor_id', vendedorId)
@@ -278,6 +286,8 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
             quantity: item.quantity,
             commission_per_unit: commissionPerUnit,
             total_commission: totalCommission,
+            unit_price: item.unit_price || 0,
+            sale_total: item.total || 0,
           });
         });
       });
