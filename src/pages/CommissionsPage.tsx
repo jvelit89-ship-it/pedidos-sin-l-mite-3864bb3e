@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
  import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -254,6 +255,89 @@ export default function CommissionsPage() {
       printWindow.document.close();
       printWindow.onload = () => printWindow.print();
     }
+  };
+
+  const exportPersonDetailPDF = (mode: 'commissions' | 'sales') => {
+    if (!selectedPerson || selectedPerson.details.length === 0) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+    const details = selectedPerson.details;
+    const totalComm = details.reduce((s: number, d: any) => s + d.total_commission, 0);
+    const totalUnits = details.reduce((s: number, d: any) => s + d.quantity, 0);
+    const totalSales = details.reduce((s: number, d: any) => s + (d.sale_total || 0), 0);
+    const isVendedor = adminTab === 'vendedores';
+    const titleMode = mode === 'commissions' ? 'Comisiones' : (isVendedor ? 'Ventas' : 'Producción');
+
+    const pdfStyles = `*{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;font-size:11px;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:20px}
+      .header{text-align:center;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #333}
+      .header h1{font-size:18px;margin-bottom:5px}
+      .header p{font-size:12px;color:#666}
+      .summary{display:flex;justify-content:space-around;margin-bottom:20px;padding:10px;background:#f5f5f5;border-radius:5px}
+      .summary-item{text-align:center}
+      .summary-item .value{font-size:16px;font-weight:bold;color:#333}
+      .summary-item .label{font-size:10px;color:#666}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;font-size:10px}
+      th{background:#333!important;color:#fff!important;font-weight:bold}
+      tr:nth-child(even){background:#f9f9f9}
+      .text-right{text-align:right}
+      .total-row{background:#e8f5e9!important;font-weight:bold}
+      .footer{margin-top:20px;text-align:center;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:10px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}th{background:#333!important;color:#fff!important}}`;
+
+    let summaryHtml = '';
+    let tableHeaders = '';
+    let tableRows = '';
+    let totalRow = '';
+
+    if (mode === 'commissions') {
+      summaryHtml = `
+        <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
+        <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>`;
+      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Com/U</th><th class="text-right">Total</th>`;
+      tableRows = details.map((d: any) => `<tr>
+        <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
+        <td>${d.customer_name || 'Producción'}</td>
+        <td>${d.product_name}</td>
+        <td class="text-right">${d.quantity}</td>
+        <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
+        <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
+      </tr>`).join('');
+      totalRow = `<tr class="total-row"><td colspan="3">TOTAL</td><td class="text-right">${totalUnits}</td><td></td><td class="text-right">${formatCurrency(totalComm)}</td></tr>`;
+    } else {
+      summaryHtml = `
+        <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
+        <div class="summary-item"><div class="value">${formatCurrency(totalSales)}</div><div class="label">Total ${isVendedor ? 'Ventas' : 'Producción'}</div></div>
+        <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>`;
+      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">P. Unit</th><th class="text-right">Venta</th><th class="text-right">Com/U</th><th class="text-right">Comisión</th>`;
+      tableRows = details.map((d: any) => `<tr>
+        <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
+        <td>${d.customer_name || 'Producción'}</td>
+        <td>${d.product_name}</td>
+        <td class="text-right">${d.quantity}</td>
+        <td class="text-right">${formatCurrency(d.unit_price || 0)}</td>
+        <td class="text-right" style="font-weight:bold">${formatCurrency(d.sale_total || 0)}</td>
+        <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
+        <td class="text-right">${formatCurrency(d.total_commission)}</td>
+      </tr>`).join('');
+      totalRow = `<tr class="total-row"><td colspan="3">TOTAL</td><td class="text-right">${totalUnits}</td><td></td><td class="text-right">${formatCurrency(totalSales)}</td><td></td><td class="text-right">${formatCurrency(totalComm)}</td></tr>`;
+    }
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${titleMode} - ${selectedPerson.name}</title><style>${pdfStyles}</style></head><body>
+      <div class="header">
+        <h1>📋 ${titleMode} - ${selectedPerson.name}</h1>
+        <p>${monthNames[selectedMonth - 1]} ${selectedYear}</p>
+        <p>Generado el ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}</p>
+      </div>
+      <div class="summary">${summaryHtml}</div>
+      <table><thead><tr>${tableHeaders}</tr></thead><tbody>${tableRows}${totalRow}</tbody></table>
+      <div class="footer"><p>Sistema de Pedidos y Entregas - ${format(new Date(), 'yyyy')}</p></div>
+    </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); w.onload = () => w.print(); }
   };
 
  
@@ -841,81 +925,24 @@ export default function CommissionsPage() {
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader className="flex flex-row items-center justify-between gap-2">
             <DialogTitle>Detalle de Comisiones - {selectedPerson?.name}</DialogTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => {
-                if (!selectedPerson || selectedPerson.details.length === 0) {
-                  toast.error('No hay datos para exportar');
-                  return;
-                }
-                const totalComm = selectedPerson.details.reduce((s: number, d: any) => s + d.total_commission, 0);
-                const totalUnits = selectedPerson.details.reduce((s: number, d: any) => s + d.quantity, 0);
-                const isVendedor = adminTab === 'vendedores';
-                const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comisiones - ${selectedPerson.name}</title><style>
-                  *{margin:0;padding:0;box-sizing:border-box}
-                  body{font-family:Arial,sans-serif;font-size:11px;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:20px}
-                  .header{text-align:center;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #333}
-                  .header h1{font-size:18px;margin-bottom:5px}
-                  .header p{font-size:12px;color:#666}
-                  .summary{display:flex;justify-content:space-around;margin-bottom:20px;padding:10px;background:#f5f5f5;border-radius:5px}
-                  .summary-item{text-align:center}
-                  .summary-item .value{font-size:16px;font-weight:bold;color:#333}
-                  .summary-item .label{font-size:10px;color:#666}
-                  table{width:100%;border-collapse:collapse;margin-top:10px}
-                  th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;font-size:10px}
-                  th{background:#333!important;color:#fff!important;font-weight:bold}
-                  tr:nth-child(even){background:#f9f9f9}
-                  .text-right{text-align:right}
-                  .total-row{background:#e8f5e9!important;font-weight:bold}
-                  .footer{margin-top:20px;text-align:center;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:10px}
-                  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}th{background:#333!important;color:#fff!important}}
-                </style></head><body>
-                  <div class="header">
-                    <h1>📋 Detalle de Comisiones - ${selectedPerson.name}</h1>
-                    <p>${monthNames[selectedMonth - 1]} ${selectedYear}</p>
-                    <p>Generado el ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}</p>
-                  </div>
-                  <div class="summary">
-                    <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
-                    <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>
-                  </div>
-                  <table>
-                    <thead><tr>
-                      <th>Fecha</th>
-                      <th>${isVendedor ? 'Cliente' : 'Producción'}</th>
-                      <th>Producto</th>
-                      <th class="text-right">Cant.</th>
-                      <th class="text-right">Com/U</th>
-                      <th class="text-right">Total</th>
-                    </tr></thead>
-                    <tbody>
-                      ${selectedPerson.details.map((d: any) => `<tr>
-                        <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
-                        <td>${d.customer_name || 'Producción'}</td>
-                        <td>${d.product_name}</td>
-                        <td class="text-right">${d.quantity}</td>
-                        <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
-                        <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
-                      </tr>`).join('')}
-                      <tr class="total-row">
-                        <td colspan="3">TOTAL</td>
-                        <td class="text-right">${totalUnits}</td>
-                        <td></td>
-                        <td class="text-right">${formatCurrency(totalComm)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <div class="footer"><p>Sistema de Pedidos y Entregas - ${format(new Date(), 'yyyy')}</p></div>
-                </body></html>`;
-                const w = window.open('', '_blank');
-                if (w) { w.document.write(html); w.document.close(); w.onload = () => w.print(); }
-              }}
-            >
-              <FileDown className="h-4 w-4 mr-1" />
-              PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="shrink-0">
+                  <FileDown className="h-4 w-4 mr-1" />
+                  Descargar PDF
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportPersonDetailPDF('commissions')}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Solo Comisiones
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportPersonDetailPDF('sales')}>
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Total de Ventas
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <Table>
