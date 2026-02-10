@@ -1535,6 +1535,103 @@ export type Database = {
           },
         ]
       }
+      truck_extra_load_items: {
+        Row: {
+          company_id: string
+          id: string
+          load_id: string
+          product_id: string
+          quantity_loaded: number
+          quantity_returned: number
+          quantity_sold: number
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          load_id: string
+          product_id: string
+          quantity_loaded?: number
+          quantity_returned?: number
+          quantity_sold?: number
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          load_id?: string
+          product_id?: string
+          quantity_loaded?: number
+          quantity_returned?: number
+          quantity_sold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "truck_extra_load_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_extra_load_items_load_id_fkey"
+            columns: ["load_id"]
+            isOneToOne: false
+            referencedRelation: "truck_extra_loads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_extra_load_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      truck_extra_loads: {
+        Row: {
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          repartidor_id: string
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          repartidor_id: string
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          repartidor_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "truck_extra_loads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_extra_loads_repartidor_id_fkey"
+            columns: ["repartidor_id"]
+            isOneToOne: false
+            referencedRelation: "repartidores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -1684,6 +1781,7 @@ export type Database = {
       }
     }
     Functions: {
+      close_truck_extra_load: { Args: { _load_id: string }; Returns: undefined }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
