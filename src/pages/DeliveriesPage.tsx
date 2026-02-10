@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { RepartidorLoadSummary } from '@/components/dashboard/RepartidorLoadSummary';
+import { TruckExtraLoadPanel } from '@/components/TruckExtraLoadPanel';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -306,6 +307,9 @@ export default function DeliveriesPage() {
       </div>
 
       {/* Repartidor Load Summary */}
+      {/* Truck Extra Load Panel */}
+      <TruckExtraLoadPanel />
+
       {isRepartidor && repartidorLoad && (
         <RepartidorLoadSummary load={repartidorLoad} />
       )}
