@@ -53,7 +53,8 @@ export type OrderStatus =
   | 'ready' 
   | 'delivery' 
   | 'delivered' 
-  | 'cancelled';
+  | 'cancelled'
+  | 'backorder';
 
 export interface Product {
   id: string;
@@ -197,19 +198,25 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, {
     className: 'status-cancelled',
     icon: '❌'
   },
+  backorder: {
+    label: 'Pre-pedido',
+    labelEn: 'Backorder',
+    className: 'status-backorder',
+    icon: '⏳'
+  },
 };
 
 // Role-based status change permissions
 export const STATUS_CHANGE_PERMISSIONS: Record<UserRole, OrderStatus[]> = {
-  superadmin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-  admin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'],
-  vendedor: ['pending', 'preparation', 'ready'],
+  superadmin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled', 'backorder'],
+  admin: ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled', 'backorder'],
+  vendedor: ['pending', 'preparation', 'ready', 'backorder'],
   repartidor: ['delivery', 'delivered', 'cancelled'],
   operario: ['preparation', 'ready'],
 };
 
 // All statuses array for admin full control (excluding transitions from delivered)
-const ALL_STATUSES_EXCEPT_DELIVERED: OrderStatus[] = ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled'];
+const ALL_STATUSES_EXCEPT_DELIVERED: OrderStatus[] = ['pending', 'preparation', 'ready', 'delivery', 'delivered', 'cancelled', 'backorder'];
 
 // IMPORTANT: Once an order is 'delivered', it CANNOT be cancelled or changed
 // Stock is deducted only upon delivery, so reversing would require manual intervention
@@ -221,16 +228,18 @@ export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus,
     preparation: ALL_STATUSES_EXCEPT_DELIVERED,
     ready: ALL_STATUSES_EXCEPT_DELIVERED,
     delivery: ALL_STATUSES_EXCEPT_DELIVERED,
-    delivered: [], // Cannot change from delivered - stock already deducted
-    cancelled: [], // Cannot uncancel orders
+    delivered: [],
+    cancelled: [],
+    backorder: ['pending', 'cancelled'],
   },
   admin: {
     pending: ALL_STATUSES_EXCEPT_DELIVERED,
     preparation: ALL_STATUSES_EXCEPT_DELIVERED,
     ready: ALL_STATUSES_EXCEPT_DELIVERED,
     delivery: ALL_STATUSES_EXCEPT_DELIVERED,
-    delivered: [], // Cannot change from delivered - stock already deducted
-    cancelled: [], // Cannot uncancel orders
+    delivered: [],
+    cancelled: [],
+    backorder: ['pending', 'cancelled'],
   },
   vendedor: {
     pending: ['pending', 'preparation', 'ready'],
@@ -239,14 +248,16 @@ export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus,
     delivery: [],
     delivered: [],
     cancelled: [],
+    backorder: ['cancelled'],
   },
   repartidor: {
     pending: [],
     preparation: [],
     ready: ['delivery', 'delivered', 'cancelled'],
     delivery: ['delivery', 'delivered', 'cancelled'],
-    delivered: [], // Cannot change from delivered
+    delivered: [],
     cancelled: [],
+    backorder: [],
   },
   operario: {
     pending: ['preparation', 'ready'],
@@ -255,6 +266,7 @@ export const STATUS_TRANSITION_PERMISSIONS: Record<UserRole, Record<OrderStatus,
     delivery: [],
     delivered: [],
     cancelled: [],
+    backorder: [],
   },
 };
 

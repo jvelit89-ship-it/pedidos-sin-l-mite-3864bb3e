@@ -19,6 +19,7 @@ import { useOrders } from '@/hooks/useOrders';
 import { useSalesNote } from '@/hooks/useSalesNote';
 import { useVolumePricing } from '@/hooks/useVolumePricing';
 import { useCustomerPricing } from '@/hooks/useCustomerPricing';
+import { usePrepaidPackages, PrepaidPackage } from '@/hooks/usePrepaidPackages';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,9 +36,12 @@ import {
   Tag,
   Search,
   User,
-  CalendarClock
+  CalendarClock,
+  AlertTriangle,
+  CreditCard
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 export default function NewOrderPage() {
   const navigate = useNavigate();
@@ -50,9 +54,13 @@ export default function NewOrderPage() {
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   const { rules: volumePricingRules, getApplicablePrice } = useVolumePricing();
   const { prices: customerPrices, getCustomerPrice } = useCustomerPricing();
+  const { getPrepaidBalance, usePackageForOrder } = usePrepaidPackages();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQueryingDocument, setIsQueryingDocument] = useState(false);
+  const [showBackorderConfirm, setShowBackorderConfirm] = useState(false);
+  // prepaid balance per productId -> PrepaidPackage
+  const [prepaidBalances, setPrepaidBalances] = useState<Record<string, PrepaidPackage | null>>({});
 
   // Auto-assign vendedor if user is a vendedor
   const isVendedorUser = user?.role === 'vendedor';
@@ -95,7 +103,7 @@ export default function NewOrderPage() {
   const requiresDocument = receiptType !== 'ticket';
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
-  const availableProducts = products.filter(p => p.stock > 0);
+  const availableProducts = products; // Show ALL products, including out-of-stock (backorder support)
   const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
 
@@ -566,11 +574,12 @@ export default function NewOrderPage() {
                   <SelectContent>
                     {availableProducts.map(product => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {formatCurrency(product.price)} (Stock: {product.stock})
+                        {product.stock === 0 ? '⏳ ' : ''}{product.name} - {formatCurrency(product.price)} {product.stock === 0 ? '(Sin stock - Pre-pedido)' : `(Stock: ${product.stock})`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">⏳ Productos sin stock quedarán como pre-pedido hasta que haya producción</p>
               </div>
 
               {orderItems.length > 0 && (

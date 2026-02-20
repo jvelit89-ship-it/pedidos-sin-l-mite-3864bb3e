@@ -247,6 +247,8 @@ export default function DeliveriesPage() {
   }, [deliveries]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
+    // Skip backorder - not a valid delivery status
+    if (newStatus === 'backorder') return;
     try {
       await updateOrderStatus(orderId, newStatus);
       

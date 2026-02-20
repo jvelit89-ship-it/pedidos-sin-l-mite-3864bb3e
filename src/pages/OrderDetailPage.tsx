@@ -43,7 +43,7 @@ interface OrderWithItems {
   customer_latitude: number | null;
   customer_longitude: number | null;
   total: number;
-  status: 'pending' | 'preparation' | 'ready' | 'delivery' | 'delivered' | 'cancelled';
+  status: OrderStatus;
   vendedor_id: string | null;
   vendedor_name: string | null;
   repartidor_id: string | null;
