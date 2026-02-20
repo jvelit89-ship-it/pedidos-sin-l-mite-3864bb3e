@@ -176,9 +176,11 @@ export default function NewOrderPage() {
     if (customer) {
       setDeliveryAddress(customer.address || '');
     }
+    // Clear prepaid balances when customer changes
+    setPrepaidBalances({});
   };
 
-  const handleAddProduct = (productId: string) => {
+  const handleAddProduct = async (productId: string) => {
     const existing = orderItems.find(item => item.productId === productId);
     if (existing) {
       setOrderItems(items =>
@@ -190,6 +192,12 @@ export default function NewOrderPage() {
       );
     } else {
       setOrderItems([...orderItems, { productId, quantity: 1 }]);
+    }
+
+    // Fetch prepaid balance if we have a customer selected
+    if (selectedCustomerId && !prepaidBalances[productId]) {
+      const balance = await getPrepaidBalance(selectedCustomerId, productId);
+      setPrepaidBalances(prev => ({ ...prev, [productId]: balance }));
     }
   };
 
@@ -233,12 +241,29 @@ export default function NewOrderPage() {
     [customers, selectedCustomerId]
   );
 
-  // Calculate pricing with customer-specific prices first, then volume discounts
-  // Regular customers (minorista) do NOT receive any discounts
+  // Calculate pricing: prepaid > customer-specific > volume > base
   const getItemPricing = useCallback((productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
-    if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false, hasCustomerPrice: false };
+    if (!product) return { unitPrice: 0, total: 0, appliedRule: null, discount: 0, hasDiscount: false, hasCustomerPrice: false, hasPrepaidPrice: false };
     
+    // Check for prepaid package price FIRST (highest priority)
+    const prepaid = prepaidBalances[productId];
+    if (prepaid && prepaid.remaining_units > 0) {
+      const prepaidPrice = prepaid.unit_price;
+      const discount = product.price - prepaidPrice;
+      return {
+        unitPrice: prepaidPrice,
+        total: prepaidPrice * quantity,
+        appliedRule: null,
+        discount,
+        hasDiscount: discount > 0,
+        hasCustomerPrice: false,
+        hasPrepaidPrice: true,
+        basePrice: product.price,
+        prepaidPackage: prepaid,
+      };
+    }
+
     // Regular customers (minorista) pay base price - no discounts
     if (selectedCustomer?.customer_type === 'minorista') {
       return {
@@ -248,13 +273,14 @@ export default function NewOrderPage() {
         discount: 0,
         hasDiscount: false,
         hasCustomerPrice: false,
+        hasPrepaidPrice: false,
         basePrice: product.price,
       };
     }
     
-    // Check for customer-specific price first (mayorista/distribuidor only)
+    // Check for customer-specific price (mayorista/distribuidor only)
     if (selectedCustomerId) {
-      const { price: customerPrice, hasCustomPrice, customerPrice: customerPriceData } = getCustomerPrice(
+      const { price: customerPrice, hasCustomPrice } = getCustomerPrice(
         selectedCustomerId,
         productId,
         product.price,
@@ -270,12 +296,13 @@ export default function NewOrderPage() {
           discount,
           hasDiscount: discount > 0,
           hasCustomerPrice: true,
+          hasPrepaidPrice: false,
           basePrice: product.price,
         };
       }
     }
     
-    // Fall back to volume pricing (mayorista/distribuidor only)
+    // Fall back to volume pricing
     const { price, appliedRule, discount } = getApplicablePrice(
       productId,
       quantity,
@@ -290,9 +317,10 @@ export default function NewOrderPage() {
       discount,
       hasDiscount: discount > 0,
       hasCustomerPrice: false,
+      hasPrepaidPrice: false,
       basePrice: product.price,
     };
-  }, [products, volumePricingRules, getApplicablePrice, selectedCustomerId, customerPrices, getCustomerPrice, selectedCustomer]);
+  }, [products, volumePricingRules, getApplicablePrice, selectedCustomerId, customerPrices, getCustomerPrice, selectedCustomer, prepaidBalances]);
 
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => {
@@ -301,15 +329,18 @@ export default function NewOrderPage() {
     }, 0);
   };
 
-  // Check if any item has a discount applied (volume or customer-specific)
+  // Check if any item has a discount applied (prepaid, volume, or customer-specific)
   const discountInfo = useMemo(() => {
     let hasVolumeDiscount = false;
     let hasCustomerDiscount = false;
+    let hasPrepaidDiscount = false;
     
     for (const item of orderItems) {
       const pricing = getItemPricing(item.productId, item.quantity);
       if (pricing.hasDiscount) {
-        if (pricing.hasCustomerPrice) {
+        if (pricing.hasPrepaidPrice) {
+          hasPrepaidDiscount = true;
+        } else if (pricing.hasCustomerPrice) {
           hasCustomerDiscount = true;
         } else {
           hasVolumeDiscount = true;
@@ -317,7 +348,7 @@ export default function NewOrderPage() {
       }
     }
     
-    return { hasVolumeDiscount, hasCustomerDiscount, hasAnyDiscount: hasVolumeDiscount || hasCustomerDiscount };
+    return { hasVolumeDiscount, hasCustomerDiscount, hasPrepaidDiscount, hasAnyDiscount: hasVolumeDiscount || hasCustomerDiscount || hasPrepaidDiscount };
   }, [orderItems, getItemPricing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -393,6 +424,13 @@ export default function NewOrderPage() {
         };
       });
 
+      // Check if any item has no stock -> this becomes a backorder
+      const hasOutOfStockItems = orderItems.some(item => {
+        const product = products.find(p => p.id === item.productId);
+        return product && product.stock === 0;
+      });
+      const orderStatus = hasOutOfStockItems ? 'backorder' : 'pending';
+
       // If backdating, create a timestamp at 12:00 noon of that date (Lima time)
       let customCreatedAt: string | undefined;
       if (isAdmin && useBackdatedOrder && backdatedDate) {
@@ -409,7 +447,7 @@ export default function NewOrderPage() {
         customer_longitude: customer.longitude,
         delivery_address: deliveryAddress,
         total: calculateTotal(),
-        status: 'pending',
+        status: orderStatus as 'pending' | 'backorder',
         vendedor_id: vendedor?.id || null,
         vendedor_name: isVentaPlanta ? 'Venta de Planta' : (vendedor?.name || null),
         repartidor_id: repartidor?.id || null,
@@ -422,7 +460,18 @@ export default function NewOrderPage() {
       }, items);
 
       if (orderData) {
-        // Stock is already deducted in createOrder hook - no need to deduct again
+        // Deduct prepaid balances for items that used a prepaid package
+        for (const item of orderItems) {
+          const pricing = getItemPricing(item.productId, item.quantity);
+          if (pricing.hasPrepaidPrice && pricing.prepaidPackage) {
+            await usePackageForOrder(
+              pricing.prepaidPackage.id,
+              orderData.id,
+              customer.company_id,
+              item.quantity
+            );
+          }
+        }
 
         // Create invoice request if boleta/factura was selected
         if (requiresDocument && documentNumber) {
@@ -462,8 +511,10 @@ export default function NewOrderPage() {
           receipt_type: receiptType,
         });
 
-        toast.success('Pedido creado', {
-          description: 'El pedido ha sido registrado correctamente',
+        toast.success(hasOutOfStockItems ? 'Pre-pedido creado' : 'Pedido creado', {
+          description: hasOutOfStockItems 
+            ? 'El pedido quedará en lista de espera hasta que haya stock disponible'
+            : 'El pedido ha sido registrado correctamente',
         });
       }
     } catch (error) {
@@ -659,10 +710,17 @@ export default function NewOrderPage() {
                           </p>
                         </div>
                         
-                        {/* Discount badge - customer or volume */}
+                        {/* Discount / Prepaid badge */}
                         {pricing.hasDiscount && (
                           <div className="flex items-center gap-1">
-                            {pricing.hasCustomerPrice ? (
+                            {pricing.hasPrepaidPrice ? (
+                              <>
+                                <CreditCard className="w-3 h-3 text-purple-600" />
+                                <span className="text-xs text-purple-600 font-medium">
+                                  Saldo prepagado ({pricing.prepaidPackage?.remaining_units} uds restantes)
+                                </span>
+                              </>
+                            ) : pricing.hasCustomerPrice ? (
                               <>
                                 <User className="w-3 h-3 text-blue-600" />
                                 <span className="text-xs text-blue-600">
@@ -679,6 +737,15 @@ export default function NewOrderPage() {
                             )}
                           </div>
                         )}
+                        {/* Prepaid balance badge when no discount but has balance */}
+                        {!pricing.hasDiscount && prepaidBalances[item.productId]?.remaining_units > 0 && (
+                          <div className="flex items-center gap-1">
+                            <CreditCard className="w-3 h-3 text-purple-600" />
+                            <span className="text-xs text-purple-600">
+                              Saldo prepagado: {prepaidBalances[item.productId]?.remaining_units} uds
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -687,6 +754,14 @@ export default function NewOrderPage() {
 
               {orderItems.length > 0 && (
                 <div className="space-y-3 pt-4 border-t">
+                  {discountInfo.hasPrepaidDiscount && (
+                    <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <CreditCard className="w-4 h-4 text-purple-600" />
+                      <span className="text-sm text-purple-700 dark:text-purple-400 font-medium">
+                        Precio de paquete prepagado aplicado
+                      </span>
+                    </div>
+                  )}
                   {discountInfo.hasCustomerDiscount && (
                     <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
                       <User className="w-4 h-4 text-blue-600" />

@@ -87,7 +87,7 @@ export default function OrdersPage() {
   const { repartidores } = useRepartidores();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'backorders'>('active');
   
   // History date filter (business day)
   const [historyDate, setHistoryDate] = useState(getTodayBusinessDateKey());
@@ -135,7 +135,11 @@ export default function OrdersPage() {
   }, [roleFilteredOrders, historyDate]);
 
   // Current tab orders
-  const currentOrders = activeTab === 'active' ? activeOrders : historyOrders;
+  const currentOrders = useMemo(() => {
+    if (activeTab === 'active') return activeOrders;
+    if (activeTab === 'backorders') return roleFilteredOrders.filter((o: Order) => o.status === 'backorder');
+    return historyOrders;
+  }, [activeTab, activeOrders, historyOrders, roleFilteredOrders]);
 
   // Apply search and filters to current orders
   const filteredOrders = useMemo(() => {
@@ -145,7 +149,9 @@ export default function OrdersPage() {
         order.id.toLowerCase().includes(searchTerm.toLowerCase());
       
       // Status filter only applies within the tab's available statuses
-      const availableStatuses = activeTab === 'active' ? ACTIVE_STATUSES : COMPLETED_STATUSES;
+      const availableStatuses = activeTab === 'active' ? ACTIVE_STATUSES 
+        : activeTab === 'backorders' ? ['backorder' as OrderStatus]
+        : COMPLETED_STATUSES;
       const matchesStatus = statusFilter === 'all' || 
         (availableStatuses.includes(statusFilter as OrderStatus) && order.status === statusFilter);
       
@@ -157,7 +163,7 @@ export default function OrdersPage() {
 
   // Reset status filter when changing tabs
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab as 'active' | 'history');
+    setActiveTab(tab as 'active' | 'history' | 'backorders');
     setStatusFilter('all');
     setSelectedOrders([]);
   };
@@ -344,6 +350,13 @@ export default function OrdersPage() {
     handleExport(statusOrders, `pedidos_${statusName}`, type);
   };
 
+  // Backorder orders
+  const backorderOrders = useMemo(() => {
+    return roleFilteredOrders.filter((order: Order) => order.status === 'backorder');
+  }, [roleFilteredOrders]);
+
+  const backorderCount = backorderOrders.length;
+
   // Count stats for tabs
   const activeCount = activeOrders.length;
   const historyCount = historyOrders.length;
@@ -353,7 +366,9 @@ export default function OrdersPage() {
   // Status options based on current tab
   const statusOptions = activeTab === 'active' 
     ? ACTIVE_STATUSES 
-    : COMPLETED_STATUSES;
+    : activeTab === 'backorders'
+      ? ['backorder' as OrderStatus]
+      : COMPLETED_STATUSES;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -391,13 +406,22 @@ export default function OrdersPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active" className="gap-2">
-            <Flame className="w-4 h-4" />
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="active" className="gap-1.5 text-xs sm:text-sm">
+            <Flame className="w-3.5 h-3.5" />
             Activos ({activeCount})
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <History className="w-4 h-4" />
+          <TabsTrigger value="backorders" className="gap-1.5 relative text-xs sm:text-sm">
+            <span>⏳</span>
+            Pre-pedidos
+            {backorderCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-amber-500 text-white font-bold leading-none">
+                {backorderCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5 text-xs sm:text-sm">
+            <History className="w-3.5 h-3.5" />
             Historial
           </TabsTrigger>
         </TabsList>
@@ -614,18 +638,22 @@ export default function OrdersPage() {
         ) : filteredOrders.length === 0 ? (
           <Card className="mt-4">
             <CardContent className="py-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+          <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
               <p className="text-lg font-medium text-muted-foreground">
                 {activeTab === 'active' 
-                  ? (settings.language === 'es' ? '¡Sin pedidos activos!' : 'No active orders!') 
-                  : (settings.language === 'es' ? 'Sin pedidos en esta fecha' : 'No orders on this date')}
+                  ? '¡Sin pedidos activos!'
+                  : activeTab === 'backorders'
+                    ? '¡Sin pre-pedidos!'
+                    : 'Sin pedidos en esta fecha'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {searchTerm || statusFilter !== 'all' 
-                  ? (settings.language === 'es' ? 'Intenta cambiar los filtros de búsqueda' : 'Try changing the search filters')
+                  ? 'Intenta cambiar los filtros de búsqueda'
                   : activeTab === 'active'
-                    ? (settings.language === 'es' ? 'Todos los pedidos están completados' : 'All orders are completed')
-                    : (settings.language === 'es' ? 'Selecciona otra fecha para ver el historial' : 'Select another date to view history')}
+                    ? 'Todos los pedidos están completados'
+                    : activeTab === 'backorders'
+                      ? 'Los pre-pedidos se crean automáticamente cuando no hay stock disponible'
+                      : 'Selecciona otra fecha para ver el historial'}
               </p>
             </CardContent>
           </Card>
