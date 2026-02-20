@@ -1,191 +1,179 @@
 
-# Dos Nuevas Funcionalidades: Pre-pedidos y Créditos Prepagados
+# Plan: Reportes de Ventas por Producto + Tipos de Producto (Final vs Materia Prima)
 
-## Problema 1: Vendedores sin poder vender cuando no hay stock
+## Contexto Actual
 
-Los vendedores no pueden crear pedidos cuando el stock es 0, bloqueando las ventas mientras se fabrica. La solución es un sistema de **Pre-pedidos** (backorders) que se activan automáticamente cuando hay stock disponible.
-
-## Problema 2: Clientes que pagan por adelantado en volumen
-
-Clientes pagan, por ejemplo, 500 unidades con precio promocional y van retirando en partes semana a semana. Necesitan un sistema de **Saldo de Crédito por Producto** que descargue el balance con cada despacho.
-
----
-
-## SOLUCIÓN 1: Pre-pedidos (Backorders)
-
-### Flujo del Usuario
-
-```text
-VENDEDOR crea pedido sin stock
-         |
-         v
- Aparece badge "PENDIENTE DE STOCK"
- en listado de pedidos
-         |
-         v
-OPERARIO/ADMIN registra nueva producción
-         |
-         v
-TRIGGER automatico detecta
-pre-pedidos pendientes vs stock disponible
-         |
-         v
-Pre-pedidos se activan en orden cronológico
-(FIFO - primero en entrar, primero en salir)
-         |
-         v
-Estado cambia: "Sin Stock" -> "Pendiente"
-Notificacion interna en dashboard
-```
-
-### Cambios en Base de Datos
-
-#### Nuevo campo en `orders`: `is_backorder`
-- `is_backorder BOOLEAN DEFAULT false`: marca si el pedido fue creado sin stock
-- `backorder_fulfilled_at TIMESTAMP`: cuando el backorder se convirtió en pedido real
-- El status inicial será `'backorder'` (nuevo estado virtual)
-
-#### Nueva función SQL: `fulfill_backorders(product_id, quantity_added)`
-- Se ejecuta automáticamente después de cada producción vía trigger
-- Busca backorders pendientes de ese producto, ordenados por `created_at` (FIFO)
-- Activa los que puede cubrir con el stock disponible, cambiando status a `'pending'`
-
-#### Nuevo estado de orden: `backorder`
-- Se agrega al tipo `order_status` en la base de datos
-- El stock NO se descuenta cuando es backorder
-- Cuando se activa, el stock se descuenta normalmente via el trigger existente
-
-### Cambios en Frontend
-
-#### `NewOrderPage.tsx`
-- Eliminar el filtro `p.stock > 0` que bloquea productos sin stock
-- Mostrar todos los productos con badge "Sin Stock" en rojo para los que no tienen inventario
-- Al crear pedido con producto sin stock: confirmar con modal "Este pedido quedará en lista de espera hasta que haya stock disponible"
-- Generar nota de venta igualmente (para que el cliente tenga registro)
-
-#### `OrdersPage.tsx`
-- Nueva tab "Pre-pedidos" visible para Admin y Vendedor
-- Badge con contador de pre-pedidos pendientes
-- Columna especial con indicador de qué productos faltan y cuántas unidades
-
-#### `InventoryPage.tsx`
-- Al registrar producción, el sistema muestra cuántos pre-pedidos se activaron automáticamente
-- Badge "X pre-pedidos activados" en el toast de confirmación
-
-#### `useOrders.ts`
-- `createOrder` acepta pedidos con status `'backorder'`
-- No descuenta stock si es backorder
+El sistema ya tiene:
+- Tabla `production_recipes` y componente `ProductionRecipesManager` para definir recetas (materia prima → producto final)
+- Triggers automáticos que descuentan materias primas al registrar producción
+- Exportación básica de inventario (CSV/PDF) y pedidos (XLS/PDF)
+- Los productos no tienen clasificación de tipo (final vs materia prima)
 
 ---
 
-## SOLUCIÓN 2: Créditos Prepagados por Cliente-Producto
+## SOLUCIÓN 1: Reportes de Ventas por Producto (Diario, Semanal, Mensual)
 
-### Flujo del Usuario
+Los reportes actuales muestran movimientos de stock (producción vs ventas). El usuario quiere reportes **centrados en ventas por producto**, con datos monetarios, desglosados por período, exportables en PDF y Excel.
 
-```text
-ADMIN crea "Paquete Prepagado"
-Cliente: Juan Perez
-Producto: Agua 20L
-Cantidad: 500 unidades
-Precio pactado: S/ 8.50 c/u
-Monto total pagado: S/ 4,250
-         |
-         v
-Sistema registra saldo: 500 unidades disponibles
-         |
-         v
-VENDEDOR crea pedido para Juan Perez
-Al seleccionar "Agua 20L" aparece badge:
-"Saldo Prepagado: 450 unid. disponibles"
-Precio se aplica automaticamente: S/ 8.50
-         |
-         v
-VENDEDOR confirma pedido (150 unidades)
-         |
-         v
-Sistema descuenta: 500 - 150 = 350 restantes
-         |
-         v
-Al llegar a 0, cliente ya no tiene saldo
+### Fuente de datos
+Se consultará la tabla `order_items` (unida a `orders`) filtrando por `orders.status = 'delivered'` y `orders.created_at` por período. Esto muestra **ventas reales entregadas**.
+
+### Períodos disponibles
+- Diario (hoy)
+- Semanal (semana actual, lunes a domingo)
+- Mensual (mes actual)
+- Rango personalizado (fecha inicio / fecha fin)
+
+### Columnas del reporte por producto
+| Producto | SKU | Unidades Vendidas | Precio Unit. | Total Vendido |
+|---|---|---|---|---|
+| Agua 8L | SM8L | 45 | S/ 12.00 | S/ 540.00 |
+| Hielo 3kg | HI3K | 30 | S/ 5.00 | S/ 150.00 |
+
+### Nueva función/hook: `useSalesReports`
+- `getSalesByProduct(period, startDate?, endDate?)`: consulta `order_items` + `orders` para devolver ventas por producto
+- Datos: nombre, SKU, total unidades, precio promedio, ingresos totales
+
+### Nueva UI: Pestaña "Ventas" en InventoryPage
+Se agrega una nueva pestaña junto a las existentes (Inventario, Producción, Movimientos, Recetas):
+- Selector de período: Hoy | Esta Semana | Este Mes | Rango Personalizado
+- Tabla de resultados con totales al pie
+- Botón "Exportar PDF" → genera HTML imprimible con tabla y resumen
+- Botón "Exportar Excel" → genera XLS estructurado (mismo formato que el exportador de pedidos)
+
+---
+
+## SOLUCIÓN 2: Tipos de Producto (Producto Final vs Materia Prima)
+
+### Cambio en base de datos
+Se agrega columna `product_type` a la tabla `products`:
+```sql
+ALTER TABLE products ADD COLUMN product_type TEXT NOT NULL DEFAULT 'final' CHECK (product_type IN ('final', 'raw_material'));
 ```
 
-### Cambios en Base de Datos
+Los valores son:
+- `'final'` → Producto listo para vender (Agua 8L, Hielo 3kg, etc.)
+- `'raw_material'` → Material que se consume en producción (Bolsas Vacías, Botellas, etc.)
 
-#### Nueva tabla: `customer_prepaid_packages`
-| Campo | Tipo | Descripción |
-|---|---|---|
-| id | uuid | PK |
-| customer_id | uuid | Cliente |
-| product_id | uuid | Producto específico |
-| company_id | uuid | Empresa |
-| total_units | integer | Unidades totales compradas |
-| remaining_units | integer | Unidades restantes |
-| unit_price | numeric | Precio pactado por unidad |
-| amount_paid | numeric | Monto total pagado |
-| is_active | boolean | Si está activo |
-| notes | text | Observaciones |
-| created_at | timestamp | Fecha de registro |
-| expires_at | date | Fecha de vencimiento (opcional) |
+### Impacto en el sistema
 
-#### Nueva tabla: `prepaid_package_usages`
-| Campo | Tipo | Descripción |
-|---|---|---|
-| id | uuid | PK |
-| package_id | uuid | FK al paquete |
-| order_id | uuid | Pedido que consumió |
-| company_id | uuid | Empresa |
-| quantity_used | integer | Unidades descontadas |
-| created_at | timestamp | Fecha del consumo |
+#### Inventario (InventoryPage)
+- **Pestañas separadas** en la lista de productos: "Producto Final" | "Materia Prima"
+- Badges de color diferente: azul para final, naranja para materia prima
+- Al crear/editar producto: selector obligatorio de tipo
+- Filtro visual en la barra de búsqueda
 
-#### RLS Policies
-- Admin: gestión completa de paquetes y usos
-- Vendedor: solo lectura para ver saldos al crear pedidos
+#### Producción (ProductionRecipesManager)
+- En las recetas, el selector de **Material de Entrada** solo muestra `raw_material`
+- El selector de **Producto de Salida** solo muestra `final`
+- En "Registrar Producción directa", solo se muestran productos `final`
 
-### Cambios en Frontend
+#### Pre-pedidos / Ventas
+- Solo los productos `final` aparecen disponibles para crear pedidos
+- Las materias primas no son vendibles
 
-#### Nueva sección en `CustomersPage.tsx` (o pestaña separada)
-- Tab "Créditos Prepagados" dentro del detalle de cliente
-- Tabla de paquetes: Producto | Precio | Total | Usado | Restante | Vencimiento | Estado
-- Botón "+ Nuevo Paquete Prepagado" (solo Admin)
+#### Recetas ya configuradas (tus casos de uso)
+Las recetas existentes en el sistema seguirán funcionando. El administrador simplemente marcará los productos existentes con el tipo correcto:
 
-#### `NewOrderPage.tsx`
-- Al seleccionar cliente + producto, consulta si tiene saldo prepagado activo
-- Si tiene: badge verde "Saldo: X unidades | S/ Y.YY c/u"
-- El precio se aplica automáticamente al agregar el producto
-- Al confirmar el pedido: descuenta las unidades del paquete correspondiente
+| Producto | Tipo |
+|---|---|
+| Bolsas de 3kg Vacías | Materia Prima |
+| Bolsas de 1.5kg Vacías | Materia Prima |
+| Botellas 1L Vacías | Materia Prima |
+| Botellas 625ML Vacías | Materia Prima |
+| Botellas PET 8L Vacías | Materia Prima |
+| Hielo en cubos Ecohielo 3kg | Producto Final |
+| Hielo en cubos Ecohielo 1.5kg | Producto Final |
+| Agua Santa María Pqte 1L x8 | Producto Final |
+| Agua Santa María Pqte 625ml x15 | Producto Final |
+| Agua Santa María 8L | Producto Final |
 
-#### Nuevo hook: `usePrepaidPackages.ts`
-- `getPrepaidBalance(customerId, productId)`: retorna saldo y precio del paquete activo
-- `createPackage(data)`: crea un nuevo paquete prepagado
-- `usePackageForOrder(packageId, orderId, quantity)`: descuenta del saldo al confirmar pedido
-- `getCustomerPackages(customerId)`: lista todos los paquetes de un cliente
+---
+
+## Flujo Completo de Producción con Tipos
+
+```text
+Admin registra: "Producir 10 Hielo 3kg"
+        |
+        v
+Sistema verifica receta:
+  Hielo 3kg (Producto Final) 
+  requiere: 1 Bolsa 3kg Vacía (Materia Prima) por unidad
+        |
+        v
+Trigger automático descuenta:
+  Stock Bolsas 3kg Vacías: -10
+  Stock Hielo 3kg: +10
+        |
+        v
+Inventario actualizado en tiempo real
+```
+
+---
+
+## Archivos a Crear / Modificar
+
+### Base de datos (migración SQL)
+1. `ALTER TABLE products ADD COLUMN product_type TEXT NOT NULL DEFAULT 'final'`
+2. Actualizar función `recalculate_company_stock` si es necesario (sin cambios críticos)
+
+### Nuevos archivos
+- `src/hooks/useSalesReports.ts` — Hook para reportes de ventas por producto con filtros de período
+
+### Archivos a modificar
+- `src/pages/InventoryPage.tsx`:
+  - Agregar campo `product_type` al formulario de crear/editar producto
+  - Separar la lista de productos en tabs: "Productos Finales" / "Materias Primas"
+  - Agregar pestaña "Reporte de Ventas" con selector de período + tabla + botones de exportación
+  - Filtrar productos de producción directa: solo `product_type = 'final'`
+
+- `src/components/ProductionRecipesManager.tsx`:
+  - Filtrar selector de "Material de Entrada" para mostrar solo `raw_material`
+  - Filtrar selector de "Producto de Salida" para mostrar solo `final`
+
+- `src/pages/NewOrderPage.tsx`:
+  - Filtrar productos disponibles para venta: solo `product_type = 'final'`
+
+- `src/hooks/useProducts.ts`:
+  - Agregar `product_type` a la interfaz `Product`
 
 ---
 
 ## Sección Técnica
 
-### Archivos a crear
-- `supabase/migrations/..._backorders_and_prepaid.sql` — Schema y triggers
-- `src/hooks/usePrepaidPackages.ts` — Hook para paquetes prepagados
-- `src/components/PrepaidPackagesManager.tsx` — UI para gestión de paquetes
-
-### Archivos a modificar
-- `src/pages/NewOrderPage.tsx` — Mostrar productos sin stock + saldos prepagados
-- `src/pages/OrdersPage.tsx` — Tab de pre-pedidos + badge contador
-- `src/hooks/useOrders.ts` — Soporte para status `backorder`
-- `src/types/index.ts` — Agregar `backorder` a `OrderStatus` y config de display
-
-### Trigger SQL clave: `auto_fulfill_backorders`
+### Migración SQL
 ```sql
--- Se ejecuta DESPUÉS de cada INSERT en production_history
--- Busca backorders del producto producido, en orden cronológico (FIFO)
--- Activa los que puede cubrir con el nuevo stock
--- Registra en audit_log los backorders activados
+-- Agregar tipo de producto
+ALTER TABLE public.products 
+ADD COLUMN product_type TEXT NOT NULL DEFAULT 'final';
+
+-- Constraint de validación
+ALTER TABLE public.products 
+ADD CONSTRAINT products_type_check 
+CHECK (product_type IN ('final', 'raw_material'));
 ```
 
-### Validaciones importantes
-- No descuenta stock al crear backorder
-- Si hay paquete prepagado Y el cliente tiene stock: prioriza precio del paquete
-- Si un backorder se cancela: no afecta inventario
-- Los paquetes prepagados NO mezclan su saldo entre distintos productos
-- Al activar un backorder automáticamente: se registra `backorder_fulfilled_at`
+### Hook de Reportes de Ventas
+```typescript
+// Consulta base para reporte
+const { data } = await supabase
+  .from('order_items')
+  .select(`
+    product_id, product_name, quantity, unit_price, total,
+    orders!inner(status, created_at, company_id)
+  `)
+  .eq('orders.company_id', companyId)
+  .eq('orders.status', 'delivered')  // Solo ventas reales
+  .gte('orders.created_at', startDate)
+  .lte('orders.created_at', endDate);
+```
+
+### Exportación XLS de Ventas
+Mismo patrón que `src/lib/orderExport.ts`, con columnas:
+- Producto | SKU | Unidades | Precio Promedio | Total Ingresos
+
+### Validaciones
+- Un producto marcado como materia prima no puede aparecer en NewOrderPage
+- Las recetas deben respetar la clasificación (input = raw_material, output = final)
+- El tipo de producto puede cambiarse siempre que no haya recetas activas que lo contradigan (advertencia)
+- Si un producto no tiene tipo asignado (existentes), se mostrará como "Final" por defecto
