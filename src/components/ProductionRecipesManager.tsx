@@ -169,16 +169,16 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Producto a Producir</Label>
+                <Label>Producto a Producir (Final)</Label>
                 <Select 
                   value={productionForm.outputProductId} 
                   onValueChange={(v) => setProductionForm({ ...productionForm, outputProductId: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar producto..." />
+                    <SelectValue placeholder="Seleccionar producto final..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map((p: any) => (
+                    {products.filter((p: any) => !p.product_type || p.product_type === 'final').map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name} ({p.sku}) - Stock: {p.stock}
                       </SelectItem>
@@ -311,20 +311,23 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
                   </p>
                   
                   <div className="space-y-2">
-                    <Label>Material de Entrada (se consume)</Label>
+                    <Label>🧪 Material de Entrada (Materia Prima)</Label>
                     <Select 
                       value={recipeForm.inputProductId} 
                       onValueChange={(v) => setRecipeForm({ ...recipeForm, inputProductId: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar material..." />
+                        <SelectValue placeholder="Seleccionar materia prima..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {products.map((p: any) => (
+                        {products.filter((p: any) => p.product_type === 'raw_material').map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name} ({p.sku})
                           </SelectItem>
                         ))}
+                        {products.filter((p: any) => p.product_type === 'raw_material').length === 0 && (
+                          <SelectItem value="_none" disabled>No hay materias primas definidas</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -334,16 +337,16 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Producto de Salida (se produce)</Label>
+                    <Label>🛒 Producto de Salida (Producto Final)</Label>
                     <Select 
                       value={recipeForm.outputProductId} 
                       onValueChange={(v) => setRecipeForm({ ...recipeForm, outputProductId: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar producto..." />
+                        <SelectValue placeholder="Seleccionar producto final..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {products.map((p: any) => (
+                        {products.filter((p: any) => !p.product_type || p.product_type === 'final').map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name} ({p.sku})
                           </SelectItem>

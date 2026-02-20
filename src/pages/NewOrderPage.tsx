@@ -103,7 +103,8 @@ export default function NewOrderPage() {
   const requiresDocument = receiptType !== 'ticket';
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
-  const availableProducts = products; // Show ALL products, including out-of-stock (backorder support)
+  // Only show final products for sale (not raw materials)
+  const availableProducts = products.filter((p: any) => !p.product_type || p.product_type === 'final');
   const activeVendedores = vendedores.filter(v => v.active);
   const activeRepartidores = repartidores.filter(r => r.active);
 

@@ -15,6 +15,7 @@ interface Product {
   company_id: string;
   created_at: string;
   updated_at: string;
+  product_type: 'final' | 'raw_material';
 }
 
 interface ProductionHistory {
