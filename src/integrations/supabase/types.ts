@@ -217,6 +217,76 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_prepaid_packages: {
+        Row: {
+          amount_paid: number
+          company_id: string
+          created_at: string
+          customer_id: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          product_id: string
+          remaining_units: number
+          total_units: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          company_id: string
+          created_at?: string
+          customer_id: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          product_id: string
+          remaining_units: number
+          total_units: number
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          company_id?: string
+          created_at?: string
+          customer_id?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          product_id?: string
+          remaining_units?: number
+          total_units?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_prepaid_packages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_prepaid_packages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_prepaid_packages_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_product_prices: {
         Row: {
           company_id: string
@@ -902,6 +972,69 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      prepaid_package_usages: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          order_id: string
+          package_id: string
+          quantity_used: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+          package_id: string
+          quantity_used: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          package_id?: string
+          quantity_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prepaid_package_usages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepaid_package_usages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "customer_order_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepaid_package_usages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_tracking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepaid_package_usages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepaid_package_usages_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "customer_prepaid_packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_edit_otp_codes: {
         Row: {
@@ -1810,6 +1943,7 @@ export type Database = {
         | "delivery"
         | "delivered"
         | "cancelled"
+        | "backorder"
       user_role: "superadmin" | "admin" | "vendedor" | "repartidor" | "operario"
     }
     CompositeTypes: {
@@ -1947,6 +2081,7 @@ export const Constants = {
         "delivery",
         "delivered",
         "cancelled",
+        "backorder",
       ],
       user_role: ["superadmin", "admin", "vendedor", "repartidor", "operario"],
     },

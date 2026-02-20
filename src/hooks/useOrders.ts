@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
 
+import { OrderStatus } from '@/types';
+
 interface Order {
   id: string;
   customer_id: string;
@@ -11,7 +13,7 @@ interface Order {
   customer_latitude: number | null;
   customer_longitude: number | null;
   total: number;
-  status: 'pending' | 'preparation' | 'ready' | 'delivery' | 'delivered' | 'cancelled';
+  status: OrderStatus;
   vendedor_id: string | null;
   vendedor_name: string | null;
   repartidor_id: string | null;

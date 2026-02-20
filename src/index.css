@@ -152,6 +152,9 @@
   .status-cancelled {
     @apply bg-[hsl(var(--status-cancelled-bg))] text-[hsl(var(--status-cancelled))];
   }
+  .status-backorder {
+    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400;
+  }
 
   /* Stock Status */
   .stock-normal {
