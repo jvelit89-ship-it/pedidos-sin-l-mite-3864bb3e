@@ -131,11 +131,11 @@ export function RepartidorBlockOverlay() {
     return () => clearInterval(intervalId);
   }, [isRepartidor, overdueOrders.length, isBlocked, blockedOrders.length, playAlarm]);
 
-  const handleMarkDelivered = async (orderId: string) => {
+  const handleMarkStatus = async (orderId: string, status: 'delivered' | 'cancelled') => {
     setMarkingId(orderId);
     try {
-      await updateOrderStatus(orderId, 'delivered');
-      toast.success('✅ Entrega marcada como completada');
+      await updateOrderStatus(orderId, status);
+      toast.success(status === 'delivered' ? '✅ Entrega marcada como completada' : '❌ Pedido anulado');
     } catch {
       toast.error('Error al actualizar');
     } finally {
@@ -250,19 +250,31 @@ export function RepartidorBlockOverlay() {
                   <span>{formatCurrency(order.total)}</span>
                 </div>
 
-                <Button
-                  className="w-full gap-2 font-bold"
-                  size="lg"
-                  disabled={markingId === order.id}
-                  onClick={() => handleMarkDelivered(order.id)}
-                >
-                  {markingId === order.id ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="w-5 h-5" />
-                  )}
-                  MARCAR COMO ENTREGADO
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 gap-2 font-bold"
+                    size="lg"
+                    disabled={!!markingId}
+                    onClick={() => handleMarkStatus(order.id, 'delivered')}
+                  >
+                    {markingId === order.id ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5" />
+                    )}
+                    ENTREGADO
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="gap-2 font-bold"
+                    size="lg"
+                    disabled={!!markingId}
+                    onClick={() => handleMarkStatus(order.id, 'cancelled')}
+                  >
+                    <AlertTriangle className="w-5 h-5" />
+                    ANULAR
+                  </Button>
+                </div>
               </motion.div>
             ))}
           </div>
