@@ -32,6 +32,7 @@ import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPanel';
 import { PendingProductionPanel } from '@/components/PendingProductionPanel';
 import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPanel';
+import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -190,6 +191,9 @@ export default function DashboardPage() {
             <OperationalInsights insights={operationalInsights} />
             <AllRepartidoresLoad loads={allRepartidoresLoad} />
           </div>
+
+          {/* Stuck Deliveries Panel */}
+          <StuckDeliveriesPanel />
 
           {/* Invoice Requests Panel */}
           <InvoiceRequestsPanel />

@@ -44,3 +44,6 @@ verify_jwt = false
  
  [functions.get-distributor-data]
  verify_jwt = false
+
+[functions.auto-deliver-orders]
+verify_jwt = false
