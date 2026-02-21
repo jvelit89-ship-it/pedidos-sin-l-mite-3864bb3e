@@ -4,6 +4,7 @@ import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
 import { DesktopSidebar, BottomNavigation } from '@/components/Navigation';
 import { OfflineBanner } from '@/components/SyncIndicator';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
+import { RepartidorBlockOverlay } from '@/components/RepartidorBlockOverlay';
 import { AppFooter } from '@/components/AppFooter';
 import { Loader2 } from 'lucide-react';
 
@@ -38,6 +39,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className={`min-h-screen bg-background ${isImpersonating ? 'pt-10' : ''}`}>
       <ImpersonationBanner />
       <OfflineBanner />
+      <RepartidorBlockOverlay />
       <DesktopSidebar />
       <main className="md:ml-64 pb-safe md:pb-0">
         <div className="min-h-screen pb-8">
