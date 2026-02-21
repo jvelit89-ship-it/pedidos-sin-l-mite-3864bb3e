@@ -15,6 +15,9 @@ export interface Supplier {
   email: string | null;
   contact_name: string | null;
   notes: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  cci: string | null;
   is_active: boolean;
   company_id: string;
   created_at: string;
@@ -32,6 +35,9 @@ export interface SupplierFormData {
   email?: string;
   contact_name?: string;
   notes?: string;
+  bank_name?: string;
+  account_number?: string;
+  cci?: string;
   is_active?: boolean;
 }
 
@@ -87,6 +93,9 @@ export function useSuppliers() {
           email: data.email || null,
           contact_name: data.contact_name || null,
           notes: data.notes || null,
+          bank_name: data.bank_name || null,
+          account_number: data.account_number || null,
+          cci: data.cci || null,
           is_active: data.is_active ?? true,
           company_id: user?.companyId,
         })
@@ -128,6 +137,9 @@ export function useSuppliers() {
           email: data.email || null,
           contact_name: data.contact_name || null,
           notes: data.notes || null,
+          bank_name: data.bank_name || null,
+          account_number: data.account_number || null,
+          cci: data.cci || null,
           is_active: data.is_active ?? true,
         })
         .eq('id', id);
