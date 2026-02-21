@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { usePrepaidPackages, PrepaidPackage } from '@/hooks/usePrepaidPackages';
 import { useProducts } from '@/hooks/useProducts';
+import { useVendedores } from '@/hooks/useTeam';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, Plus, CreditCard, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Package, Plus, CreditCard, AlertCircle, CheckCircle2, XCircle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -26,6 +27,8 @@ export function PrepaidPackagesManager({ customerId, companyId, customerName }: 
   const { isAdmin } = useAuth();
   const { packages, loading, createPackage, deactivatePackage } = usePrepaidPackages(customerId);
   const { products } = useProducts();
+  const { vendedores } = useVendedores();
+  const activeVendedores = (vendedores || []).filter((v: any) => v.active !== false);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,10 +39,11 @@ export function PrepaidPackagesManager({ customerId, companyId, customerName }: 
     amount_paid: '',
     notes: '',
     expires_at: '',
+    vendedor_id: '',
   });
 
   const resetForm = () => {
-    setForm({ product_id: '', total_units: '', unit_price: '', amount_paid: '', notes: '', expires_at: '' });
+    setForm({ product_id: '', total_units: '', unit_price: '', amount_paid: '', notes: '', expires_at: '', vendedor_id: '' });
   };
 
   const handleCreate = async () => {
@@ -55,6 +59,7 @@ export function PrepaidPackagesManager({ customerId, companyId, customerName }: 
       amount_paid: parseFloat(form.amount_paid) || parseFloat(form.unit_price) * parseInt(form.total_units),
       notes: form.notes || undefined,
       expires_at: form.expires_at || undefined,
+      vendedor_id: form.vendedor_id || undefined,
     });
 
     setIsSubmitting(false);
@@ -158,6 +163,22 @@ export function PrepaidPackagesManager({ customerId, companyId, customerName }: 
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Vendedor (comisión) *</Label>
+                  <Select value={form.vendedor_id} onValueChange={(v) => setForm(f => ({ ...f, vendedor_id: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar vendedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeVendedores.map((v: any) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Fecha de Vencimiento (opcional)</Label>
                   <Input
                     type="date"
@@ -187,7 +208,7 @@ export function PrepaidPackagesManager({ customerId, companyId, customerName }: 
                   <Button
                     className="flex-1"
                     onClick={handleCreate}
-                    disabled={isSubmitting || !form.product_id || !form.total_units || !form.unit_price}
+                    disabled={isSubmitting || !form.product_id || !form.total_units || !form.unit_price || !form.vendedor_id}
                   >
                     {isSubmitting ? 'Creando...' : 'Crear Paquete'}
                   </Button>
@@ -247,6 +268,9 @@ export function PrepaidPackagesManager({ customerId, companyId, customerName }: 
                     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span>💰 {formatCurrency(pkg.unit_price)} c/u</span>
                       <span>💳 Pagado: {formatCurrency(pkg.amount_paid)}</span>
+                      {(pkg as any).vendedores?.name && (
+                        <span>👤 Vendedor: {(pkg as any).vendedores.name}</span>
+                      )}
                       {pkg.expires_at && (
                         <span>📅 Vence: {format(new Date(pkg.expires_at), 'dd MMM yyyy', { locale: es })}</span>
                       )}
