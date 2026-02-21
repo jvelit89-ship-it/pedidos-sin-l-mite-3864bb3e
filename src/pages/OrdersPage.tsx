@@ -272,6 +272,21 @@ export default function OrdersPage() {
     const repartidor = repartidores.find(r => r.id === repartidorId);
     if (!repartidor) return;
 
+    // Check if this repartidor has overdue deliveries (1+ hour in transit)
+    const overdueOrders = orders.filter(o => 
+      o.status === 'delivery' && 
+      o.repartidor_id === repartidorId &&
+      (Date.now() - new Date(o.updated_at).getTime()) > 60 * 60 * 1000
+    );
+
+    if (overdueOrders.length > 0) {
+      const proceed = window.confirm(
+        `⚠️ ADVERTENCIA: ${repartidor.name} tiene ${overdueOrders.length} entrega(s) sin marcar como entregadas (más de 1 hora en tránsito).\n\n` +
+        `¿Deseas asignar los pedidos de todas formas?`
+      );
+      if (!proceed) return;
+    }
+
     setIsBulkUpdating(true);
     try {
       const { error } = await supabase
