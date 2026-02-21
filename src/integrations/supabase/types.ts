@@ -1621,8 +1621,11 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          account_number: string | null
           address: string | null
+          bank_name: string | null
           business_name: string | null
+          cci: string | null
           city: string | null
           company_id: string
           contact_name: string | null
@@ -1638,8 +1641,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_number?: string | null
           address?: string | null
+          bank_name?: string | null
           business_name?: string | null
+          cci?: string | null
           city?: string | null
           company_id: string
           contact_name?: string | null
@@ -1655,8 +1661,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_number?: string | null
           address?: string | null
+          bank_name?: string | null
           business_name?: string | null
+          cci?: string | null
           city?: string | null
           company_id?: string
           contact_name?: string | null

@@ -80,6 +80,9 @@ export default function SuppliersPage() {
     email: '',
     contact_name: '',
     notes: '',
+    bank_name: '',
+    account_number: '',
+    cci: '',
     is_active: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -108,6 +111,9 @@ export default function SuppliersPage() {
       email: '',
       contact_name: '',
       notes: '',
+      bank_name: '',
+      account_number: '',
+      cci: '',
       is_active: true,
     });
     setErrors({});
@@ -132,6 +138,9 @@ export default function SuppliersPage() {
       email: supplier.email || '',
       contact_name: supplier.contact_name || '',
       notes: supplier.notes || '',
+      bank_name: supplier.bank_name || '',
+      account_number: supplier.account_number || '',
+      cci: supplier.cci || '',
       is_active: supplier.is_active,
     });
     setDialogOpen(true);
@@ -476,6 +485,46 @@ export default function SuppliersPage() {
                   value={formData.contact_name}
                   onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
                   placeholder="Nombre del contacto"
+                />
+              </div>
+
+              {/* Banco */}
+              <div className="space-y-2">
+                <Label>Banco</Label>
+                <Select 
+                  value={formData.bank_name || ''} 
+                  onValueChange={(v) => setFormData({ ...formData, bank_name: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar banco" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BBVA">BBVA</SelectItem>
+                    <SelectItem value="BCP">BCP</SelectItem>
+                    <SelectItem value="Interbank">Interbank</SelectItem>
+                    <SelectItem value="Scotiabank">Scotiabank</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Número de Cuenta */}
+              <div className="space-y-2">
+                <Label>Número de Cuenta</Label>
+                <Input
+                  value={formData.account_number}
+                  onChange={(e) => setFormData({ ...formData, account_number: e.target.value.replace(/\D/g, '') })}
+                  placeholder="Número de cuenta bancaria"
+                />
+              </div>
+
+              {/* CCI */}
+              <div className="space-y-2 md:col-span-2">
+                <Label>CCI (Código de Cuenta Interbancario)</Label>
+                <Input
+                  value={formData.cci}
+                  onChange={(e) => setFormData({ ...formData, cci: e.target.value.replace(/\D/g, '') })}
+                  placeholder="20 dígitos"
+                  maxLength={20}
                 />
               </div>
 
