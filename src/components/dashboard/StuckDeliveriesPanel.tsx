@@ -99,8 +99,8 @@ export function StuckDeliveriesPanel() {
             </Badge>
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Pedidos en tránsito por más de {STUCK_THRESHOLD_MINUTES} min sin marcar como entregado. 
-            Después de 4 horas se marcarán automáticamente.
+            Pedidos en tránsito por más de {STUCK_THRESHOLD_MINUTES} min sin marcar como entregado.
+            El sistema del repartidor se bloquea después de 4 horas.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
