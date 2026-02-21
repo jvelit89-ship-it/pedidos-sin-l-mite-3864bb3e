@@ -232,6 +232,7 @@ export type Database = {
           total_units: number
           unit_price: number
           updated_at: string
+          vendedor_id: string | null
         }
         Insert: {
           amount_paid?: number
@@ -247,6 +248,7 @@ export type Database = {
           total_units: number
           unit_price: number
           updated_at?: string
+          vendedor_id?: string | null
         }
         Update: {
           amount_paid?: number
@@ -262,6 +264,7 @@ export type Database = {
           total_units?: number
           unit_price?: number
           updated_at?: string
+          vendedor_id?: string | null
         }
         Relationships: [
           {
@@ -283,6 +286,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_prepaid_packages_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores"
             referencedColumns: ["id"]
           },
         ]

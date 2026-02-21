@@ -13,12 +13,14 @@ export interface PrepaidPackage {
   amount_paid: number;
   is_active: boolean;
   notes: string | null;
+  vendedor_id: string | null;
   created_at: string;
   updated_at: string;
   expires_at: string | null;
   // joined
   products?: { name: string; sku: string };
   customers?: { name: string };
+  vendedores?: { name: string };
 }
 
 export function usePrepaidPackages(customerId?: string) {
@@ -30,7 +32,7 @@ export function usePrepaidPackages(customerId?: string) {
     setLoading(true);
     let query = (supabase as any)
       .from('customer_prepaid_packages')
-      .select('*, products(name, sku), customers(name)')
+      .select('*, products(name, sku), customers(name), vendedores(name)')
       .order('created_at', { ascending: false });
 
     if (customerId) {
@@ -59,6 +61,7 @@ export function usePrepaidPackages(customerId?: string) {
     amount_paid: number;
     notes?: string;
     expires_at?: string;
+    vendedor_id?: string;
   }) => {
     const { error: err } = await (supabase as any)
       .from('customer_prepaid_packages')
