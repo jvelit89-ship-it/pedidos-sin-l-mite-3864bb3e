@@ -320,13 +320,13 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
                         <SelectValue placeholder="Seleccionar materia prima..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {products.filter((p: any) => p.product_type === 'raw_material').map((p: any) => (
+                        {products.map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({p.sku})
+                            {p.name} ({p.sku}) {p.product_type === 'raw_material' ? '🧪' : '🛒'}
                           </SelectItem>
                         ))}
-                        {products.filter((p: any) => p.product_type === 'raw_material').length === 0 && (
-                          <SelectItem value="_none" disabled>No hay materias primas definidas</SelectItem>
+                        {products.length === 0 && (
+                          <SelectItem value="_none" disabled>No hay productos definidos</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
