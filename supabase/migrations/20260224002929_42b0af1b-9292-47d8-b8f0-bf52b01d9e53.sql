@@ -1,0 +1,1 @@
+ALTER TABLE public.purchases ADD COLUMN includes_tax boolean NOT NULL DEFAULT true;

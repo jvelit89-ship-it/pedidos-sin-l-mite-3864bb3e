@@ -1425,6 +1425,7 @@ export type Database = {
           created_by: string | null
           currency: string
           id: string
+          includes_tax: boolean
           issue_date: string
           notes: string | null
           receipt_number: string
@@ -1445,6 +1446,7 @@ export type Database = {
           created_by?: string | null
           currency?: string
           id?: string
+          includes_tax?: boolean
           issue_date?: string
           notes?: string | null
           receipt_number: string
@@ -1465,6 +1467,7 @@ export type Database = {
           created_by?: string | null
           currency?: string
           id?: string
+          includes_tax?: boolean
           issue_date?: string
           notes?: string | null
           receipt_number?: string

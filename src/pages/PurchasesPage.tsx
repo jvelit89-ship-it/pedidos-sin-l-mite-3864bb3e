@@ -107,7 +107,9 @@ export default function PurchasesPage() {
   };
 
   const getReceiptTypeLabel = (type: string) => {
-    return type === 'factura' ? 'Factura' : 'Boleta';
+    if (type === 'factura') return 'Factura';
+    if (type === 'nota_venta') return 'Nota de Venta';
+    return 'Boleta';
   };
 
   return (
@@ -355,10 +357,12 @@ export default function PurchasesPage() {
                   <p className="text-sm text-muted-foreground">Subtotal</p>
                   <p className="font-medium">{formatCurrency(purchaseDetail.subtotal)}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">IGV (18%)</p>
-                  <p className="font-medium">{formatCurrency(purchaseDetail.tax)}</p>
-                </div>
+                {purchaseDetail.includes_tax && (
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">IGV (18%)</p>
+                    <p className="font-medium">{formatCurrency(purchaseDetail.tax)}</p>
+                  </div>
+                )}
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Total</p>
                   <p className="text-xl font-bold text-primary">{formatCurrency(purchaseDetail.total)}</p>
