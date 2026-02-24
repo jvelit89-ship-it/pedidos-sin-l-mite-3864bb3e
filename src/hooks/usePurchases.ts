@@ -16,6 +16,7 @@ export interface Purchase {
   tax: number;
   total: number;
   notes: string | null;
+  includes_tax: boolean;
   status: 'active' | 'cancelled';
   cancelled_at: string | null;
   cancelled_by: string | null;
@@ -46,6 +47,7 @@ export interface NewPurchaseData {
   receipt_number: string;
   issue_date: string;
   currency: string;
+  includes_tax?: boolean;
   notes?: string;
   items: {
     product_id: string;
@@ -112,8 +114,9 @@ export function usePurchases() {
   const createPurchaseMutation = useMutation({
     mutationFn: async (data: NewPurchaseData) => {
       // Calculate totals
+      const includesTax = data.includes_tax !== false;
       const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
-      const tax = subtotal * 0.18; // IGV 18%
+      const tax = includesTax ? subtotal * 0.18 : 0;
       const total = subtotal + tax;
 
       // Create purchase
@@ -129,6 +132,7 @@ export function usePurchases() {
           subtotal,
           tax,
           total,
+          includes_tax: includesTax,
           notes: data.notes || null,
           company_id: user?.companyId,
           created_by: user?.id,

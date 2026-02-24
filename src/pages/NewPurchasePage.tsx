@@ -45,6 +45,7 @@ import { useSuppliers, SupplierFormData } from '@/hooks/useSuppliers';
 import { useProducts } from '@/hooks/useProducts';
 import { useSettings } from '@/contexts/SettingsContext';
 import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
 import { 
   ArrowLeft, 
   Plus, 
@@ -85,6 +86,7 @@ export default function NewPurchasePage() {
   // Form state
   const [supplierId, setSupplierId] = useState('');
   const [receiptType, setReceiptType] = useState('factura');
+  const [includesTax, setIncludesTax] = useState(true);
   const [receiptSeries, setReceiptSeries] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [issueDate, setIssueDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -151,7 +153,7 @@ export default function NewPurchasePage() {
   };
 
   const calculateTax = () => {
-    return calculateSubtotal() * 0.18;
+    return includesTax ? calculateSubtotal() * 0.18 : 0;
   };
 
   const calculateTotal = () => {
@@ -187,6 +189,7 @@ export default function NewPurchasePage() {
         receipt_number: receiptNumber,
         issue_date: issueDate,
         currency,
+        includes_tax: includesTax,
         notes: notes || undefined,
         items: items.map(item => ({
           product_id: item.product_id,
@@ -300,15 +303,34 @@ export default function NewPurchasePage() {
               {/* Receipt Type */}
               <div className="space-y-2">
                 <Label>Tipo de Comprobante</Label>
-                <Select value={receiptType} onValueChange={setReceiptType}>
+                <Select value={receiptType} onValueChange={(val) => {
+                  setReceiptType(val);
+                  if (val === 'nota_venta') setIncludesTax(false);
+                  else setIncludesTax(true);
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="factura">Factura</SelectItem>
                     <SelectItem value="boleta">Boleta</SelectItem>
+                    <SelectItem value="nota_venta">Nota de Venta</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Includes IGV */}
+              <div className="space-y-2">
+                <Label>¿Incluye IGV?</Label>
+                <div className="flex items-center gap-3 h-10">
+                  <Switch
+                    checked={includesTax}
+                    onCheckedChange={setIncludesTax}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {includesTax ? 'Sí, incluye IGV (18%)' : 'No incluye IGV'}
+                  </span>
+                </div>
               </div>
 
               {/* Series */}
@@ -383,10 +405,12 @@ export default function NewPurchasePage() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(calculateSubtotal())}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">IGV (18%)</span>
-                <span>{formatCurrency(calculateTax())}</span>
-              </div>
+              {includesTax && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">IGV (18%)</span>
+                  <span>{formatCurrency(calculateTax())}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-lg pt-2 border-t">
                 <span>Total</span>
                 <span className="text-primary">{formatCurrency(calculateTotal())}</span>
