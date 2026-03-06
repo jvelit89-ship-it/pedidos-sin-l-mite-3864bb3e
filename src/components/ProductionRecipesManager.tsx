@@ -41,6 +41,7 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
   const [isAddRecipeOpen, setIsAddRecipeOpen] = useState(false);
   const [isProduceOpen, setIsProduceOpen] = useState(false);
   const [isWasteOpen, setIsWasteOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Recipe form
   const [recipeForm, setRecipeForm] = useState({
@@ -85,20 +86,26 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
       toast.error('Selecciona un producto y cantidad');
       return;
     }
+    if (isSubmitting) return;
 
-    const success = await produceWithRecipe(
-      productionForm.outputProductId,
-      productionForm.quantity,
-      productionForm.wasteQuantity,
-      productionForm.wasteReason,
-      productionForm.notes
-    );
+    setIsSubmitting(true);
+    try {
+      const success = await produceWithRecipe(
+        productionForm.outputProductId,
+        productionForm.quantity,
+        productionForm.wasteQuantity,
+        productionForm.wasteReason,
+        productionForm.notes
+      );
 
-    if (success) {
-      await refetchProducts();
-      onProductionComplete?.();
-      setProductionForm({ outputProductId: '', quantity: 0, wasteQuantity: 0, wasteReason: '', notes: '' });
-      setIsProduceOpen(false);
+      if (success) {
+        await refetchProducts();
+        onProductionComplete?.();
+        setProductionForm({ outputProductId: '', quantity: 0, wasteQuantity: 0, wasteReason: '', notes: '' });
+        setIsProduceOpen(false);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -280,10 +287,14 @@ export function ProductionRecipesManager({ onProductionComplete }: ProductionRec
               <Button 
                 className="w-full" 
                 onClick={handleProduce}
-                disabled={!productionForm.outputProductId || productionForm.quantity <= 0}
+                disabled={!productionForm.outputProductId || productionForm.quantity <= 0 || isSubmitting}
               >
-                <Factory className="w-4 h-4 mr-2" />
-                Registrar Producción
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Factory className="w-4 h-4 mr-2" />
+                )}
+                {isSubmitting ? 'Registrando...' : 'Registrar Producción'}
               </Button>
             </CardContent>
           </Card>
