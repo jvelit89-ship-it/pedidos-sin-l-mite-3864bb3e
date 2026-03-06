@@ -255,15 +255,7 @@ export function useAdvancedProduction() {
       }
     }
 
-    // Get current user id
-    const { data: { user } } = await supabase.auth.getUser();
-    const producedBy = user?.id || null;
-
-    if (!producedBy) {
-      console.error('No se pudo obtener el ID del usuario para producción');
-      toast.error('Error de autenticación');
-      return false;
-    }
+    // producedBy already obtained above for dedup check
 
     // SOLO insertamos el registro de producción
     // El trigger auto_update_stock_on_production se encarga de:
