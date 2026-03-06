@@ -205,6 +205,33 @@ export function useAdvancedProduction() {
       return false;
     }
 
+    // Get current user id early for dedup check
+    const { data: { user } } = await supabase.auth.getUser();
+    const producedBy = user?.id || null;
+
+    if (!producedBy) {
+      console.error('No se pudo obtener el ID del usuario para producción');
+      toast.error('Error de autenticación');
+      return false;
+    }
+
+    // Duplicate prevention: check for same product+quantity+user within last 30 seconds
+    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
+    const { data: recentDuplicates } = await supabase
+      .from('production_history')
+      .select('id')
+      .eq('product_id', outputProductId)
+      .eq('quantity', quantity)
+      .eq('produced_by', producedBy)
+      .eq('company_id', companyId)
+      .gte('produced_at', thirtySecondsAgo)
+      .limit(1);
+
+    if (recentDuplicates && recentDuplicates.length > 0) {
+      toast.error('Producción duplicada detectada. Espera 30 segundos antes de registrar la misma cantidad del mismo producto.');
+      return false;
+    }
+
     const productRecipes = getRecipesForProduct(outputProductId);
     
     // Validar stock de materiales ANTES de insertar
