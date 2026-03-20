@@ -205,8 +205,8 @@ export function useDashboardStats() {
     const today = getLimaDateKey(new Date());
     const yesterday = getLimaDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
-    const todayOrders = orders.filter(o => getLimaDateKey(o.created_at) === today);
-    const yesterdayOrders = orders.filter(o => getLimaDateKey(o.created_at) === yesterday);
+    const todayOrders = orders.filter(o => (o as any).delivery_date === today || (!((o as any).delivery_date) && getLimaDateKey(o.created_at) === today));
+    const yesterdayOrders = orders.filter(o => (o as any).delivery_date === yesterday || (!((o as any).delivery_date) && getLimaDateKey(o.created_at) === yesterday));
 
     const deliveredToday = todayOrders.filter(o => o.status === 'delivered').length;
     const totalToday = todayOrders.length;
