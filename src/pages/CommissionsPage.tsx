@@ -109,6 +109,13 @@ export default function CommissionsPage() {
           name: o.operario_name,
           ...o,
         })));
+
+        const repartidorData = await calcRepartidorCommissions();
+        setRepartidorCommissions(repartidorData.map(r => ({
+          id: r.repartidor_id,
+          name: r.repartidor_name,
+          ...r,
+        })));
       } else if (isVendedor && user?.vendedorId) {
         const data = await calculateMyCommissions();
         setMyCommission(data);
@@ -116,6 +123,9 @@ export default function CommissionsPage() {
         setDailyCommissions(daily);
       } else if (isOperario && user?.operarioId) {
         const data = await calcMyOperarioCommissions();
+        setMyCommission(data);
+      } else if (isRepartidor && user?.repartidorId) {
+        const data = await calcMyRepartidorCommissions();
         setMyCommission(data);
       }
     } catch (error) {
