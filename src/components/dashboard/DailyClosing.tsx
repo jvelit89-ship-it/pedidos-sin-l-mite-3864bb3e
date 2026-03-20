@@ -131,12 +131,15 @@ export function DailyClosing() {
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate today's statistics using delivery date
+  // Calculate today's statistics using actual delivery date
   const dailyStats = useMemo<DailyStats>(() => {
-    // Get today's business day key and compare against each order's delivery date
     const today = getTodayBusinessDateKey();
     const todayOrders = orders.filter(o => {
-      if (o.delivery_date) return o.delivery_date === today;
+      // Delivered orders: group by delivered_at
+      if (o.status === 'delivered' && o.delivered_at) {
+        return getBusinessDateKey(o.delivered_at) === today;
+      }
+      // Active/cancelled: group by created_at
       return getBusinessDateKey(o.created_at) === today;
     });
 

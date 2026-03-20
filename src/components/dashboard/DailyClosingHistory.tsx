@@ -106,9 +106,11 @@ export function DailyClosingHistory() {
 
     return days.map(day => {
       const dayStr = format(day, 'yyyy-MM-dd');
-      // Use delivery_date if available, otherwise fall back to created_at business day
+      // Delivered orders: group by delivered_at; others: by created_at
       const dayOrders = orders.filter(o => {
-        if (o.delivery_date) return o.delivery_date === dayStr;
+        if (o.status === 'delivered' && o.delivered_at) {
+          return getBusinessDateKey(o.delivered_at) === dayStr;
+        }
         return getBusinessDateKey(o.created_at) === dayStr;
       });
       
