@@ -445,7 +445,7 @@ export default function CommissionsPage() {
   const totalRepartidorCommissions = repartidorCommissions.reduce((sum, c) => sum + c.total_commission, 0);
   const totalRepartidorUnits = repartidorCommissions.reduce((sum, c) => sum + c.total_units, 0);
 
-  // Non-admin view (vendedor or operario)
+  // Non-admin view (vendedor, operario, or repartidor)
   if (!isAdminOrSuper) {
     return (
       <div className="container mx-auto p-4 space-y-6">
