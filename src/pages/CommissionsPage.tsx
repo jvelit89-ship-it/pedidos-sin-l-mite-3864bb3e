@@ -1243,6 +1243,69 @@ export default function CommissionsPage() {
            </div>
          </DialogContent>
        </Dialog>
+
+       {/* Commission edit OTP verification dialog */}
+       <Dialog open={commissionOtpDialogOpen} onOpenChange={(open) => {
+         if (!open) {
+           setCommissionOtpDialogOpen(false);
+           setCommissionOtpValue('');
+         }
+       }}>
+         <DialogContent className="sm:max-w-md">
+           <DialogHeader>
+             <DialogTitle>Verificar cambio de comisión</DialogTitle>
+           </DialogHeader>
+           <div className="space-y-4">
+             <p className="text-sm text-muted-foreground">
+               Ingresa el código de 6 dígitos enviado a tu correo para confirmar el cambio de comisión
+               {pendingCommissionEdit && (
+                 <> de <strong>{pendingCommissionEdit.type === 'vendedor' ? 'vendedor' : pendingCommissionEdit.type === 'repartidor' ? 'repartidor' : 'operario'}</strong> del producto <strong>{pendingCommissionEdit.productName}</strong> a <strong>S/ {pendingCommissionEdit.amount.toFixed(2)}</strong></>
+               )}.
+             </p>
+             <div className="flex justify-center">
+               <InputOTP
+                 maxLength={6}
+                 value={commissionOtpValue}
+                 onChange={setCommissionOtpValue}
+               >
+                 <InputOTPGroup>
+                   <InputOTPSlot index={0} />
+                   <InputOTPSlot index={1} />
+                   <InputOTPSlot index={2} />
+                   <InputOTPSlot index={3} />
+                   <InputOTPSlot index={4} />
+                   <InputOTPSlot index={5} />
+                 </InputOTPGroup>
+               </InputOTP>
+             </div>
+             <div className="flex justify-end gap-2">
+               <Button
+                 variant="outline"
+                 onClick={() => {
+                   setCommissionOtpDialogOpen(false);
+                   setCommissionOtpValue('');
+                 }}
+                 disabled={commissionOtpVerifying}
+               >
+                 Cancelar
+               </Button>
+               <Button
+                 onClick={handleVerifyCommissionOtp}
+                 disabled={commissionOtpVerifying || commissionOtpValue.length !== 6}
+               >
+                 {commissionOtpVerifying ? (
+                   <>
+                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                     Verificando...
+                   </>
+                 ) : (
+                   'Confirmar cambio'
+                 )}
+               </Button>
+             </div>
+           </div>
+         </DialogContent>
+       </Dialog>
      </div>
    );
  }
