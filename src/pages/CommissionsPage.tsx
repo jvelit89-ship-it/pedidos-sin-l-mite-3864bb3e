@@ -167,7 +167,7 @@ export default function CommissionsPage() {
 
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
 
-  const exportCommissionsPDF = (type: 'vendedores' | 'operarios') => {
+  const exportCommissionsPDF = (type: 'vendedores' | 'operarios' | 'repartidores') => {
     const data = type === 'vendedores' ? vendedorCommissions : operarioCommissions;
     if (data.length === 0) {
       toast.error('No hay datos para exportar');
