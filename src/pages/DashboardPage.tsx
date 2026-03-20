@@ -54,7 +54,11 @@ export default function DashboardPage() {
 
   const stats = useMemo<DashboardStats>(() => {
     const today = getTodayBusinessDateKey();
-    const todayOrders = orders.filter(o => getBusinessDateKey(o.created_at) === today);
+    const todayOrders = orders.filter(o => {
+      // Use delivery_date if available, otherwise fall back to created_at business day
+      if (o.delivery_date) return o.delivery_date === today;
+      return getBusinessDateKey(o.created_at) === today;
+    });
 
     return {
       ordersToday: todayOrders.length,
