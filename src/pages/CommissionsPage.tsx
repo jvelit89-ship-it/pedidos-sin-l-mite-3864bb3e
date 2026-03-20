@@ -794,7 +794,7 @@ export default function CommissionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(adminTab === 'vendedores' ? vendedorCommissions : operarioCommissions).map((c) => (
+                    {(adminTab === 'vendedores' ? vendedorCommissions : adminTab === 'repartidores' ? repartidorCommissions : operarioCommissions).map((c) => (
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">{c.name}</TableCell>
                         <TableCell className="text-right">
