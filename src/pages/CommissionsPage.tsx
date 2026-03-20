@@ -1017,7 +1017,7 @@ export default function CommissionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>{adminTab === 'vendedores' ? 'Cliente' : 'Producción'}</TableHead>
+                  <TableHead>{adminTab === 'operarios' ? 'Producción' : 'Cliente'}</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead className="text-right">Cant.</TableHead>
                   <TableHead className="text-right">Com/U</TableHead>
