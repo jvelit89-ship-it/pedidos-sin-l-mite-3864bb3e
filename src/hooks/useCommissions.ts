@@ -58,8 +58,8 @@ export function useProductCommissions() {
     orderBy: { column: 'name', ascending: true },
   });
 
-  const setProductCommission = useCallback(async (productId: string, amount: number, type: 'vendedor' | 'operario' = 'vendedor') => {
-    const column = type === 'operario' ? 'operario_commission_amount' : 'commission_amount';
+  const setProductCommission = useCallback(async (productId: string, amount: number, type: 'vendedor' | 'operario' | 'repartidor' = 'vendedor') => {
+    const column = type === 'operario' ? 'operario_commission_amount' : type === 'repartidor' ? 'repartidor_commission_amount' : 'commission_amount';
     const { error } = await supabase
       .from('products')
       .update({ [column]: amount })
