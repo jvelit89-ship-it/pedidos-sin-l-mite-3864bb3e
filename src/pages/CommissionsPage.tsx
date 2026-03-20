@@ -53,7 +53,7 @@ export default function CommissionsPage() {
   const [loadingCommissions, setLoadingCommissions] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<CommissionSummary | null>(null);
   const [viewMode, setViewMode] = useState<'monthly' | 'daily'>('monthly');
-  const [adminTab, setAdminTab] = useState<'vendedores' | 'operarios'>('vendedores');
+  const [adminTab, setAdminTab] = useState<'vendedores' | 'operarios' | 'repartidores'>('vendedores');
  
    // Delete commission states
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
