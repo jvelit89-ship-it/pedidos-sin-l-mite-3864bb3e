@@ -828,7 +828,7 @@ export default function CommissionsPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {(adminTab === 'vendedores' ? vendedorCommissions : operarioCommissions).length === 0 && (
+                    {(adminTab === 'vendedores' ? vendedorCommissions : adminTab === 'repartidores' ? repartidorCommissions : operarioCommissions).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                           No hay datos de comisiones
