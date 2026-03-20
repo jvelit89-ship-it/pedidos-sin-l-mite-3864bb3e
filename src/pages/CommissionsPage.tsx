@@ -48,7 +48,7 @@ export default function CommissionsPage() {
   const [myCommission, setMyCommission] = useState<any>(null);
   const [dailyCommissions, setDailyCommissions] = useState<any[]>([]);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [editingType, setEditingType] = useState<'vendedor' | 'operario'>('vendedor');
+  const [editingType, setEditingType] = useState<'vendedor' | 'operario' | 'repartidor'>('vendedor');
   const [newAmount, setNewAmount] = useState('');
   const [loadingCommissions, setLoadingCommissions] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<CommissionSummary | null>(null);
