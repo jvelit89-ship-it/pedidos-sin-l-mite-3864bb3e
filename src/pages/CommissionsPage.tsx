@@ -810,7 +810,7 @@ export default function CommissionsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className={`font-bold ${adminTab === 'vendedores' ? 'text-green-600' : 'text-blue-600'}`}>
+                          <div className={`font-bold ${adminTab === 'vendedores' ? 'text-green-600' : adminTab === 'repartidores' ? 'text-orange-600' : 'text-blue-600'}`}>
                             {formatCurrency(c.total_commission)}
                           </div>
                           <div className="text-xs text-muted-foreground">
