@@ -786,7 +786,7 @@ export default function CommissionsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{adminTab === 'vendedores' ? 'Vendedor' : 'Operario'}</TableHead>
+                      <TableHead>{adminTab === 'vendedores' ? 'Vendedor' : adminTab === 'repartidores' ? 'Repartidor' : 'Operario'}</TableHead>
                       <TableHead className="text-right">Periodo 1 (1-15)</TableHead>
                       <TableHead className="text-right">Periodo 2 (16-{new Date(selectedYear, selectedMonth, 0).getDate()})</TableHead>
                       <TableHead className="text-right">Total</TableHead>
