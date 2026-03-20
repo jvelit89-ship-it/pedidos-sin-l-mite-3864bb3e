@@ -886,6 +886,26 @@ export default function CommissionsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
+                        {editingProduct === product.product_id && editingType === 'repartidor' ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <span>S/</span>
+                            <Input
+                              type="number"
+                              value={newAmount}
+                              onChange={(e) => setNewAmount(e.target.value)}
+                              className="w-24 text-right"
+                              placeholder="0.0000"
+                              min="0"
+                              step="0.0001"
+                            />
+                          </div>
+                        ) : (
+                          <Badge variant={product.repartidor_commission_amount > 0 ? 'secondary' : 'outline'} className={product.repartidor_commission_amount > 0 ? 'bg-orange-100 text-orange-800' : ''}>
+                            {formatCurrency(product.repartidor_commission_amount)}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
                         {editingProduct === product.product_id && editingType === 'operario' ? (
                           <div className="flex items-center justify-end gap-2">
                             <span>S/</span>
