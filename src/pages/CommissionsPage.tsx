@@ -73,8 +73,10 @@ export default function CommissionsPage() {
 
   const { calculateCommissions: calcVendedorCommissions, loading: calcVendedorLoading } = useVendorCommissions(selectedYear, selectedMonth);
   const { calculateCommissions: calcOperarioCommissions, loading: calcOperarioLoading } = useOperarioCommissions(selectedYear, selectedMonth);
+  const { calculateCommissions: calcRepartidorCommissions, loading: calcRepartidorLoading } = useRepartidorCommissions(selectedYear, selectedMonth);
   const { calculateMyCommissions, getDailyCommissions } = useMyCommissions(user?.vendedorId || null, selectedYear, selectedMonth);
   const { calculateMyCommissions: calcMyOperarioCommissions } = useMyOperarioCommissions(user?.operarioId || null, selectedYear, selectedMonth);
+  const { calculateMyCommissions: calcMyRepartidorCommissions } = useMyRepartidorCommissions(user?.repartidorId || null, selectedYear, selectedMonth);
 
   const isAdminOrSuper = isAdmin || isSuperAdmin;
   const isOperario = user?.role === 'operario';
