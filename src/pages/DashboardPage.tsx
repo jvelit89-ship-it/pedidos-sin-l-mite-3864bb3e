@@ -79,8 +79,10 @@ export default function DashboardPage() {
     return orders.filter(order => {
       if (statusFilter !== 'all' && order.status !== statusFilter) return false;
 
-      // Use delivery_date if available, otherwise fall back to created_at business day
-      const orderDay = order.delivery_date || getBusinessDateKey(order.created_at);
+      // Delivered orders: group by delivered_at; others: by created_at
+      const orderDay = (order.status === 'delivered' && order.delivered_at)
+        ? getBusinessDateKey(order.delivered_at)
+        : getBusinessDateKey(order.created_at);
 
       if (dateFilter === 'today') {
         return orderDay === today;
