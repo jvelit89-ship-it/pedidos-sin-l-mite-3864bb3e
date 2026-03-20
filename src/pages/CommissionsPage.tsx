@@ -847,7 +847,7 @@ export default function CommissionsPage() {
             <CardHeader>
               <CardTitle className="text-lg">Comisión por Producto</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Define el monto de comisión por unidad para vendedores (ventas) y operarios (producción)
+                Define el monto de comisión por unidad para vendedores (ventas), repartidores (entregas) y operarios (producción)
               </p>
             </CardHeader>
             <CardContent className="p-0">
@@ -855,8 +855,9 @@ export default function CommissionsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Producto</TableHead>
-                    <TableHead className="text-right">Comisión Vendedor</TableHead>
-                    <TableHead className="text-right">Comisión Operario</TableHead>
+                    <TableHead className="text-right">Com. Vendedor</TableHead>
+                    <TableHead className="text-right">Com. Repartidor</TableHead>
+                    <TableHead className="text-right">Com. Operario</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
