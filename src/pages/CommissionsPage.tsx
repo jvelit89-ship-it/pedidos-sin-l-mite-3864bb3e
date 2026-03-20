@@ -81,6 +81,7 @@ export default function CommissionsPage() {
   const isAdminOrSuper = isAdmin || isSuperAdmin;
   const isOperario = user?.role === 'operario';
   const isVendedor = user?.role === 'vendedor';
+  const isRepartidor = user?.role === 'repartidor';
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
