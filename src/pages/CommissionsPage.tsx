@@ -168,14 +168,14 @@ export default function CommissionsPage() {
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
 
   const exportCommissionsPDF = (type: 'vendedores' | 'operarios' | 'repartidores') => {
-    const data = type === 'vendedores' ? vendedorCommissions : operarioCommissions;
+    const data = type === 'vendedores' ? vendedorCommissions : type === 'repartidores' ? repartidorCommissions : operarioCommissions;
     if (data.length === 0) {
       toast.error('No hay datos para exportar');
       return;
     }
     const totalCommission = data.reduce((sum, c) => sum + c.total_commission, 0);
     const totalUnits = data.reduce((sum, c) => sum + c.total_units, 0);
-    const title = type === 'vendedores' ? 'Comisiones de Vendedores' : 'Comisiones de Operarios';
+    const title = type === 'vendedores' ? 'Comisiones de Vendedores' : type === 'repartidores' ? 'Comisiones de Repartidores' : 'Comisiones de Operarios';
     const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>
