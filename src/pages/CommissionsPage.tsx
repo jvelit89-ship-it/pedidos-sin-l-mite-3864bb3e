@@ -1052,7 +1052,7 @@ export default function CommissionsPage() {
                           d.product_name,
                           d.quantity,
                           d.total_commission,
-                          adminTab === 'vendedores' ? 'vendedor' : 'operario'
+                          adminTab === 'vendedores' ? 'vendedor' : adminTab === 'repartidores' ? 'repartidor' : 'operario'
                         )}
                       >
                         <Trash2 className="h-4 w-4" />
