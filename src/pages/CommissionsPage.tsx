@@ -780,7 +780,7 @@ export default function CommissionsPage() {
 
           <Card>
             <CardContent className="p-0">
-              {loadingCommissions || calcVendedorLoading || calcOperarioLoading ? (
+              {loadingCommissions || calcVendedorLoading || calcOperarioLoading || calcRepartidorLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Cargando...</div>
               ) : (
                 <Table>
