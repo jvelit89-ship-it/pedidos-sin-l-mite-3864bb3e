@@ -614,3 +614,233 @@ export function useMyOperarioCommissions(operarioId: string | null, year: number
 
   return { calculateMyCommissions, loading };
 }
+
+// Repartidor commission interfaces
+interface RepartidorCommissionSummary {
+  repartidor_id: string;
+  repartidor_name: string;
+  period1_units: number;
+  period1_commission: number;
+  period2_units: number;
+  period2_commission: number;
+  total_units: number;
+  total_commission: number;
+  details: CommissionDetail[];
+}
+
+export function useRepartidorCommissions(year: number, month: number) {
+  const [loading, setLoading] = useState(false);
+
+  const calculateCommissions = useCallback(async (): Promise<RepartidorCommissionSummary[]> => {
+    setLoading(true);
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return [];
+
+      const { data: repartidores } = await supabase
+        .from('repartidores')
+        .select('id, name')
+        .eq('company_id', companyId)
+        .eq('active', true);
+
+      if (!repartidores) return [];
+
+      const period1Start = new Date(year, month - 1, 1);
+      const period1End = new Date(year, month - 1, 15, 23, 59, 59);
+      const period2End = new Date(year, month, 0, 23, 59, 59);
+
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          repartidor_id,
+          customer_name,
+          delivered_at,
+          order_items (
+            product_id,
+            product_name,
+            quantity,
+            unit_price,
+            total
+          )
+        `)
+        .eq('company_id', companyId)
+        .eq('status', 'delivered')
+        .gte('delivered_at', period1Start.toISOString())
+        .lte('delivered_at', period2End.toISOString());
+
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, repartidor_commission_amount')
+        .eq('company_id', companyId);
+
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.repartidor_commission_amount || 0])
+      );
+
+      const commissions: RepartidorCommissionSummary[] = repartidores.map(repartidor => {
+        const repartidorOrders = orders?.filter(o => o.repartidor_id === repartidor.id) || [];
+        
+        let period1Units = 0;
+        let period1Commission = 0;
+        let period2Units = 0;
+        let period2Commission = 0;
+        const details: CommissionDetail[] = [];
+
+        repartidorOrders.forEach(order => {
+          const deliveredAt = new Date(order.delivered_at!);
+          const isPeriod1 = deliveredAt >= period1Start && deliveredAt <= period1End;
+
+          (order.order_items || []).forEach((item: any) => {
+            const commissionPerUnit = productCommissions.get(item.product_id) || 0;
+            const totalCommission = item.quantity * commissionPerUnit;
+
+            if (isPeriod1) {
+              period1Units += item.quantity;
+              period1Commission += totalCommission;
+            } else {
+              period2Units += item.quantity;
+              period2Commission += totalCommission;
+            }
+
+            details.push({
+              order_id: order.id,
+              order_date: order.delivered_at!,
+              customer_name: order.customer_name,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              commission_per_unit: commissionPerUnit,
+              total_commission: totalCommission,
+              unit_price: item.unit_price || 0,
+              sale_total: item.total || 0,
+            });
+          });
+        });
+
+        return {
+          repartidor_id: repartidor.id,
+          repartidor_name: repartidor.name,
+          period1_units: period1Units,
+          period1_commission: period1Commission,
+          period2_units: period2Units,
+          period2_commission: period2Commission,
+          total_units: period1Units + period2Units,
+          total_commission: period1Commission + period2Commission,
+          details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+        };
+      });
+
+      return commissions;
+    } finally {
+      setLoading(false);
+    }
+  }, [year, month]);
+
+  return { calculateCommissions, loading };
+}
+
+export function useMyRepartidorCommissions(repartidorId: string | null, year: number, month: number) {
+  const [loading, setLoading] = useState(false);
+
+  const calculateMyCommissions = useCallback(async () => {
+    if (!repartidorId) return null;
+    setLoading(true);
+
+    try {
+      const companyId = await getUserCompanyId();
+      if (!companyId) return null;
+
+      const period1Start = new Date(year, month - 1, 1);
+      const period1End = new Date(year, month - 1, 15, 23, 59, 59);
+      const period2End = new Date(year, month, 0, 23, 59, 59);
+
+      // Get repartidor to find their orders
+      const { data: repartidor } = await supabase
+        .from('repartidores')
+        .select('id')
+        .eq('id', repartidorId)
+        .single();
+
+      if (!repartidor) return null;
+
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          customer_name,
+          delivered_at,
+          order_items (
+            product_id,
+            product_name,
+            quantity,
+            unit_price,
+            total
+          )
+        `)
+        .eq('repartidor_id', repartidorId)
+        .eq('status', 'delivered')
+        .gte('delivered_at', period1Start.toISOString())
+        .lte('delivered_at', period2End.toISOString());
+
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, repartidor_commission_amount')
+        .eq('company_id', companyId);
+
+      const productCommissions = new Map(
+        (products || []).map(p => [p.id, p.repartidor_commission_amount || 0])
+      );
+
+      let period1Units = 0;
+      let period1Commission = 0;
+      let period2Units = 0;
+      let period2Commission = 0;
+      const details: CommissionDetail[] = [];
+
+      (orders || []).forEach(order => {
+        const deliveredAt = new Date(order.delivered_at!);
+        const isPeriod1 = deliveredAt >= period1Start && deliveredAt <= period1End;
+
+        (order.order_items || []).forEach((item: any) => {
+          const commissionPerUnit = productCommissions.get(item.product_id) || 0;
+          const totalCommission = item.quantity * commissionPerUnit;
+
+          if (isPeriod1) {
+            period1Units += item.quantity;
+            period1Commission += totalCommission;
+          } else {
+            period2Units += item.quantity;
+            period2Commission += totalCommission;
+          }
+
+          details.push({
+            order_id: order.id,
+            order_date: order.delivered_at!,
+            customer_name: order.customer_name,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            commission_per_unit: commissionPerUnit,
+            total_commission: totalCommission,
+            unit_price: item.unit_price || 0,
+            sale_total: item.total || 0,
+          });
+        });
+      });
+
+      return {
+        repartidor_id: repartidorId,
+        period1_units: period1Units,
+        period1_commission: period1Commission,
+        period2_units: period2Units,
+        period2_commission: period2Commission,
+        total_units: period1Units + period2Units,
+        total_commission: period1Commission + period2Commission,
+        details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [repartidorId, year, month]);
+
+  return { calculateMyCommissions, loading };
+}
