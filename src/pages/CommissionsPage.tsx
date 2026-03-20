@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useVendedores, useOperarios } from '@/hooks/useTeam';
-import { useProductCommissions, useVendorCommissions, useMyCommissions, useOperarioCommissions, useMyOperarioCommissions } from '@/hooks/useCommissions';
+import { useVendedores, useOperarios, useRepartidores } from '@/hooks/useTeam';
+import { useProductCommissions, useVendorCommissions, useMyCommissions, useOperarioCommissions, useMyOperarioCommissions, useRepartidorCommissions, useMyRepartidorCommissions } from '@/hooks/useCommissions';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
