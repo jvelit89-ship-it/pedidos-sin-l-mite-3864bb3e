@@ -96,9 +96,13 @@ const handler = async (req: Request): Promise<Response> => {
           stock: 'Stock',
           min_stock: 'Stock Mínimo',
           price: 'Precio',
-          notes: 'Notas'
+          notes: 'Notas',
+          commission_amount: 'Comisión Vendedor',
+          operario_commission_amount: 'Comisión Operario',
+          repartidor_commission_amount: 'Comisión Repartidor',
         };
-        return `<li><strong>${labels[key] || key}:</strong> ${value}</li>`;
+        const displayValue = typeof value === 'number' ? `S/ ${value.toFixed(2)}` : value;
+        return `<li><strong>${labels[key] || key}:</strong> ${displayValue}</li>`;
       })
       .join('');
 

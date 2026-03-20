@@ -71,6 +71,18 @@ export default function CommissionsPage() {
    const [sendingOtp, setSendingOtp] = useState(false);
    const [verifyingOtp, setVerifyingOtp] = useState(false);
 
+   // Commission edit OTP states
+   const [commissionOtpDialogOpen, setCommissionOtpDialogOpen] = useState(false);
+   const [commissionOtpValue, setCommissionOtpValue] = useState('');
+   const [commissionOtpSending, setCommissionOtpSending] = useState(false);
+   const [commissionOtpVerifying, setCommissionOtpVerifying] = useState(false);
+   const [pendingCommissionEdit, setPendingCommissionEdit] = useState<{
+     productId: string;
+     productName: string;
+     amount: number;
+     type: 'vendedor' | 'operario' | 'repartidor';
+   } | null>(null);
+
   const { calculateCommissions: calcVendedorCommissions, loading: calcVendedorLoading } = useVendorCommissions(selectedYear, selectedMonth);
   const { calculateCommissions: calcOperarioCommissions, loading: calcOperarioLoading } = useOperarioCommissions(selectedYear, selectedMonth);
   const { calculateCommissions: calcRepartidorCommissions, loading: calcRepartidorLoading } = useRepartidorCommissions(selectedYear, selectedMonth);
@@ -141,10 +153,60 @@ export default function CommissionsPage() {
       toast.error('El monto debe ser mayor o igual a 0');
       return;
     }
-    await setProductCommission(productId, amount, editingType);
-    setEditingProduct(null);
-    setNewAmount('');
-    loadCommissions();
+    const product = products.find((p: any) => p.product_id === productId);
+    const productName = product?.product_name || 'Producto';
+    setPendingCommissionEdit({ productId, productName, amount, type: editingType });
+    
+    // Send OTP
+    setCommissionOtpSending(true);
+    try {
+      const column = editingType === 'operario' ? 'operario_commission_amount' : editingType === 'repartidor' ? 'repartidor_commission_amount' : 'commission_amount';
+      const { data, error } = await supabase.functions.invoke('send-product-edit-otp', {
+        body: {
+          productId,
+          pendingChanges: { [column]: amount },
+          productName,
+        },
+      });
+      if (error) throw error;
+      toast.success('Código OTP enviado a tu correo');
+      setCommissionOtpDialogOpen(true);
+    } catch (error: any) {
+      console.error('Error sending OTP:', error);
+      toast.error('Error al enviar el código OTP');
+    } finally {
+      setCommissionOtpSending(false);
+    }
+  };
+
+  const handleVerifyCommissionOtp = async () => {
+    if (!pendingCommissionEdit || commissionOtpValue.length !== 6) return;
+    setCommissionOtpVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-product-edit-otp', {
+        body: {
+          otpCode: commissionOtpValue,
+          productId: pendingCommissionEdit.productId,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      toast.success('Comisión actualizada correctamente');
+      setCommissionOtpDialogOpen(false);
+      setCommissionOtpValue('');
+      setPendingCommissionEdit(null);
+      setEditingProduct(null);
+      setNewAmount('');
+      loadCommissions();
+    } catch (error: any) {
+      console.error('Error verifying OTP:', error);
+      toast.error('Código inválido o expirado');
+    } finally {
+      setCommissionOtpVerifying(false);
+    }
   };
 
   const handlePrevMonth = () => {
@@ -928,8 +990,15 @@ export default function CommissionsPage() {
                       <TableCell className="text-right">
                         {editingProduct === product.product_id ? (
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" onClick={() => handleSaveProductCommission(product.product_id)}>
-                              Guardar
+                            <Button size="sm" onClick={() => handleSaveProductCommission(product.product_id)} disabled={commissionOtpSending}>
+                              {commissionOtpSending ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Enviando...
+                                </>
+                              ) : (
+                                'Verificar y Guardar'
+                              )}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => {
                               setEditingProduct(null);
@@ -1175,6 +1244,69 @@ export default function CommissionsPage() {
                    </>
                  ) : (
                    'Confirmar eliminación'
+                 )}
+               </Button>
+             </div>
+           </div>
+         </DialogContent>
+       </Dialog>
+
+       {/* Commission edit OTP verification dialog */}
+       <Dialog open={commissionOtpDialogOpen} onOpenChange={(open) => {
+         if (!open) {
+           setCommissionOtpDialogOpen(false);
+           setCommissionOtpValue('');
+         }
+       }}>
+         <DialogContent className="sm:max-w-md">
+           <DialogHeader>
+             <DialogTitle>Verificar cambio de comisión</DialogTitle>
+           </DialogHeader>
+           <div className="space-y-4">
+             <p className="text-sm text-muted-foreground">
+               Ingresa el código de 6 dígitos enviado a tu correo para confirmar el cambio de comisión
+               {pendingCommissionEdit && (
+                 <> de <strong>{pendingCommissionEdit.type === 'vendedor' ? 'vendedor' : pendingCommissionEdit.type === 'repartidor' ? 'repartidor' : 'operario'}</strong> del producto <strong>{pendingCommissionEdit.productName}</strong> a <strong>S/ {pendingCommissionEdit.amount.toFixed(2)}</strong></>
+               )}.
+             </p>
+             <div className="flex justify-center">
+               <InputOTP
+                 maxLength={6}
+                 value={commissionOtpValue}
+                 onChange={setCommissionOtpValue}
+               >
+                 <InputOTPGroup>
+                   <InputOTPSlot index={0} />
+                   <InputOTPSlot index={1} />
+                   <InputOTPSlot index={2} />
+                   <InputOTPSlot index={3} />
+                   <InputOTPSlot index={4} />
+                   <InputOTPSlot index={5} />
+                 </InputOTPGroup>
+               </InputOTP>
+             </div>
+             <div className="flex justify-end gap-2">
+               <Button
+                 variant="outline"
+                 onClick={() => {
+                   setCommissionOtpDialogOpen(false);
+                   setCommissionOtpValue('');
+                 }}
+                 disabled={commissionOtpVerifying}
+               >
+                 Cancelar
+               </Button>
+               <Button
+                 onClick={handleVerifyCommissionOtp}
+                 disabled={commissionOtpVerifying || commissionOtpValue.length !== 6}
+               >
+                 {commissionOtpVerifying ? (
+                   <>
+                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                     Verificando...
+                   </>
+                 ) : (
+                   'Confirmar cambio'
                  )}
                </Button>
              </div>
