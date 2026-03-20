@@ -44,6 +44,7 @@ export default function CommissionsPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [vendedorCommissions, setVendedorCommissions] = useState<CommissionSummary[]>([]);
   const [operarioCommissions, setOperarioCommissions] = useState<CommissionSummary[]>([]);
+  const [repartidorCommissions, setRepartidorCommissions] = useState<CommissionSummary[]>([]);
   const [myCommission, setMyCommission] = useState<any>(null);
   const [dailyCommissions, setDailyCommissions] = useState<any[]>([]);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
