@@ -363,7 +363,7 @@ export default function CommissionsPage() {
      productName: string,
      quantity: number,
      commission: number,
-     type: 'vendedor' | 'operario'
+     type: 'vendedor' | 'operario' | 'repartidor'
    ) => {
      setDeleteTarget({
        personId,
