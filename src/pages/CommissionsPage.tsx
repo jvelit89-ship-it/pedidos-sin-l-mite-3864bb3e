@@ -957,6 +957,18 @@ export default function CommissionsPage() {
                               variant="outline"
                               onClick={() => {
                                 setEditingProduct(product.product_id);
+                                setEditingType('repartidor');
+                                setNewAmount(product.repartidor_commission_amount.toString());
+                              }}
+                            >
+                              <Truck className="h-3 w-3 mr-1" />
+                              R
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingProduct(product.product_id);
                                 setEditingType('operario');
                                 setNewAmount(product.operario_commission_amount.toString());
                               }}
