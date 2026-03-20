@@ -688,6 +688,17 @@ export default function CommissionsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Comisiones Repartidores</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalRepartidorCommissions)}</div>
+            <p className="text-xs text-muted-foreground">{totalRepartidorUnits} unidades</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Comisiones Operarios</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -704,7 +715,7 @@ export default function CommissionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {formatCurrency(totalVendedorCommissions + totalOperarioCommissions)}
+              {formatCurrency(totalVendedorCommissions + totalRepartidorCommissions + totalOperarioCommissions)}
             </div>
           </CardContent>
         </Card>
@@ -716,7 +727,7 @@ export default function CommissionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(vendedores?.filter(v => v.active).length || 0) + (operarios?.filter(o => o.active).length || 0)}
+              {(vendedores?.filter(v => v.active).length || 0) + (repartidores?.filter(r => r.active).length || 0) + (operarios?.filter(o => o.active).length || 0)}
             </div>
           </CardContent>
         </Card>
@@ -729,7 +740,7 @@ export default function CommissionsPage() {
         </TabsList>
 
         <TabsContent value="commissions" className="mt-4 space-y-4">
-          {/* Sub-tabs for vendedores/operarios */}
+          {/* Sub-tabs for vendedores/repartidores/operarios */}
           <div className="flex gap-2 flex-wrap items-center justify-between">
             <div className="flex gap-2">
               <Button
@@ -739,6 +750,14 @@ export default function CommissionsPage() {
               >
                 <Users className="h-4 w-4 mr-1" />
                 Vendedores
+              </Button>
+              <Button
+                variant={adminTab === 'repartidores' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAdminTab('repartidores')}
+              >
+                <Truck className="h-4 w-4 mr-1" />
+                Repartidores
               </Button>
               <Button
                 variant={adminTab === 'operarios' ? 'default' : 'outline'}
