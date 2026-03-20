@@ -1275,6 +1275,7 @@ export type Database = {
           operario_commission_amount: number
           price: number
           product_type: string
+          repartidor_commission_amount: number
           reserved_stock: number
           sku: string
           stock: number
@@ -1292,6 +1293,7 @@ export type Database = {
           operario_commission_amount?: number
           price?: number
           product_type?: string
+          repartidor_commission_amount?: number
           reserved_stock?: number
           sku: string
           stock?: number
@@ -1309,6 +1311,7 @@ export type Database = {
           operario_commission_amount?: number
           price?: number
           product_type?: string
+          repartidor_commission_amount?: number
           reserved_stock?: number
           sku?: string
           stock?: number

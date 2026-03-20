@@ -29,7 +29,7 @@ const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/inventory': ['admin', 'vendedor', 'operario'],
   '/customers': ['admin', 'vendedor', 'repartidor'],
   '/customers-map': ['admin'],
-  '/commissions': ['admin', 'vendedor', 'operario'],
+  '/commissions': ['admin', 'vendedor', 'operario', 'repartidor'],
   '/vendedores': ['admin'],
   '/repartidores': ['admin'],
   '/operarios': ['admin'],

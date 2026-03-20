@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useVendedores, useOperarios } from '@/hooks/useTeam';
-import { useProductCommissions, useVendorCommissions, useMyCommissions, useOperarioCommissions, useMyOperarioCommissions } from '@/hooks/useCommissions';
+import { useVendedores, useOperarios, useRepartidores } from '@/hooks/useTeam';
+import { useProductCommissions, useVendorCommissions, useMyCommissions, useOperarioCommissions, useMyOperarioCommissions, useRepartidorCommissions, useMyRepartidorCommissions } from '@/hooks/useCommissions';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
- import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2, FileDown } from 'lucide-react';
+ import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2, FileDown, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -36,6 +36,7 @@ export default function CommissionsPage() {
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const { vendedores } = useVendedores();
   const { operarios } = useOperarios();
+  const { repartidores } = useRepartidores();
   const { products, setProductCommission, loading: productsLoading } = useProductCommissions();
   const { formatDateLocal } = useSettings();
 
@@ -43,15 +44,16 @@ export default function CommissionsPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [vendedorCommissions, setVendedorCommissions] = useState<CommissionSummary[]>([]);
   const [operarioCommissions, setOperarioCommissions] = useState<CommissionSummary[]>([]);
+  const [repartidorCommissions, setRepartidorCommissions] = useState<CommissionSummary[]>([]);
   const [myCommission, setMyCommission] = useState<any>(null);
   const [dailyCommissions, setDailyCommissions] = useState<any[]>([]);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [editingType, setEditingType] = useState<'vendedor' | 'operario'>('vendedor');
+  const [editingType, setEditingType] = useState<'vendedor' | 'operario' | 'repartidor'>('vendedor');
   const [newAmount, setNewAmount] = useState('');
   const [loadingCommissions, setLoadingCommissions] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<CommissionSummary | null>(null);
   const [viewMode, setViewMode] = useState<'monthly' | 'daily'>('monthly');
-  const [adminTab, setAdminTab] = useState<'vendedores' | 'operarios'>('vendedores');
+  const [adminTab, setAdminTab] = useState<'vendedores' | 'operarios' | 'repartidores'>('vendedores');
  
    // Delete commission states
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -64,19 +66,22 @@ export default function CommissionsPage() {
     quantity: number;
     commission: number;
   } | null>(null);
-   const [deleteType, setDeleteType] = useState<'vendedor' | 'operario'>('vendedor');
+   const [deleteType, setDeleteType] = useState<'vendedor' | 'operario' | 'repartidor'>('vendedor');
    const [otpValue, setOtpValue] = useState('');
    const [sendingOtp, setSendingOtp] = useState(false);
    const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   const { calculateCommissions: calcVendedorCommissions, loading: calcVendedorLoading } = useVendorCommissions(selectedYear, selectedMonth);
   const { calculateCommissions: calcOperarioCommissions, loading: calcOperarioLoading } = useOperarioCommissions(selectedYear, selectedMonth);
+  const { calculateCommissions: calcRepartidorCommissions, loading: calcRepartidorLoading } = useRepartidorCommissions(selectedYear, selectedMonth);
   const { calculateMyCommissions, getDailyCommissions } = useMyCommissions(user?.vendedorId || null, selectedYear, selectedMonth);
   const { calculateMyCommissions: calcMyOperarioCommissions } = useMyOperarioCommissions(user?.operarioId || null, selectedYear, selectedMonth);
+  const { calculateMyCommissions: calcMyRepartidorCommissions } = useMyRepartidorCommissions(user?.repartidorId || null, selectedYear, selectedMonth);
 
   const isAdminOrSuper = isAdmin || isSuperAdmin;
   const isOperario = user?.role === 'operario';
   const isVendedor = user?.role === 'vendedor';
+  const isRepartidor = user?.role === 'repartidor';
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -104,6 +109,13 @@ export default function CommissionsPage() {
           name: o.operario_name,
           ...o,
         })));
+
+        const repartidorData = await calcRepartidorCommissions();
+        setRepartidorCommissions(repartidorData.map(r => ({
+          id: r.repartidor_id,
+          name: r.repartidor_name,
+          ...r,
+        })));
       } else if (isVendedor && user?.vendedorId) {
         const data = await calculateMyCommissions();
         setMyCommission(data);
@@ -111,6 +123,9 @@ export default function CommissionsPage() {
         setDailyCommissions(daily);
       } else if (isOperario && user?.operarioId) {
         const data = await calcMyOperarioCommissions();
+        setMyCommission(data);
+      } else if (isRepartidor && user?.repartidorId) {
+        const data = await calcMyRepartidorCommissions();
         setMyCommission(data);
       }
     } catch (error) {
@@ -152,15 +167,15 @@ export default function CommissionsPage() {
 
   const formatCurrency = (amount: number) => `S/ ${amount.toFixed(2)}`;
 
-  const exportCommissionsPDF = (type: 'vendedores' | 'operarios') => {
-    const data = type === 'vendedores' ? vendedorCommissions : operarioCommissions;
+  const exportCommissionsPDF = (type: 'vendedores' | 'operarios' | 'repartidores') => {
+    const data = type === 'vendedores' ? vendedorCommissions : type === 'repartidores' ? repartidorCommissions : operarioCommissions;
     if (data.length === 0) {
       toast.error('No hay datos para exportar');
       return;
     }
     const totalCommission = data.reduce((sum, c) => sum + c.total_commission, 0);
     const totalUnits = data.reduce((sum, c) => sum + c.total_units, 0);
-    const title = type === 'vendedores' ? 'Comisiones de Vendedores' : 'Comisiones de Operarios';
+    const title = type === 'vendedores' ? 'Comisiones de Vendedores' : type === 'repartidores' ? 'Comisiones de Repartidores' : 'Comisiones de Operarios';
     const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>
@@ -348,7 +363,7 @@ export default function CommissionsPage() {
      productName: string,
      quantity: number,
      commission: number,
-     type: 'vendedor' | 'operario'
+     type: 'vendedor' | 'operario' | 'repartidor'
    ) => {
      setDeleteTarget({
        personId,
@@ -427,8 +442,10 @@ export default function CommissionsPage() {
   const totalVendedorUnits = vendedorCommissions.reduce((sum, c) => sum + c.total_units, 0);
   const totalOperarioCommissions = operarioCommissions.reduce((sum, c) => sum + c.total_commission, 0);
   const totalOperarioUnits = operarioCommissions.reduce((sum, c) => sum + c.total_units, 0);
+  const totalRepartidorCommissions = repartidorCommissions.reduce((sum, c) => sum + c.total_commission, 0);
+  const totalRepartidorUnits = repartidorCommissions.reduce((sum, c) => sum + c.total_units, 0);
 
-  // Non-admin view (vendedor or operario)
+  // Non-admin view (vendedor, operario, or repartidor)
   if (!isAdminOrSuper) {
     return (
       <div className="container mx-auto p-4 space-y-6">
@@ -488,7 +505,7 @@ export default function CommissionsPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
-                    {isOperario ? 'Unidades Producidas' : 'Unidades Vendidas'}
+                    {isOperario ? 'Unidades Producidas' : isRepartidor ? 'Unidades Entregadas' : 'Unidades Vendidas'}
                   </CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -496,7 +513,6 @@ export default function CommissionsPage() {
                   <div className="text-2xl font-bold">{myCommission.total_units}</div>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Periodo 1 (1-15)</CardTitle>
@@ -672,6 +688,17 @@ export default function CommissionsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Comisiones Repartidores</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalRepartidorCommissions)}</div>
+            <p className="text-xs text-muted-foreground">{totalRepartidorUnits} unidades</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Comisiones Operarios</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -688,7 +715,7 @@ export default function CommissionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {formatCurrency(totalVendedorCommissions + totalOperarioCommissions)}
+              {formatCurrency(totalVendedorCommissions + totalRepartidorCommissions + totalOperarioCommissions)}
             </div>
           </CardContent>
         </Card>
@@ -700,7 +727,7 @@ export default function CommissionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(vendedores?.filter(v => v.active).length || 0) + (operarios?.filter(o => o.active).length || 0)}
+              {(vendedores?.filter(v => v.active).length || 0) + (repartidores?.filter(r => r.active).length || 0) + (operarios?.filter(o => o.active).length || 0)}
             </div>
           </CardContent>
         </Card>
@@ -713,7 +740,7 @@ export default function CommissionsPage() {
         </TabsList>
 
         <TabsContent value="commissions" className="mt-4 space-y-4">
-          {/* Sub-tabs for vendedores/operarios */}
+          {/* Sub-tabs for vendedores/repartidores/operarios */}
           <div className="flex gap-2 flex-wrap items-center justify-between">
             <div className="flex gap-2">
               <Button
@@ -723,6 +750,14 @@ export default function CommissionsPage() {
               >
                 <Users className="h-4 w-4 mr-1" />
                 Vendedores
+              </Button>
+              <Button
+                variant={adminTab === 'repartidores' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAdminTab('repartidores')}
+              >
+                <Truck className="h-4 w-4 mr-1" />
+                Repartidores
               </Button>
               <Button
                 variant={adminTab === 'operarios' ? 'default' : 'outline'}
@@ -745,13 +780,13 @@ export default function CommissionsPage() {
 
           <Card>
             <CardContent className="p-0">
-              {loadingCommissions || calcVendedorLoading || calcOperarioLoading ? (
+              {loadingCommissions || calcVendedorLoading || calcOperarioLoading || calcRepartidorLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Cargando...</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{adminTab === 'vendedores' ? 'Vendedor' : 'Operario'}</TableHead>
+                      <TableHead>{adminTab === 'vendedores' ? 'Vendedor' : adminTab === 'repartidores' ? 'Repartidor' : 'Operario'}</TableHead>
                       <TableHead className="text-right">Periodo 1 (1-15)</TableHead>
                       <TableHead className="text-right">Periodo 2 (16-{new Date(selectedYear, selectedMonth, 0).getDate()})</TableHead>
                       <TableHead className="text-right">Total</TableHead>
@@ -759,7 +794,7 @@ export default function CommissionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(adminTab === 'vendedores' ? vendedorCommissions : operarioCommissions).map((c) => (
+                    {(adminTab === 'vendedores' ? vendedorCommissions : adminTab === 'repartidores' ? repartidorCommissions : operarioCommissions).map((c) => (
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">{c.name}</TableCell>
                         <TableCell className="text-right">
@@ -775,7 +810,7 @@ export default function CommissionsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className={`font-bold ${adminTab === 'vendedores' ? 'text-green-600' : 'text-blue-600'}`}>
+                          <div className={`font-bold ${adminTab === 'vendedores' ? 'text-green-600' : adminTab === 'repartidores' ? 'text-orange-600' : 'text-blue-600'}`}>
                             {formatCurrency(c.total_commission)}
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -793,7 +828,7 @@ export default function CommissionsPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {(adminTab === 'vendedores' ? vendedorCommissions : operarioCommissions).length === 0 && (
+                    {(adminTab === 'vendedores' ? vendedorCommissions : adminTab === 'repartidores' ? repartidorCommissions : operarioCommissions).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                           No hay datos de comisiones
@@ -812,7 +847,7 @@ export default function CommissionsPage() {
             <CardHeader>
               <CardTitle className="text-lg">Comisión por Producto</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Define el monto de comisión por unidad para vendedores (ventas) y operarios (producción)
+                Define el monto de comisión por unidad para vendedores (ventas), repartidores (entregas) y operarios (producción)
               </p>
             </CardHeader>
             <CardContent className="p-0">
@@ -820,8 +855,9 @@ export default function CommissionsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Producto</TableHead>
-                    <TableHead className="text-right">Comisión Vendedor</TableHead>
-                    <TableHead className="text-right">Comisión Operario</TableHead>
+                    <TableHead className="text-right">Com. Vendedor</TableHead>
+                    <TableHead className="text-right">Com. Repartidor</TableHead>
+                    <TableHead className="text-right">Com. Operario</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -846,6 +882,26 @@ export default function CommissionsPage() {
                         ) : (
                           <Badge variant={product.commission_amount > 0 ? 'default' : 'outline'}>
                             {formatCurrency(product.commission_amount)}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {editingProduct === product.product_id && editingType === 'repartidor' ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <span>S/</span>
+                            <Input
+                              type="number"
+                              value={newAmount}
+                              onChange={(e) => setNewAmount(e.target.value)}
+                              className="w-24 text-right"
+                              placeholder="0.0000"
+                              min="0"
+                              step="0.0001"
+                            />
+                          </div>
+                        ) : (
+                          <Badge variant={product.repartidor_commission_amount > 0 ? 'secondary' : 'outline'} className={product.repartidor_commission_amount > 0 ? 'bg-orange-100 text-orange-800' : ''}>
+                            {formatCurrency(product.repartidor_commission_amount)}
                           </Badge>
                         )}
                       </TableCell>
@@ -901,6 +957,18 @@ export default function CommissionsPage() {
                               variant="outline"
                               onClick={() => {
                                 setEditingProduct(product.product_id);
+                                setEditingType('repartidor');
+                                setNewAmount(product.repartidor_commission_amount.toString());
+                              }}
+                            >
+                              <Truck className="h-3 w-3 mr-1" />
+                              R
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingProduct(product.product_id);
                                 setEditingType('operario');
                                 setNewAmount(product.operario_commission_amount.toString());
                               }}
@@ -949,7 +1017,7 @@ export default function CommissionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>{adminTab === 'vendedores' ? 'Cliente' : 'Producción'}</TableHead>
+                  <TableHead>{adminTab === 'operarios' ? 'Producción' : 'Cliente'}</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead className="text-right">Cant.</TableHead>
                   <TableHead className="text-right">Com/U</TableHead>
@@ -969,7 +1037,7 @@ export default function CommissionsPage() {
                     <TableCell className="text-right text-muted-foreground">
                       {formatCurrency(d.commission_per_unit)}
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${adminTab === 'vendedores' ? 'text-green-600' : 'text-blue-600'}`}>
+                    <TableCell className={`text-right font-medium ${adminTab === 'vendedores' ? 'text-green-600' : adminTab === 'repartidores' ? 'text-orange-600' : 'text-blue-600'}`}>
                       {formatCurrency(d.total_commission)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -984,7 +1052,7 @@ export default function CommissionsPage() {
                           d.product_name,
                           d.quantity,
                           d.total_commission,
-                          adminTab === 'vendedores' ? 'vendedor' : 'operario'
+                          adminTab === 'vendedores' ? 'vendedor' : adminTab === 'repartidores' ? 'repartidor' : 'operario'
                         )}
                       >
                         <Trash2 className="h-4 w-4" />
