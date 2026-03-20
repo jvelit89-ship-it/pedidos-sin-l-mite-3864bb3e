@@ -442,6 +442,8 @@ export default function CommissionsPage() {
   const totalVendedorUnits = vendedorCommissions.reduce((sum, c) => sum + c.total_units, 0);
   const totalOperarioCommissions = operarioCommissions.reduce((sum, c) => sum + c.total_commission, 0);
   const totalOperarioUnits = operarioCommissions.reduce((sum, c) => sum + c.total_units, 0);
+  const totalRepartidorCommissions = repartidorCommissions.reduce((sum, c) => sum + c.total_commission, 0);
+  const totalRepartidorUnits = repartidorCommissions.reduce((sum, c) => sum + c.total_units, 0);
 
   // Non-admin view (vendedor or operario)
   if (!isAdminOrSuper) {
