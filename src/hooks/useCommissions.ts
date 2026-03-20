@@ -82,6 +82,7 @@ export function useProductCommissions() {
       product_name: p.name,
       commission_amount: p.commission_amount || 0,
       operario_commission_amount: p.operario_commission_amount || 0,
+      repartidor_commission_amount: p.repartidor_commission_amount || 0,
     }));
   }, [products]);
 
