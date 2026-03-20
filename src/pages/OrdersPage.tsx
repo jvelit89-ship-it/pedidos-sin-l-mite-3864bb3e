@@ -123,14 +123,14 @@ export default function OrdersPage() {
     );
   }, [roleFilteredOrders]);
 
-  // History orders: delivered, cancelled (filtered by business day)
+  // History orders: delivered, cancelled (filtered by delivery date)
   const historyOrders = useMemo(() => {
     return roleFilteredOrders.filter((order: Order) => {
       if (!COMPLETED_STATUSES.includes(order.status)) return false;
       
-      // Filter by business day
-      const orderBusinessDay = getBusinessDateKey(order.created_at);
-      return orderBusinessDay === historyDate;
+      // Use delivery_date if available, otherwise fall back to created_at business day
+      const orderDay = order.delivery_date || getBusinessDateKey(order.created_at);
+      return orderDay === historyDate;
     });
   }, [roleFilteredOrders, historyDate]);
 

@@ -131,11 +131,14 @@ export function DailyClosing() {
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate today's statistics using business day (22:30-22:30)
+  // Calculate today's statistics using delivery date
   const dailyStats = useMemo<DailyStats>(() => {
-    // Get today's business day key and compare against each order
+    // Get today's business day key and compare against each order's delivery date
     const today = getTodayBusinessDateKey();
-    const todayOrders = orders.filter(o => getBusinessDateKey(o.created_at) === today);
+    const todayOrders = orders.filter(o => {
+      if (o.delivery_date) return o.delivery_date === today;
+      return getBusinessDateKey(o.created_at) === today;
+    });
 
     // Filter by role if needed
     let filteredOrders = todayOrders;
