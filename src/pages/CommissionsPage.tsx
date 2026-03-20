@@ -1037,7 +1037,7 @@ export default function CommissionsPage() {
                     <TableCell className="text-right text-muted-foreground">
                       {formatCurrency(d.commission_per_unit)}
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${adminTab === 'vendedores' ? 'text-green-600' : 'text-blue-600'}`}>
+                    <TableCell className={`text-right font-medium ${adminTab === 'vendedores' ? 'text-green-600' : adminTab === 'repartidores' ? 'text-orange-600' : 'text-blue-600'}`}>
                       {formatCurrency(d.total_commission)}
                     </TableCell>
                     <TableCell className="text-right">
