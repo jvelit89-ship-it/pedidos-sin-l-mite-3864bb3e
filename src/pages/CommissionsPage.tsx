@@ -990,8 +990,15 @@ export default function CommissionsPage() {
                       <TableCell className="text-right">
                         {editingProduct === product.product_id ? (
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" onClick={() => handleSaveProductCommission(product.product_id)}>
-                              Guardar
+                            <Button size="sm" onClick={() => handleSaveProductCommission(product.product_id)} disabled={commissionOtpSending}>
+                              {commissionOtpSending ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Enviando...
+                                </>
+                              ) : (
+                                'Verificar y Guardar'
+                              )}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => {
                               setEditingProduct(null);
