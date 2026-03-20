@@ -505,14 +505,7 @@ export default function CommissionsPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
-                    {isOperario ? 'Unidades Producidas' : 'Unidades Vendidas'}
-                  </CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{myCommission.total_units}</div>
-                </CardContent>
-              </Card>
+                    {isOperario ? 'Unidades Producidas' : isRepartidor ? 'Unidades Entregadas' : 'Unidades Vendidas'}
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
