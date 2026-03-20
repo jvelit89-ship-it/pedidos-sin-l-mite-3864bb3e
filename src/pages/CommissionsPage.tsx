@@ -66,7 +66,7 @@ export default function CommissionsPage() {
     quantity: number;
     commission: number;
   } | null>(null);
-   const [deleteType, setDeleteType] = useState<'vendedor' | 'operario'>('vendedor');
+   const [deleteType, setDeleteType] = useState<'vendedor' | 'operario' | 'repartidor'>('vendedor');
    const [otpValue, setOtpValue] = useState('');
    const [sendingOtp, setSendingOtp] = useState(false);
    const [verifyingOtp, setVerifyingOtp] = useState(false);
