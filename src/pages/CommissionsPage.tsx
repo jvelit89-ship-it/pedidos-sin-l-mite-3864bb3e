@@ -36,6 +36,7 @@ export default function CommissionsPage() {
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const { vendedores } = useVendedores();
   const { operarios } = useOperarios();
+  const { repartidores } = useRepartidores();
   const { products, setProductCommission, loading: productsLoading } = useProductCommissions();
   const { formatDateLocal } = useSettings();
 
