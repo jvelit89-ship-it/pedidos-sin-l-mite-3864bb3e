@@ -290,7 +290,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/suppliers', label: 'Proveedores', labelEn: 'Suppliers', icon: 'Building2', roles: ['admin'] },
   { path: '/customers', label: 'Clientes', labelEn: 'Customers', icon: 'Users', roles: ['admin', 'vendedor', 'repartidor'] },
   { path: '/customers-map', label: 'Mapa Clientes', labelEn: 'Customers Map', icon: 'Map', roles: ['admin'] },
-  { path: '/commissions', label: 'Comisiones', labelEn: 'Commissions', icon: 'DollarSign', roles: ['admin', 'vendedor', 'operario'] },
+  { path: '/commissions', label: 'Comisiones', labelEn: 'Commissions', icon: 'DollarSign', roles: ['admin', 'vendedor', 'operario', 'repartidor'] },
   { path: '/vendedores', label: 'Vendedores', labelEn: 'Vendors', icon: 'UserCheck', roles: ['admin'] },
   { path: '/repartidores', label: 'Repartidores', labelEn: 'Drivers', icon: 'Bike', roles: ['admin'] },
   { path: '/operarios', label: 'Operarios', labelEn: 'Operators', icon: 'Wrench', roles: ['admin'] },
