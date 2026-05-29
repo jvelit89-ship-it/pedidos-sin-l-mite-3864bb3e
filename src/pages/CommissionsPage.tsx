@@ -375,33 +375,35 @@ export default function CommissionsPage() {
       summaryHtml = `
         <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
         <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>`;
-      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Com/U</th><th class="text-right">Total</th>`;
+      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Comisión s/</th><th class="text-right">Com/U</th><th class="text-right">Total</th>`;
       tableRows = details.map((d: any) => `<tr>
         <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
         <td>${d.customer_name || 'Producción'}</td>
         <td>${d.product_name}</td>
         <td class="text-right">${d.quantity}</td>
+        <td class="text-right">${d.commissionable_quantity || d.quantity}</td>
         <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
         <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
       </tr>`).join('');
-      totalRow = `<tr class="total-row"><td colspan="3">TOTAL</td><td class="text-right">${totalUnits}</td><td></td><td class="text-right">${formatCurrency(totalComm)}</td></tr>`;
+      totalRow = `<tr class="total-row"><td colspan="3">TOTAL</td><td class="text-right">${totalUnits}</td><td></td><td></td><td class="text-right">${formatCurrency(totalComm)}</td></tr>`;
     } else {
       summaryHtml = `
         <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
         <div class="summary-item"><div class="value">${formatCurrency(totalSales)}</div><div class="label">Total ${isVendedor ? 'Ventas' : 'Producción'}</div></div>
         <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>`;
-      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">P. Unit</th><th class="text-right">Venta</th><th class="text-right">Com/U</th><th class="text-right">Comisión</th>`;
+      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Comisión s/</th><th class="text-right">P. Unit</th><th class="text-right">Venta</th><th class="text-right">Com/U</th><th class="text-right">Comisión</th>`;
       tableRows = details.map((d: any) => `<tr>
         <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
         <td>${d.customer_name || 'Producción'}</td>
         <td>${d.product_name}</td>
         <td class="text-right">${d.quantity}</td>
+        <td class="text-right">${d.commissionable_quantity || d.quantity}</td>
         <td class="text-right">${formatCurrency(d.unit_price || 0)}</td>
         <td class="text-right" style="font-weight:bold">${formatCurrency(d.sale_total || 0)}</td>
         <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
         <td class="text-right">${formatCurrency(d.total_commission)}</td>
       </tr>`).join('');
-      totalRow = `<tr class="total-row"><td colspan="3">TOTAL</td><td class="text-right">${totalUnits}</td><td></td><td class="text-right">${formatCurrency(totalSales)}</td><td></td><td class="text-right">${formatCurrency(totalComm)}</td></tr>`;
+      totalRow = `<tr class="total-row"><td colspan="3">TOTAL</td><td class="text-right">${totalUnits}</td><td></td><td></td><td class="text-right">${formatCurrency(totalSales)}</td><td></td><td class="text-right">${formatCurrency(totalComm)}</td></tr>`;
     }
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${titleMode} - ${selectedPerson.name}</title><style>${pdfStyles}</style></head><body>
@@ -646,6 +648,7 @@ export default function CommissionsPage() {
                         <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
                         <TableCell className="text-sm">{d.product_name}</TableCell>
                         <TableCell className="text-right">{d.quantity}</TableCell>
+                        <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatCurrency(d.total_commission)}
                         </TableCell>
@@ -1107,6 +1110,7 @@ export default function CommissionsPage() {
                     <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
                     <TableCell className="text-sm">{d.product_name}</TableCell>
                     <TableCell className="text-right">{d.quantity}</TableCell>
+                    <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {formatCurrency(d.commission_per_unit)}
                     </TableCell>
