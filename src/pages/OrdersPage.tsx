@@ -41,8 +41,10 @@ import {
   XCircle,
   FileText,
   MoreVertical,
-  MessageSquare
+  MessageSquare,
+  Key
 } from 'lucide-react';
+import { RevealPinDialog } from '@/components/RevealPinDialog';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 
