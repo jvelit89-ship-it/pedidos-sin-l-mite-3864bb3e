@@ -855,6 +855,10 @@ export type Database = {
           delivered_at: string | null
           delivery_address: string | null
           delivery_date: string | null
+          delivery_latitude: number | null
+          delivery_longitude: number | null
+          delivery_photo_url: string | null
+          delivery_pin: string | null
           id: string
           notes: string | null
           repartidor_id: string | null
@@ -877,6 +881,10 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string | null
           delivery_date?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
+          delivery_photo_url?: string | null
+          delivery_pin?: string | null
           id?: string
           notes?: string | null
           repartidor_id?: string | null
@@ -899,6 +907,10 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string | null
           delivery_date?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
+          delivery_photo_url?: string | null
+          delivery_pin?: string | null
           id?: string
           notes?: string | null
           repartidor_id?: string | null
