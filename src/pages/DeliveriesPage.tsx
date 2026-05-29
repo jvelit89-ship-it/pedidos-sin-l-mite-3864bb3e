@@ -25,7 +25,8 @@ import {
   Timer,
   Camera,
   ShieldCheck,
-  Navigation
+  Navigation,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
