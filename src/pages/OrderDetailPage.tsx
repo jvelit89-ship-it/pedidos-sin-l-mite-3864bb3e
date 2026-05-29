@@ -69,6 +69,7 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
