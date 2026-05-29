@@ -68,7 +68,7 @@ export function useOrders() {
   }, []);
 
   const createOrder = useCallback(async (
-    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code'> & { created_at?: string },
+    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code' | 'delivery_pin'> & { created_at?: string },
     items: Omit<OrderItem, 'id' | 'order_id'>[]
   ) => {
     // Build order data, including optional custom created_at for backdated orders
