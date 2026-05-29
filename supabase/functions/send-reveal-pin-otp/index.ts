@@ -50,9 +50,9 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", user.id)
       .single();
 
-    if (roleError || !roleData || roleData.role !== "superadmin") {
+    if (roleError || !roleData || (roleData.role !== "superadmin" && roleData.role !== "admin")) {
       return new Response(
-        JSON.stringify({ error: "Solo el Superadmin puede ver el PIN" }),
+        JSON.stringify({ error: "Solo Admin o Superadmin pueden ver el PIN" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
