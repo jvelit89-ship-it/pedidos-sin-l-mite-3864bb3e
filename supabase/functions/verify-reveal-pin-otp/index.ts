@@ -47,9 +47,9 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", user.id)
       .single();
 
-    if (roleError || !roleData || roleData.role !== "superadmin") {
+    if (roleError || !roleData || (roleData.role !== "superadmin" && roleData.role !== "admin")) {
       return new Response(
-        JSON.stringify({ error: "Solo el Superadmin puede realizar esta acción" }),
+        JSON.stringify({ error: "Solo Admin o Superadmin pueden realizar esta acción" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
