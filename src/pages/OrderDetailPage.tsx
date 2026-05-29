@@ -558,6 +558,15 @@ export default function OrderDetailPage() {
           onSuccess={loadOrder}
         />
       )}
+
+      <MarkDeliveredOTPDialog
+        open={isMarkDeliveredOpen}
+        onOpenChange={setIsMarkDeliveredOpen}
+        orderIds={order ? [order.id] : []}
+        onSuccess={() => {
+          loadOrder();
+        }}
+      />
     </div>
   );
 }
