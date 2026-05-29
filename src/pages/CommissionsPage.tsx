@@ -29,7 +29,10 @@ interface CommissionSummary {
   period2_commission: number;
   total_units: number;
   total_commission: number;
+  pending_units?: number;
+  pending_commission?: number;
   details: any[];
+  pending_details?: any[];
 }
 
 export default function CommissionsPage() {
