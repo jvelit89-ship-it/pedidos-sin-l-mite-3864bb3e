@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { useOrders } from '@/hooks/useOrders';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
