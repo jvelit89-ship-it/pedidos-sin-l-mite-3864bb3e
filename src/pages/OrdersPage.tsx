@@ -839,6 +839,17 @@ export default function OrdersPage() {
             onSuccess={() => {}}
           />
         )}
+
+        <MarkDeliveredOTPDialog
+          open={isMarkDeliveredOpen}
+          onOpenChange={setIsMarkDeliveredOpen}
+          orderIds={pendingDeliveredIds}
+          onSuccess={() => {
+            setSelectedOrders([]);
+            setPendingDeliveredIds([]);
+            refetch();
+          }}
+        />
       </div>
     );
   }
