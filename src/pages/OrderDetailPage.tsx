@@ -28,6 +28,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { OrderEditDialog } from '@/components/OrderEditDialog';
+import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tables } from '@/integrations/supabase/types';
