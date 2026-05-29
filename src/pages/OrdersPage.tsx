@@ -810,14 +810,23 @@ export default function OrdersPage() {
       </Tabs>
 
       {/* Delete Dialog */}
-      <DeleteOrdersDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        orderIds={selectedOrders}
-        deleteAll={deleteAll}
-        onSuccess={handleDeleteSuccess}
-        language={settings.language}
-      />
-    </div>
-  );
-}
+        <DeleteOrdersDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          orderIds={selectedOrders}
+          deleteAll={deleteAll}
+          onSuccess={handleDeleteSuccess}
+          language={settings.language}
+        />
+        
+        {revealPinOrderId && (
+          <RevealPinDialog
+            open={isRevealPinDialogOpen}
+            onOpenChange={setIsRevealPinDialogOpen}
+            orderId={revealPinOrderId}
+            onSuccess={() => {}}
+          />
+        )}
+      </div>
+    );
+  }
