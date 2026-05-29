@@ -589,6 +589,61 @@ export default function DeliveriesPage() {
           )}
         </div>
       )}
+
+      {/* Delivery Confirmation Dialog */}
+      <AlertDialog open={!!orderToConfirm} onOpenChange={(open) => !open && setOrderToConfirm(null)}>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-md rounded-2xl p-6">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <ShieldCheck className="w-6 h-6 text-green-600" />
+              Confirmar Entrega Física
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4 pt-2">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+                <p className="font-bold flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-4 h-4" /> 
+                  ATENCIÓN REPARTIDOR:
+                </p>
+                Solo presiona confirmar si **YA entregaste** físicamente el producto al cliente **{orderToConfirm?.customer_name}**.
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className={`p-2 rounded-full ${deliveryLocation ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                    {isVerifyingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-medium ${deliveryLocation ? 'text-green-700' : 'text-foreground'}`}>
+                      {deliveryLocation ? 'Ubicación GPS registrada' : 'Obteniendo ubicación GPS...'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Tu posición actual quedará grabada como prueba de entrega.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm opacity-60">
+                  <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+                    <Camera className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Evidencia Fotográfica (Próximamente)</p>
+                    <p className="text-xs text-muted-foreground">Pronto podrás subir una foto como prueba adicional.</p>
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
+            <AlertDialogCancel className="w-full sm:flex-1 rounded-xl h-12 border-2">Aún no entrego</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelivery}
+              disabled={isVerifyingLocation}
+              className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 rounded-xl font-bold h-12 text-white"
+            >
+              {isVerifyingLocation ? 'Verificando GPS...' : 'SÍ, ENTREGADO AHORA'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
