@@ -24,17 +24,36 @@ interface CommissionDetail {
 
 /**
  * Calculates the quantity that should receive commission, excluding free products.
- * Handles standard promotions (e.g., Buy 20 get 1 free, 40 get 5 free).
+ * Handles standard promotions (e.g., Buy 20 get 1 free, 40 get 5 free for ice,
+ * and 100+15, 200+40, 400+100 for water 20L).
  */
-function calculateCommissionableQuantity(quantity: number, total: number, unitPrice: number, basePrice: number): number {
+function calculateCommissionableQuantity(quantity: number, total: number, unitPrice: number, basePrice: number, productName: string = ''): number {
   if (basePrice <= 0) return quantity;
   
+  const name = productName.toLowerCase();
+  
+  // Rule 1: Water products without "extra" promotions always commission full quantity
+  // User explicitly mentioned 8L, 625ml, and 1L water products have no extra promotions.
+  if (name.includes('agua') && (name.includes('8l') || name.includes('625ml') || name.includes('1l'))) {
+    return quantity;
+  }
+
+  // Rule 2: Special base price for Agua 20L Recarga (Distributors)
+  let effectiveBasePrice = basePrice;
+  if (name.includes('20l') && name.includes('recarga')) {
+    // Standard price is 10, distributor price is 5.
+    // If selling near or below 7, it's likely a distributor sale or promotion.
+    if (unitPrice <= 7) {
+      effectiveBasePrice = 5;
+    }
+  }
+
+  // Rule 3: For products with "extras" (Hielo and Agua 20L), only commission what was effectively paid for.
   // If price is normal or higher, all items are commissionable
-  if (unitPrice >= basePrice) return quantity;
+  if (unitPrice >= effectiveBasePrice) return quantity;
 
   // Calculate effectively paid units based on total and base price
-  // Using round to handle floating point math from total calculation
-  const calculatedPaidUnits = Math.round(total / basePrice);
+  const calculatedPaidUnits = Math.round(total / effectiveBasePrice);
   
   // If total is 0, no commission
   if (total <= 0) return 0;
@@ -196,7 +215,8 @@ export function useVendorCommissions(year: number, month: number) {
               item.quantity,
               item.total || 0,
               item.unit_price || 0,
-              basePrice
+              basePrice,
+              item.product_name || ''
             );
             
             const totalCommission = commissionedQuantity * commissionPerUnit;
@@ -314,7 +334,8 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
             item.quantity,
             item.total || 0,
             item.unit_price || 0,
-            basePrice
+            basePrice,
+            item.product_name || ''
           );
           
           const totalCommission = commissionedQuantity * commissionPerUnit;
@@ -379,7 +400,9 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
           order_items (
             product_id,
             product_name,
-            quantity
+            quantity,
+            unit_price,
+            total
           )
         `)
         .eq('vendedor_id', vendedorId)
@@ -420,7 +443,8 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
             item.quantity,
             (item as any).total || 0,
             (item as any).unit_price || 0,
-            basePrice
+            basePrice,
+            item.product_name || ''
           );
           
           const totalCommission = commissionedQuantity * commissionPerUnit;
@@ -764,7 +788,8 @@ export function useRepartidorCommissions(year: number, month: number) {
               item.quantity,
               item.total || 0,
               item.unit_price || 0,
-              basePrice
+              basePrice,
+              item.product_name || ''
             );
             
             const totalCommission = commissionedQuantity * commissionPerUnit;
@@ -887,7 +912,8 @@ export function useMyRepartidorCommissions(repartidorId: string | null, year: nu
             item.quantity,
             item.total || 0,
             item.unit_price || 0,
-            basePrice
+            basePrice,
+            item.product_name || ''
           );
           
           const totalCommission = commissionedQuantity * commissionPerUnit;
