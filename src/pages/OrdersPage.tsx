@@ -45,6 +45,7 @@ import {
   Key
 } from 'lucide-react';
 import { RevealPinDialog } from '@/components/RevealPinDialog';
+import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 
@@ -112,6 +113,8 @@ export default function OrdersPage() {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [revealPinOrderId, setRevealPinOrderId] = useState<string | null>(null);
   const [isRevealPinDialogOpen, setIsRevealPinDialogOpen] = useState(false);
+  const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
+  const [pendingDeliveredIds, setPendingDeliveredIds] = useState<string[]>([]);
 
 
   const locale = settings.language === 'es' ? es : enUS;
@@ -219,6 +222,16 @@ export default function OrdersPage() {
   // Bulk update handlers for admin
   const handleBulkStatusChange = async (newStatus: OrderStatus) => {
     if (selectedOrders.length === 0) return;
+
+    // Admin debe verificar con OTP para marcar como entregado
+    if (newStatus === 'delivered' && isAdmin) {
+      setPendingDeliveredIds([...selectedOrders]);
+      setIsMarkDeliveredOpen(true);
+      return;
+    }
+
+
+
     
     setIsBulkUpdating(true);
     try {
@@ -759,7 +772,7 @@ export default function OrdersPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {isAdmin && user?.role === 'superadmin' && (order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                              {isAdmin && (order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -769,7 +782,7 @@ export default function OrdersPage() {
                                     setRevealPinOrderId(order.id);
                                     setIsRevealPinDialogOpen(true);
                                   }}
-                                  title="Revelar PIN (Solo Superadmin)"
+                                  title="Revelar PIN (requiere código)"
                                 >
                                   <Key className="w-5 h-5" />
                                 </Button>
@@ -827,6 +840,17 @@ export default function OrdersPage() {
             onSuccess={() => {}}
           />
         )}
+
+        <MarkDeliveredOTPDialog
+          open={isMarkDeliveredOpen}
+          onOpenChange={setIsMarkDeliveredOpen}
+          orderIds={pendingDeliveredIds}
+          onSuccess={() => {
+            setSelectedOrders([]);
+            setPendingDeliveredIds([]);
+            refetch();
+          }}
+        />
       </div>
     );
   }

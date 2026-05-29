@@ -28,6 +28,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { OrderEditDialog } from '@/components/OrderEditDialog';
+import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tables } from '@/integrations/supabase/types';
@@ -68,6 +69,7 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -110,6 +112,13 @@ export default function OrderDetailPage() {
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order || !user) return;
+
+    // Admin/Superadmin requieren OTP para marcar como entregado
+    if (newStatus === 'delivered' && (user.role === 'admin' || user.role === 'superadmin')) {
+      setIsMarkDeliveredOpen(true);
+      return;
+    }
+
     
     setIsUpdating(true);
     try {
@@ -549,6 +558,15 @@ export default function OrderDetailPage() {
           onSuccess={loadOrder}
         />
       )}
+
+      <MarkDeliveredOTPDialog
+        open={isMarkDeliveredOpen}
+        onOpenChange={setIsMarkDeliveredOpen}
+        orderIds={order ? [order.id] : []}
+        onSuccess={() => {
+          loadOrder();
+        }}
+      />
     </div>
   );
 }
