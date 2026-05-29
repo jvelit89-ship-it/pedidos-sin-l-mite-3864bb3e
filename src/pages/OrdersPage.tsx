@@ -221,6 +221,15 @@ export default function OrdersPage() {
   // Bulk update handlers for admin
   const handleBulkStatusChange = async (newStatus: OrderStatus) => {
     if (selectedOrders.length === 0) return;
+
+    // Admin debe verificar con OTP para marcar como entregado
+    if (newStatus === 'delivered' && isAdmin) {
+      setPendingDeliveredIds([...selectedOrders]);
+      setIsMarkDeliveredOpen(true);
+      return;
+    }
+
+    if (selectedOrders.length === 0) return;
     
     setIsBulkUpdating(true);
     try {
