@@ -250,12 +250,21 @@ export default function DeliveriesPage() {
     // Skip backorder - not a valid delivery status
     if (newStatus === 'backorder') return;
     try {
+      // Find the order being updated
+      const order = orders.find(o => o.id === orderId);
+      
       await updateOrderStatus(orderId, newStatus);
       
-      toast.success(
-        newStatus === 'delivered' ? '¡Entrega completada!' : 'Estado actualizado',
-        { description: ORDER_STATUS_CONFIG[newStatus].label }
-      );
+      if (newStatus === 'delivered' && order && order.vendedor_name) {
+        toast.success(`¡Venta de ${order.vendedor_name} entregada!`, {
+          description: `El pedido de ${order.customer_name} se completó con éxito.`,
+        });
+      } else {
+        toast.success(
+          newStatus === 'delivered' ? '¡Entrega completada!' : 'Estado actualizado',
+          { description: ORDER_STATUS_CONFIG[newStatus].label }
+        );
+      }
     } catch (error) {
       toast.error('Error al actualizar');
     }

@@ -409,7 +409,7 @@ export default function NewOrderPage() {
       const isVentaPlanta = selectedVendedorId === 'venta-planta';
       const isRecojoPlanta = selectedRepartidorId === 'recojo-planta';
       
-      const vendedor = isVentaPlanta ? null : vendedores.find(v => v.id === selectedVendedorId);
+      const vendedor = isVentaPlanta ? null : (vendedores.find(v => v.id === selectedVendedorId) || (isVendedorUser ? vendedores.find(v => v.id === user.vendedorId) : null));
       const repartidor = isRecojoPlanta ? null : repartidores.find(r => r.id === selectedRepartidorId);
 
       // Build order items with product details and volume pricing
