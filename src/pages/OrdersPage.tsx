@@ -781,7 +781,7 @@ export default function OrdersPage() {
                                     setRevealPinOrderId(order.id);
                                     setIsRevealPinDialogOpen(true);
                                   }}
-                                  title="Revelar PIN (Solo Superadmin)"
+                                  title="Revelar PIN (requiere código)"
                                 >
                                   <Key className="w-5 h-5" />
                                 </Button>
