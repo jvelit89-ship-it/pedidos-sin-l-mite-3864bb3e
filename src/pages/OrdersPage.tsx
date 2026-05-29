@@ -112,6 +112,8 @@ export default function OrdersPage() {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [revealPinOrderId, setRevealPinOrderId] = useState<string | null>(null);
   const [isRevealPinDialogOpen, setIsRevealPinDialogOpen] = useState(false);
+  const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
+  const [pendingDeliveredIds, setPendingDeliveredIds] = useState<string[]>([]);
 
 
   const locale = settings.language === 'es' ? es : enUS;
