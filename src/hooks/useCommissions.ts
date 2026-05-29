@@ -19,6 +19,22 @@ interface CommissionDetail {
   total_commission: number;
   unit_price?: number;
   sale_total?: number;
+  commissionable_quantity?: number;
+}
+
+/**
+ * Calculates the quantity that should receive commission, excluding free products.
+ * If total / standardPrice is less than quantity, it means some units were free.
+ */
+function calculateCommissionableQuantity(quantity: number, total: number, unitPrice: number, basePrice: number): number {
+  if (basePrice <= 0 || unitPrice >= basePrice) {
+    return quantity;
+  }
+  
+  // If there's a discount, calculate how many units were effectively paid at full price
+  // We use round to handle floating point issues (e.g. 139.9995 / 3.5 = 39.9998 -> 40)
+  const calculatedPaidUnits = Math.round(total / basePrice);
+  return Math.min(quantity, calculatedPaidUnits);
 }
 
 interface VendedorCommissionSummary {
@@ -139,14 +155,18 @@ export function useVendorCommissions(year: number, month: number) {
         .gte('delivered_at', period1Start.toISOString())
         .lte('delivered_at', period2End.toISOString());
 
-      // Get all products with commission amounts
+      // Get all products with commission amounts and base prices
       const { data: products } = await supabase
         .from('products')
-        .select('id, commission_amount')
+        .select('id, commission_amount, price')
         .eq('company_id', companyId);
 
       const productCommissions = new Map(
         (products || []).map(p => [p.id, p.commission_amount || 0])
+      );
+      
+      const productPrices = new Map(
+        (products || []).map(p => [p.id, p.price || 0])
       );
 
       const commissions: VendedorCommissionSummary[] = vendedores.map(vendedor => {
@@ -164,13 +184,21 @@ export function useVendorCommissions(year: number, month: number) {
 
           (order.order_items || []).forEach((item: any) => {
             const commissionPerUnit = productCommissions.get(item.product_id) || 0;
-            const totalCommission = item.quantity * commissionPerUnit;
+            const basePrice = productPrices.get(item.product_id) || 0;
+            const commissionedQuantity = calculateCommissionableQuantity(
+              item.quantity,
+              item.total || 0,
+              item.unit_price || 0,
+              basePrice
+            );
+            
+            const totalCommission = commissionedQuantity * commissionPerUnit;
 
             if (isPeriod1) {
-              period1Units += item.quantity;
+              period1Units += commissionedQuantity;
               period1Commission += totalCommission;
             } else {
-              period2Units += item.quantity;
+              period2Units += commissionedQuantity;
               period2Commission += totalCommission;
             }
 
@@ -180,6 +208,7 @@ export function useVendorCommissions(year: number, month: number) {
               customer_name: order.customer_name,
               product_name: item.product_name,
               quantity: item.quantity,
+              commissionable_quantity: commissionedQuantity,
               commission_per_unit: commissionPerUnit,
               total_commission: totalCommission,
               unit_price: item.unit_price || 0,
@@ -247,14 +276,18 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         .gte('delivered_at', period1Start.toISOString())
         .lte('delivered_at', period2End.toISOString());
 
-      // Get all products with commission amounts
+      // Get all products with commission amounts and base prices
       const { data: products } = await supabase
         .from('products')
-        .select('id, commission_amount')
+        .select('id, commission_amount, price')
         .eq('company_id', companyId);
 
       const productCommissions = new Map(
         (products || []).map(p => [p.id, p.commission_amount || 0])
+      );
+
+      const productPrices = new Map(
+        (products || []).map(p => [p.id, p.price || 0])
       );
 
       let period1Units = 0;
@@ -269,13 +302,21 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
 
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
-          const totalCommission = item.quantity * commissionPerUnit;
+          const basePrice = productPrices.get(item.product_id) || 0;
+          const commissionedQuantity = calculateCommissionableQuantity(
+            item.quantity,
+            item.total || 0,
+            item.unit_price || 0,
+            basePrice
+          );
+          
+          const totalCommission = commissionedQuantity * commissionPerUnit;
 
           if (isPeriod1) {
-            period1Units += item.quantity;
+            period1Units += commissionedQuantity;
             period1Commission += totalCommission;
           } else {
-            period2Units += item.quantity;
+            period2Units += commissionedQuantity;
             period2Commission += totalCommission;
           }
 
@@ -285,6 +326,7 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
             customer_name: order.customer_name,
             product_name: item.product_name,
             quantity: item.quantity,
+            commissionable_quantity: commissionedQuantity,
             commission_per_unit: commissionPerUnit,
             total_commission: totalCommission,
             unit_price: item.unit_price || 0,
@@ -341,11 +383,15 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
 
       const { data: products } = await supabase
         .from('products')
-        .select('id, commission_amount')
+        .select('id, commission_amount, price')
         .eq('company_id', companyId);
 
       const productCommissions = new Map(
         (products || []).map(p => [p.id, p.commission_amount || 0])
+      );
+
+      const productPrices = new Map(
+        (products || []).map(p => [p.id, p.price || 0])
       );
 
       // Group by date
@@ -362,9 +408,17 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
 
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
-          const totalCommission = item.quantity * commissionPerUnit;
+          const basePrice = productPrices.get(item.product_id) || 0;
+          const commissionedQuantity = calculateCommissionableQuantity(
+            item.quantity,
+            (item as any).total || 0,
+            (item as any).unit_price || 0,
+            basePrice
+          );
+          
+          const totalCommission = commissionedQuantity * commissionPerUnit;
 
-          daily.units += item.quantity;
+          daily.units += commissionedQuantity;
           daily.commission += totalCommission;
           daily.details.push({
             order_id: order.id,
@@ -372,6 +426,7 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
             customer_name: order.customer_name,
             product_name: item.product_name,
             quantity: item.quantity,
+            commissionable_quantity: commissionedQuantity,
             commission_per_unit: commissionPerUnit,
             total_commission: totalCommission,
           });
@@ -671,11 +726,15 @@ export function useRepartidorCommissions(year: number, month: number) {
 
       const { data: products } = await supabase
         .from('products')
-        .select('id, repartidor_commission_amount')
+        .select('id, repartidor_commission_amount, price')
         .eq('company_id', companyId);
 
       const productCommissions = new Map(
         (products || []).map(p => [p.id, p.repartidor_commission_amount || 0])
+      );
+
+      const productPrices = new Map(
+        (products || []).map(p => [p.id, p.price || 0])
       );
 
       const commissions: RepartidorCommissionSummary[] = repartidores.map(repartidor => {
@@ -693,13 +752,21 @@ export function useRepartidorCommissions(year: number, month: number) {
 
           (order.order_items || []).forEach((item: any) => {
             const commissionPerUnit = productCommissions.get(item.product_id) || 0;
-            const totalCommission = item.quantity * commissionPerUnit;
+            const basePrice = productPrices.get(item.product_id) || 0;
+            const commissionedQuantity = calculateCommissionableQuantity(
+              item.quantity,
+              item.total || 0,
+              item.unit_price || 0,
+              basePrice
+            );
+            
+            const totalCommission = commissionedQuantity * commissionPerUnit;
 
             if (isPeriod1) {
-              period1Units += item.quantity;
+              period1Units += commissionedQuantity;
               period1Commission += totalCommission;
             } else {
-              period2Units += item.quantity;
+              period2Units += commissionedQuantity;
               period2Commission += totalCommission;
             }
 
@@ -709,6 +776,7 @@ export function useRepartidorCommissions(year: number, month: number) {
               customer_name: order.customer_name,
               product_name: item.product_name,
               quantity: item.quantity,
+              commissionable_quantity: commissionedQuantity,
               commission_per_unit: commissionPerUnit,
               total_commission: totalCommission,
               unit_price: item.unit_price || 0,
@@ -784,11 +852,15 @@ export function useMyRepartidorCommissions(repartidorId: string | null, year: nu
 
       const { data: products } = await supabase
         .from('products')
-        .select('id, repartidor_commission_amount')
+        .select('id, repartidor_commission_amount, price')
         .eq('company_id', companyId);
 
       const productCommissions = new Map(
         (products || []).map(p => [p.id, p.repartidor_commission_amount || 0])
+      );
+
+      const productPrices = new Map(
+        (products || []).map(p => [p.id, p.price || 0])
       );
 
       let period1Units = 0;
@@ -803,13 +875,21 @@ export function useMyRepartidorCommissions(repartidorId: string | null, year: nu
 
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
-          const totalCommission = item.quantity * commissionPerUnit;
+          const basePrice = productPrices.get(item.product_id) || 0;
+          const commissionedQuantity = calculateCommissionableQuantity(
+            item.quantity,
+            item.total || 0,
+            item.unit_price || 0,
+            basePrice
+          );
+          
+          const totalCommission = commissionedQuantity * commissionPerUnit;
 
           if (isPeriod1) {
-            period1Units += item.quantity;
+            period1Units += commissionedQuantity;
             period1Commission += totalCommission;
           } else {
-            period2Units += item.quantity;
+            period2Units += commissionedQuantity;
             period2Commission += totalCommission;
           }
 
@@ -819,6 +899,7 @@ export function useMyRepartidorCommissions(repartidorId: string | null, year: nu
             customer_name: order.customer_name,
             product_name: item.product_name,
             quantity: item.quantity,
+            commissionable_quantity: commissionedQuantity,
             commission_per_unit: commissionPerUnit,
             total_commission: totalCommission,
             unit_price: item.unit_price || 0,
