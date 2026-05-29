@@ -70,9 +70,11 @@ export function useOrders() {
     items: Omit<OrderItem, 'id' | 'order_id'>[]
   ) => {
     // Build order data, including optional custom created_at for backdated orders
-    const orderToInsert = order.created_at 
-      ? { ...order, created_at: order.created_at }
-      : order;
+    const orderToInsert = {
+      ...order,
+      created_at: order.created_at || new Date().toISOString(),
+      delivery_pin: Math.floor(1000 + Math.random() * 9000).toString(), // Generate 4-digit PIN
+    };
 
     // Insert order
     const { data: orderData, error: orderError } = await supabase
