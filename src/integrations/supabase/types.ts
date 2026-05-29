@@ -1592,6 +1592,33 @@ export type Database = {
         }
         Relationships: []
       }
+      reveal_pin_otp_codes: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          order_id: string
+          otp_code: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          order_id: string
+          otp_code: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          order_id?: string
+          otp_code?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           company_id: string

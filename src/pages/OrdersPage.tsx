@@ -41,8 +41,10 @@ import {
   XCircle,
   FileText,
   MoreVertical,
-  MessageSquare
+  MessageSquare,
+  Key
 } from 'lucide-react';
+import { RevealPinDialog } from '@/components/RevealPinDialog';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 
@@ -108,6 +110,9 @@ export default function OrdersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [revealPinOrderId, setRevealPinOrderId] = useState<string | null>(null);
+  const [isRevealPinDialogOpen, setIsRevealPinDialogOpen] = useState(false);
+
 
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -754,17 +759,36 @@ export default function OrdersPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={() => handleWhatsAppPIN(order)}
-                              title="Enviar PIN por WhatsApp"
-                            >
-                              <MessageSquare className="w-5 h-5" />
-                            </Button>
-                          )}
+                              {isAdmin && user?.role === 'superadmin' && (order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRevealPinOrderId(order.id);
+                                    setIsRevealPinDialogOpen(true);
+                                  }}
+                                  title="Revelar PIN (Solo Superadmin)"
+                                >
+                                  <Key className="w-5 h-5" />
+                                </Button>
+                              )}
+                              {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleWhatsAppPIN(order);
+                                  }}
+                                  title="Enviar PIN por WhatsApp"
+                                >
+                                  <MessageSquare className="w-5 h-5" />
+                                </Button>
+                              )}
+
                           <div className="text-right hidden sm:block">
                             <p className="text-sm font-medium">
                               {format(new Date(order.created_at), 'dd MMM', { locale })}
@@ -786,14 +810,23 @@ export default function OrdersPage() {
       </Tabs>
 
       {/* Delete Dialog */}
-      <DeleteOrdersDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        orderIds={selectedOrders}
-        deleteAll={deleteAll}
-        onSuccess={handleDeleteSuccess}
-        language={settings.language}
-      />
-    </div>
-  );
-}
+        <DeleteOrdersDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          orderIds={selectedOrders}
+          deleteAll={deleteAll}
+          onSuccess={handleDeleteSuccess}
+          language={settings.language}
+        />
+        
+        {revealPinOrderId && (
+          <RevealPinDialog
+            open={isRevealPinDialogOpen}
+            onOpenChange={setIsRevealPinDialogOpen}
+            orderId={revealPinOrderId}
+            onSuccess={() => {}}
+          />
+        )}
+      </div>
+    );
+  }
