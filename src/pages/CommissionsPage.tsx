@@ -611,7 +611,7 @@ export default function CommissionsPage() {
 
               <Card className="bg-primary/5 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total del Mes</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Ganado</CardTitle>
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
@@ -620,49 +620,170 @@ export default function CommissionsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {isVendedor && myCommission.pending_commission > 0 && (
+                <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Comisiones Pendientes
+                    </CardTitle>
+                    <Truck className="h-4 w-4 text-amber-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                      {formatCurrency(myCommission.pending_commission)}
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-500">
+                      {myCommission.pending_units} unidades en camino
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
-            {/* Details table */}
+            {/* Details section with Tabs for Vendedores */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Detalle de Comisiones</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>{isOperario ? 'Producción' : 'Cliente'}</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead className="text-right">Cant.</TableHead>
-                      <TableHead className="text-right">Comisión s/</TableHead>
-                      <TableHead className="text-right">Comisión</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {myCommission.details?.slice(0, 20).map((d: any, i: number) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-sm">
-                          {format(new Date(d.order_date || d.produced_at), 'dd/MM', { locale: es })}
-                        </TableCell>
-                        <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
-                        <TableCell className="text-sm">{d.product_name}</TableCell>
-                        <TableCell className="text-right">{d.quantity}</TableCell>
-                        <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
-                        <TableCell className="text-right font-medium text-green-600">
-                          {formatCurrency(d.total_commission)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(!myCommission.details || myCommission.details.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          No hay comisiones este mes
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+              <CardContent>
+                {isVendedor ? (
+                  <Tabs defaultValue="delivered" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="delivered">Entregadas</TabsTrigger>
+                      <TabsTrigger value="pending" className="relative">
+                        Pendientes
+                        {myCommission.pending_details?.length > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white">
+                            {myCommission.pending_details.length}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="delivered" className="mt-0">
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Fecha</TableHead>
+                              <TableHead>Cliente</TableHead>
+                              <TableHead>Producto</TableHead>
+                              <TableHead className="text-right">Cant.</TableHead>
+                              <TableHead className="text-right">Comisión s/</TableHead>
+                              <TableHead className="text-right">Comisión</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {myCommission.details?.slice(0, 50).map((d: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="text-xs">
+                                  {format(new Date(d.order_date), 'dd/MM HH:mm', { locale: es })}
+                                </TableCell>
+                                <TableCell className="text-sm font-medium">{d.customer_name}</TableCell>
+                                <TableCell className="text-sm">{d.product_name}</TableCell>
+                                <TableCell className="text-right">{d.quantity}</TableCell>
+                                <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                                <TableCell className="text-right font-medium text-green-600">
+                                  {formatCurrency(d.total_commission)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {(!myCommission.details || myCommission.details.length === 0) && (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                  No hay comisiones entregadas este mes
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="pending" className="mt-0">
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-amber-50/50 dark:bg-amber-950/10">
+                              <TableHead>Fecha Pedido</TableHead>
+                              <TableHead>Cliente</TableHead>
+                              <TableHead>Producto</TableHead>
+                              <TableHead className="text-right">Cant.</TableHead>
+                              <TableHead className="text-right">Comisión s/</TableHead>
+                              <TableHead className="text-right">Proyectada</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {myCommission.pending_details?.map((d: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="text-xs">
+                                  {format(new Date(d.order_date), 'dd/MM HH:mm', { locale: es })}
+                                </TableCell>
+                                <TableCell className="text-sm font-medium">{d.customer_name}</TableCell>
+                                <TableCell className="text-sm">{d.product_name}</TableCell>
+                                <TableCell className="text-right">{d.quantity}</TableCell>
+                                <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                                <TableCell className="text-right font-medium text-amber-600">
+                                  {formatCurrency(d.total_commission)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {(!myCommission.pending_details || myCommission.pending_details.length === 0) && (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                  No hay comisiones pendientes (todos los pedidos fueron entregados o cancelados)
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2 px-2 italic">
+                        * Las comisiones proyectadas se sumarán a tu balance una vez que el repartidor entregue el pedido.
+                      </p>
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>{isOperario ? 'Producción' : 'Cliente'}</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead className="text-right">Cant.</TableHead>
+                          <TableHead className="text-right">Comisión s/</TableHead>
+                          <TableHead className="text-right">Comisión</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {myCommission.details?.slice(0, 50).map((d: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm">
+                              {format(new Date(d.order_date || d.produced_at), 'dd/MM', { locale: es })}
+                            </TableCell>
+                            <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
+                            <TableCell className="text-sm">{d.product_name}</TableCell>
+                            <TableCell className="text-right">{d.quantity}</TableCell>
+                            <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                            <TableCell className="text-right font-medium text-green-600">
+                              {formatCurrency(d.total_commission)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {(!myCommission.details || myCommission.details.length === 0) && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                              No hay comisiones este mes
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
