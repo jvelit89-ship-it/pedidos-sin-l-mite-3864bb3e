@@ -308,6 +308,7 @@ export default function CommissionsPage() {
             <th>${type === 'vendedores' ? 'Cliente' : 'Producción'}</th>
             <th>Producto</th>
             <th class="text-right">Cant.</th>
+            <th class="text-right">Comisión s/</th>
             <th class="text-right">Com/U</th>
             <th class="text-right">Total</th>
           </tr></thead>
@@ -317,6 +318,7 @@ export default function CommissionsPage() {
               <td>${d.customer_name || 'Producción'}</td>
               <td>${d.product_name}</td>
               <td class="text-right">${d.quantity}</td>
+              <td class="text-right">${d.commissionable_quantity || d.quantity}</td>
               <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
               <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
             </tr>`).join('')}
@@ -631,6 +633,7 @@ export default function CommissionsPage() {
                       <TableHead>{isOperario ? 'Producción' : 'Cliente'}</TableHead>
                       <TableHead>Producto</TableHead>
                       <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead className="text-right">Comisión s/</TableHead>
                       <TableHead className="text-right">Comisión</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1089,6 +1092,7 @@ export default function CommissionsPage() {
                   <TableHead>{adminTab === 'operarios' ? 'Producción' : 'Cliente'}</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead className="text-right">Cant.</TableHead>
+                  <TableHead className="text-right">Comisión s/</TableHead>
                   <TableHead className="text-right">Com/U</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Acción</TableHead>
