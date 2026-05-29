@@ -24,16 +24,23 @@ interface CommissionDetail {
 
 /**
  * Calculates the quantity that should receive commission, excluding free products.
- * If total / standardPrice is less than quantity, it means some units were free.
+ * Handles standard promotions (e.g., Buy 20 get 1 free, 40 get 5 free).
  */
 function calculateCommissionableQuantity(quantity: number, total: number, unitPrice: number, basePrice: number): number {
-  if (basePrice <= 0 || unitPrice >= basePrice) {
-    return quantity;
-  }
+  if (basePrice <= 0) return quantity;
   
-  // If there's a discount, calculate how many units were effectively paid at full price
-  // We use round to handle floating point issues (e.g. 139.9995 / 3.5 = 39.9998 -> 40)
+  // If price is normal or higher, all items are commissionable
+  if (unitPrice >= basePrice) return quantity;
+
+  // Calculate effectively paid units based on total and base price
+  // Using round to handle floating point math from total calculation
   const calculatedPaidUnits = Math.round(total / basePrice);
+  
+  // If total is 0, no commission
+  if (total <= 0) return 0;
+  
+  // Return the minimum of requested quantity and effectively paid units
+  // This correctly handles "X + Y gratis" where total = X * basePrice
   return Math.min(quantity, calculatedPaidUnits);
 }
 
