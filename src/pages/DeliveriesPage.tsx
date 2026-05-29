@@ -22,10 +22,23 @@ import {
   Clock,
   Bell,
   AlertTriangle,
-  Timer
+  Timer,
+  Camera,
+  ShieldCheck,
+  Navigation
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const URGENT_THRESHOLD_MINUTES = 90; // Alert when order is pending for 90+ minutes
 const REMINDER_INTERVAL_MINUTES = 2; // Reminder bell every 2 minutes for unmarked deliveries
@@ -42,6 +55,11 @@ export default function DeliveriesPage() {
   const initialLoadRef = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
   const reminderCountRef = useRef<Map<string, number>>(new Map());
+  
+  // Delivery verification state
+  const [orderToConfirm, setOrderToConfirm] = useState<any>(null);
+  const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
+  const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
 
   const isRepartidor = user?.role === 'repartidor';
   const repartidorId = user?.repartidorId;
@@ -270,6 +288,52 @@ export default function DeliveriesPage() {
     }
   };
 
+  const requestDeliveryConfirmation = (order: any) => {
+    setOrderToConfirm(order);
+    
+    // Try to get current location to record it
+    if ("geolocation" in navigator) {
+      setIsVerifyingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setDeliveryLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          setIsVerifyingLocation(false);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          setIsVerifyingLocation(false);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!orderToConfirm) return;
+    
+    const additionalUpdates: any = {};
+    if (deliveryLocation) {
+      additionalUpdates.delivery_latitude = deliveryLocation.lat;
+      additionalUpdates.delivery_longitude = deliveryLocation.lng;
+    }
+    
+    await handleStatusUpdate(orderToConfirm.id, 'delivered');
+    
+    // If we have location, update the order with it
+    if (deliveryLocation) {
+      await updateOrderStatus(orderToConfirm.id, 'delivered', {
+        delivery_latitude: deliveryLocation.lat,
+        delivery_longitude: deliveryLocation.lng
+      } as any);
+    }
+    
+    setOrderToConfirm(null);
+    setDeliveryLocation(null);
+  };
+
   const activeDeliveries = deliveries.filter(d => d.status !== 'delivered');
   const completedDeliveries = deliveries.filter(d => d.status === 'delivered');
 
@@ -469,7 +533,7 @@ export default function DeliveriesPage() {
                                 >
                                   <Button
                                     size="sm"
-                                    onClick={() => handleStatusUpdate(delivery.id, 'delivered')}
+                                    onClick={() => requestDeliveryConfirmation(delivery)}
                                     className="gap-2 bg-[hsl(var(--status-delivered))] hover:bg-[hsl(var(--status-delivered))]/90 font-bold"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
