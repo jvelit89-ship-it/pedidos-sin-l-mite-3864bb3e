@@ -888,18 +888,22 @@ export default function CommissionsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Comisiones Operarios</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Proyectado (Pendiente)</CardTitle>
+            <Loader2 className="h-4 w-4 text-amber-500 animate-spin" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalOperarioCommissions)}</div>
-            <p className="text-xs text-muted-foreground">{totalOperarioUnits} unidades</p>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+              {formatCurrency(vendedorCommissions.reduce((sum, c) => sum + (c.pending_commission || 0), 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {vendedorCommissions.reduce((sum, c) => sum + (c.pending_units || 0), 0)} unidades por entregar
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Comisiones</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Comisiones (Cerradas)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
