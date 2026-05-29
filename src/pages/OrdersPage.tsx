@@ -771,7 +771,7 @@ export default function OrdersPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {isAdmin && user?.role === 'superadmin' && (order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                              {isAdmin && (order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
