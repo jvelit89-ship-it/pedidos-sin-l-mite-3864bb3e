@@ -847,6 +847,7 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          created_by: string | null
           customer_id: string
           customer_latitude: number | null
           customer_longitude: number | null
@@ -868,6 +869,7 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          created_by?: string | null
           customer_id: string
           customer_latitude?: number | null
           customer_longitude?: number | null
@@ -889,6 +891,7 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          created_by?: string | null
           customer_id?: string
           customer_latitude?: number | null
           customer_longitude?: number | null
