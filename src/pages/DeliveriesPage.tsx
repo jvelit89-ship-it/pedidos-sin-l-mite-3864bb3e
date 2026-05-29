@@ -61,6 +61,8 @@ export default function DeliveriesPage() {
   const [orderToConfirm, setOrderToConfirm] = useState<any>(null);
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
 
   const isRepartidor = user?.role === 'repartidor';
   const repartidorId = user?.repartidorId;
