@@ -317,6 +317,15 @@ export default function DeliveriesPage() {
   const handleConfirmDelivery = async () => {
     if (!orderToConfirm) return;
     
+    // Check PIN if present
+    if (orderToConfirm.delivery_pin && pinInput !== orderToConfirm.delivery_pin) {
+      setPinError(true);
+      toast.error('PIN incorrecto', {
+        description: 'El código ingresado no coincide con el enviado al cliente.'
+      });
+      return;
+    }
+
     const additionalUpdates: any = {};
     if (deliveryLocation) {
       additionalUpdates.delivery_latitude = deliveryLocation.lat;
@@ -335,6 +344,8 @@ export default function DeliveriesPage() {
     
     setOrderToConfirm(null);
     setDeliveryLocation(null);
+    setPinInput('');
+    setPinError(false);
   };
 
   const activeDeliveries = deliveries.filter(d => d.status !== 'delivered');
