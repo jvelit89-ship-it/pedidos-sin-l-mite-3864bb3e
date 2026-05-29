@@ -72,7 +72,10 @@ interface VendedorCommissionSummary {
   period2_commission: number;
   total_units: number;
   total_commission: number;
+  pending_units: number;
+  pending_commission: number;
   details: CommissionDetail[];
+  pending_details: CommissionDetail[];
 }
 
 interface DailyCommission {
@@ -160,13 +163,15 @@ export function useVendorCommissions(year: number, month: number) {
       const period2Start = new Date(year, month - 1, 16);
       const period2End = new Date(year, month, 0, 23, 59, 59);
 
-      // Get delivered orders with items for this month
+      // Get orders with items for this month (both delivered and pending/in-route)
       const { data: orders } = await supabase
         .from('orders')
         .select(`
           id,
           vendedor_id,
           customer_name,
+          status,
+          created_at,
           delivered_at,
           order_items (
             product_id,
@@ -177,9 +182,9 @@ export function useVendorCommissions(year: number, month: number) {
           )
         `)
         .eq('company_id', companyId)
-        .eq('status', 'delivered')
-        .gte('delivered_at', period1Start.toISOString())
-        .lte('delivered_at', period2End.toISOString());
+        .neq('status', 'cancelled')
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
 
       // Get all products with commission amounts and base prices
       const { data: products } = await supabase
@@ -202,11 +207,15 @@ export function useVendorCommissions(year: number, month: number) {
         let period1Commission = 0;
         let period2Units = 0;
         let period2Commission = 0;
+        let pendingUnits = 0;
+        let pendingCommission = 0;
         const details: CommissionDetail[] = [];
+        const pendingDetails: CommissionDetail[] = [];
 
         vendedorOrders.forEach(order => {
-          const deliveredAt = new Date(order.delivered_at!);
-          const isPeriod1 = deliveredAt >= period1Start && deliveredAt <= period1End;
+          const isDelivered = order.status === 'delivered';
+          const orderDate = new Date(isDelivered ? order.delivered_at! : order.created_at);
+          const isPeriod1 = orderDate >= period1Start && orderDate <= period1End;
 
           (order.order_items || []).forEach((item: any) => {
             const commissionPerUnit = productCommissions.get(item.product_id) || 0;
@@ -221,26 +230,44 @@ export function useVendorCommissions(year: number, month: number) {
             
             const totalCommission = commissionedQuantity * commissionPerUnit;
 
-            if (isPeriod1) {
-              period1Units += commissionedQuantity;
-              period1Commission += totalCommission;
-            } else {
-              period2Units += commissionedQuantity;
-              period2Commission += totalCommission;
-            }
+            if (isDelivered) {
+              if (isPeriod1) {
+                period1Units += commissionedQuantity;
+                period1Commission += totalCommission;
+              } else {
+                period2Units += commissionedQuantity;
+                period2Commission += totalCommission;
+              }
 
-            details.push({
-              order_id: order.id,
-              order_date: order.delivered_at!,
-              customer_name: order.customer_name,
-              product_name: item.product_name,
-              quantity: item.quantity,
-              commissionable_quantity: commissionedQuantity,
-              commission_per_unit: commissionPerUnit,
-              total_commission: totalCommission,
-              unit_price: item.unit_price || 0,
-              sale_total: item.total || 0,
-            });
+              details.push({
+                order_id: order.id,
+                order_date: order.delivered_at!,
+                customer_name: order.customer_name,
+                product_name: item.product_name,
+                quantity: item.quantity,
+                commissionable_quantity: commissionedQuantity,
+                commission_per_unit: commissionPerUnit,
+                total_commission: totalCommission,
+                unit_price: item.unit_price || 0,
+                sale_total: item.total || 0,
+              });
+            } else {
+              pendingUnits += commissionedQuantity;
+              pendingCommission += totalCommission;
+              
+              pendingDetails.push({
+                order_id: order.id,
+                order_date: order.created_at,
+                customer_name: order.customer_name,
+                product_name: item.product_name,
+                quantity: item.quantity,
+                commissionable_quantity: commissionedQuantity,
+                commission_per_unit: commissionPerUnit,
+                total_commission: totalCommission,
+                unit_price: item.unit_price || 0,
+                sale_total: item.total || 0,
+              });
+            }
           });
         });
 
@@ -253,7 +280,10 @@ export function useVendorCommissions(year: number, month: number) {
           period2_commission: period2Commission,
           total_units: period1Units + period2Units,
           total_commission: period1Commission + period2Commission,
+          pending_units: pendingUnits,
+          pending_commission: pendingCommission,
           details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+          pending_details: pendingDetails.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
         };
       });
 
@@ -283,12 +313,14 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
       const period2Start = new Date(year, month - 1, 16);
       const period2End = new Date(year, month, 0, 23, 59, 59);
 
-      // Get delivered orders with items for this month
+      // Get orders with items for this month (both delivered and pending/in-route)
       const { data: orders } = await supabase
         .from('orders')
         .select(`
           id,
           customer_name,
+          status,
+          created_at,
           delivered_at,
           order_items (
             product_id,
@@ -299,9 +331,9 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
           )
         `)
         .eq('vendedor_id', vendedorId)
-        .eq('status', 'delivered')
-        .gte('delivered_at', period1Start.toISOString())
-        .lte('delivered_at', period2End.toISOString());
+        .neq('status', 'cancelled')
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
 
       // Get all products with commission amounts and base prices
       const { data: products } = await supabase
@@ -321,11 +353,15 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
       let period1Commission = 0;
       let period2Units = 0;
       let period2Commission = 0;
+      let pendingUnits = 0;
+      let pendingCommission = 0;
       const details: CommissionDetail[] = [];
+      const pendingDetails: CommissionDetail[] = [];
 
       (orders || []).forEach(order => {
-        const deliveredAt = new Date(order.delivered_at!);
-        const isPeriod1 = deliveredAt >= period1Start && deliveredAt <= period1End;
+        const isDelivered = order.status === 'delivered';
+        const orderDate = new Date(isDelivered ? order.delivered_at! : order.created_at);
+        const isPeriod1 = orderDate >= period1Start && orderDate <= period1End;
 
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
@@ -340,26 +376,44 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
           
           const totalCommission = commissionedQuantity * commissionPerUnit;
 
-          if (isPeriod1) {
-            period1Units += commissionedQuantity;
-            period1Commission += totalCommission;
-          } else {
-            period2Units += commissionedQuantity;
-            period2Commission += totalCommission;
-          }
+          if (isDelivered) {
+            if (isPeriod1) {
+              period1Units += commissionedQuantity;
+              period1Commission += totalCommission;
+            } else {
+              period2Units += commissionedQuantity;
+              period2Commission += totalCommission;
+            }
 
-          details.push({
-            order_id: order.id,
-            order_date: order.delivered_at!,
-            customer_name: order.customer_name,
-            product_name: item.product_name,
-            quantity: item.quantity,
-            commissionable_quantity: commissionedQuantity,
-            commission_per_unit: commissionPerUnit,
-            total_commission: totalCommission,
-            unit_price: item.unit_price || 0,
-            sale_total: item.total || 0,
-          });
+            details.push({
+              order_id: order.id,
+              order_date: order.delivered_at!,
+              customer_name: order.customer_name,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              commissionable_quantity: commissionedQuantity,
+              commission_per_unit: commissionPerUnit,
+              total_commission: totalCommission,
+              unit_price: item.unit_price || 0,
+              sale_total: item.total || 0,
+            });
+          } else {
+            pendingUnits += commissionedQuantity;
+            pendingCommission += totalCommission;
+            
+            pendingDetails.push({
+              order_id: order.id,
+              order_date: order.created_at,
+              customer_name: order.customer_name,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              commissionable_quantity: commissionedQuantity,
+              commission_per_unit: commissionPerUnit,
+              total_commission: totalCommission,
+              unit_price: item.unit_price || 0,
+              sale_total: item.total || 0,
+            });
+          }
         });
       });
 
@@ -371,7 +425,10 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         period2_commission: period2Commission,
         total_units: period1Units + period2Units,
         total_commission: period1Commission + period2Commission,
+        pending_units: pendingUnits,
+        pending_commission: pendingCommission,
         details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+        pending_details: pendingDetails.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
       };
     } finally {
       setLoading(false);
