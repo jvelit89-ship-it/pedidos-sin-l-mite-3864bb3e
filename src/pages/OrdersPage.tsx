@@ -759,17 +759,36 @@ export default function OrdersPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={() => handleWhatsAppPIN(order)}
-                              title="Enviar PIN por WhatsApp"
-                            >
-                              <MessageSquare className="w-5 h-5" />
-                            </Button>
-                          )}
+                              {isAdmin && user?.role === 'superadmin' && (order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRevealPinOrderId(order.id);
+                                    setIsRevealPinDialogOpen(true);
+                                  }}
+                                  title="Revelar PIN (Solo Superadmin)"
+                                >
+                                  <Key className="w-5 h-5" />
+                                </Button>
+                              )}
+                              {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleWhatsAppPIN(order);
+                                  }}
+                                  title="Enviar PIN por WhatsApp"
+                                >
+                                  <MessageSquare className="w-5 h-5" />
+                                </Button>
+                              )}
+
                           <div className="text-right hidden sm:block">
                             <p className="text-sm font-medium">
                               {format(new Date(order.created_at), 'dd MMM', { locale })}
