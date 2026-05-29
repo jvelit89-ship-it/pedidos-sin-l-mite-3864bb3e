@@ -229,7 +229,8 @@ export default function OrdersPage() {
       return;
     }
 
-    if (selectedOrders.length === 0) return;
+
+
     
     setIsBulkUpdating(true);
     try {
