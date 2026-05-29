@@ -112,6 +112,13 @@ export default function OrderDetailPage() {
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order || !user) return;
+
+    // Admin/Superadmin requieren OTP para marcar como entregado
+    if (newStatus === 'delivered' && (user.role === 'admin' || user.role === 'superadmin')) {
+      setIsMarkDeliveredOpen(true);
+      return;
+    }
+
     
     setIsUpdating(true);
     try {
