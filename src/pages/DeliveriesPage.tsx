@@ -616,12 +616,42 @@ export default function DeliveriesPage() {
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
                 <p className="font-bold flex items-center gap-2 mb-1">
                   <AlertTriangle className="w-4 h-4" /> 
-                  ATENCIÓN REPARTIDOR:
+                  VERIFICACIÓN REQUERIDA:
                 </p>
-                Solo presiona confirmar si **YA entregaste** físicamente el producto al cliente **{orderToConfirm?.customer_name}**.
+                Solicita al cliente **{orderToConfirm?.customer_name}** el código de entrega de 4 dígitos.
               </div>
+
+              {orderToConfirm?.delivery_pin && (
+                <div className="space-y-2">
+                  <Label htmlFor="pin" className={pinError ? "text-destructive" : ""}>
+                    Código PIN de Entrega
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="pin"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      placeholder="Ej. 1234"
+                      value={pinInput}
+                      onChange={(e) => {
+                        setPinInput(e.target.value.replace(/\D/g, ''));
+                        setPinError(false);
+                      }}
+                      className={`text-center text-2xl tracking-[1em] font-bold h-14 ${pinError ? "border-destructive ring-destructive" : ""}`}
+                    />
+                  </div>
+                  {pinError && (
+                    <p className="text-xs text-destructive font-medium">El código es incorrecto. Por favor, verifica con el cliente.</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    El cliente puede encontrar este código en su nota de venta o mensaje de confirmación.
+                  </p>
+                </div>
+              )}
               
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 <div className="flex items-center gap-3 text-sm">
                   <div className={`p-2 rounded-full ${deliveryLocation ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
                     {isVerifyingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
@@ -631,16 +661,6 @@ export default function DeliveriesPage() {
                       {deliveryLocation ? 'Ubicación GPS registrada' : 'Obteniendo ubicación GPS...'}
                     </p>
                     <p className="text-xs text-muted-foreground">Tu posición actual quedará grabada como prueba de entrega.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-sm opacity-60">
-                  <div className="p-2 rounded-full bg-blue-100 text-blue-600">
-                    <Camera className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">Evidencia Fotográfica (Próximamente)</p>
-                    <p className="text-xs text-muted-foreground">Pronto podrás subir una foto como prueba adicional.</p>
                   </div>
                 </div>
               </div>
