@@ -40,7 +40,8 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
-  MoreVertical
+  MoreVertical,
+  MessageSquare
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -64,6 +65,11 @@ interface Order {
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
+  delivery_pin: string | null;
+  customers?: {
+    customer_type: string | null;
+    phone: string | null;
+  };
   order_items?: Array<{
     id: string;
     product_name: string;
@@ -236,6 +242,28 @@ export default function OrdersPage() {
     } finally {
       setIsBulkUpdating(false);
     }
+  };
+
+  const handleWhatsAppPIN = (order: Order) => {
+    const phone = order.customers?.phone;
+    if (!phone) {
+      toast.error('El cliente no tiene un teléfono registrado');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('51') ? cleanPhone : `51${cleanPhone}`;
+    
+    let message = `*Pedido #${order.id.slice(0, 8)}*\n\nHola *${order.customer_name}*, su pedido está en proceso.`;
+    
+    if (order.delivery_pin) {
+      message += `\n\n🔑 *Su PIN de entrega es: ${order.delivery_pin}*\nPor favor, entréguelo al repartidor al recibir su pedido.`;
+    }
+    
+    message += `\n\n📍 Entrega en: ${order.delivery_address}`;
+
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${phoneWithCountry}?text=${encodedMessage}`, '_blank');
   };
 
   const handleBulkVendedorChange = async (vendedorId: string) => {
@@ -725,7 +753,18 @@ export default function OrdersPage() {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => handleWhatsAppPIN(order)}
+                              title="Enviar PIN por WhatsApp"
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                            </Button>
+                          )}
                           <div className="text-right hidden sm:block">
                             <p className="text-sm font-medium">
                               {format(new Date(order.created_at), 'dd MMM', { locale })}

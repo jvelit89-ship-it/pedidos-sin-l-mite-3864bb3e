@@ -87,6 +87,8 @@ export default function NewOrderPage() {
   const [useBackdatedOrder, setUseBackdatedOrder] = useState(false);
   const [backdatedDate, setBackdatedDate] = useState('');
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
+  const [currentOrderPin, setCurrentOrderPin] = useState<string | null>(null);
+  const [currentCustomerPhone, setCurrentCustomerPhone] = useState<string | null>(null);
   const [receiptType, setReceiptType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [documentNumber, setDocumentNumber] = useState('');
@@ -461,6 +463,10 @@ export default function NewOrderPage() {
       }, items);
 
       if (orderData) {
+        // Store PIN and phone for WhatsApp sharing
+        setCurrentOrderPin(orderData.delivery_pin);
+        setCurrentCustomerPhone(customer.phone);
+        
         // Deduct prepaid balances for items that used a prepaid package
         for (const item of orderItems) {
           const pricing = getItemPricing(item.productId, item.quantity);
@@ -1067,6 +1073,8 @@ export default function NewOrderPage() {
         html={salesNoteHtml}
         noteNumber={noteNumber}
         open={isDialogOpen}
+        customerPhone={currentCustomerPhone}
+        deliveryPin={currentOrderPin}
         onClose={() => {
           closeDialog();
           navigate('/orders');

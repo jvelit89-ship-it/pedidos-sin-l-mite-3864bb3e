@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, Download, Loader2, X } from 'lucide-react';
+import { Printer, Download, Loader2, X, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SalesNotePrintProps {
@@ -9,9 +9,11 @@ interface SalesNotePrintProps {
   noteNumber: string;
   open: boolean;
   onClose: () => void;
+  customerPhone?: string | null;
+  deliveryPin?: string | null;
 }
 
-export function SalesNotePrint({ html, noteNumber, open, onClose }: SalesNotePrintProps) {
+export function SalesNotePrint({ html, noteNumber, open, onClose, customerPhone, deliveryPin }: SalesNotePrintProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -84,6 +86,27 @@ ${html}
     URL.revokeObjectURL(url);
     
     toast.success('HTML descargado - Abrir e imprimir como PDF');
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!customerPhone) {
+      toast.error('Cliente no tiene número de teléfono registrado');
+      return;
+    }
+
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('51') ? cleanPhone : `51${cleanPhone}`;
+    
+    let message = `*Nota de Venta: ${noteNumber}*\n\nHola, gracias por su compra.`;
+    
+    if (deliveryPin) {
+      message += `\n\n🔑 *Su PIN de entrega es: ${deliveryPin}*\nPor favor, entréguelo al repartidor al recibir su pedido.`;
+    }
+    
+    message += `\n\nPuede ver su comprobante aquí: ${window.location.origin}/sales-note/${noteNumber}`;
+
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${phoneWithCountry}?text=${encodedMessage}`, '_blank');
   };
 
   // Create print-optimized HTML for the iframe
@@ -159,6 +182,15 @@ ${html}
                 <Printer className="w-4 h-4" />
               )}
               Imprimir (80mm)
+            </Button>
+            <Button 
+              onClick={handleWhatsAppShare} 
+              variant="secondary"
+              className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
+              disabled={!customerPhone}
+            >
+              <MessageSquare className="w-4 h-4" />
+              WhatsApp PIN
             </Button>
           </div>
           <Button 

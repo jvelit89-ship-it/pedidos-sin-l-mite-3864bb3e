@@ -25,8 +25,10 @@ interface Order {
   updated_at: string;
   delivered_at: string | null;
   tracking_code: string | null;
+  delivery_pin: string | null;
   customers?: {
     customer_type: string | null;
+    phone: string | null;
   };
 }
 
@@ -46,14 +48,14 @@ interface OrderWithItems extends Order {
 
 export function useOrders() {
   const { data: orders, loading, error, refetch } = useRealtimeQuery<OrderWithItems>('orders', {
-    select: '*, order_items(*), customers(customer_type)',
+    select: '*, order_items(*), customers(customer_type, phone)',
     orderBy: { column: 'created_at', ascending: false },
   });
 
   const getOrder = useCallback(async (id: string): Promise<OrderWithItems | null> => {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, order_items(*)')
+      .select('*, order_items(*), customers(customer_type, phone)')
       .eq('id', id)
       .maybeSingle();
     
@@ -66,7 +68,7 @@ export function useOrders() {
   }, []);
 
   const createOrder = useCallback(async (
-    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code'> & { created_at?: string },
+    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code' | 'delivery_pin'> & { created_at?: string },
     items: Omit<OrderItem, 'id' | 'order_id'>[]
   ) => {
     // Build order data, including optional custom created_at for backdated orders
