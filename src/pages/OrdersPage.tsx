@@ -110,6 +110,9 @@ export default function OrdersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [revealPinOrderId, setRevealPinOrderId] = useState<string | null>(null);
+  const [isRevealPinDialogOpen, setIsRevealPinDialogOpen] = useState(false);
+
 
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
