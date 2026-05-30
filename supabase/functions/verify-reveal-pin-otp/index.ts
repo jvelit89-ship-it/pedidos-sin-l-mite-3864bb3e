@@ -9,6 +9,7 @@ const corsHeaders = {
 
 interface VerifyOtpRequest {
   otpCode: string;
+  orderId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -54,7 +55,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { otpCode }: VerifyOtpRequest = await req.json();
+    const { otpCode, orderId }: VerifyOtpRequest = await req.json();
+    console.log(`Verificando OTP para usuario ${user.id}, pedido ${orderId}`);
 
     // Find valid OTP
     const { data: otpData, error: otpError } = await supabase
@@ -62,15 +64,19 @@ const handler = async (req: Request): Promise<Response> => {
       .select("*")
       .eq("user_id", user.id)
       .eq("otp_code", otpCode)
+      .eq("order_id", orderId)
       .gte("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
     if (otpError || !otpData) {
-      console.log("OTP verification failed:", otpError);
+      console.log("OTP verification failed or not found:", otpError);
       return new Response(
-        JSON.stringify({ error: "Código inválido o expirado" }),
+        JSON.stringify({ 
+          error: "Código inválido o expirado", 
+          details: otpError?.message || "No se encontró el código para este pedido" 
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

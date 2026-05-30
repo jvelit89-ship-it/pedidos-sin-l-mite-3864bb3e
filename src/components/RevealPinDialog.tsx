@@ -72,12 +72,13 @@ export function RevealPinDialog({
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-reveal-pin-otp', {
-        body: { otpCode },
+        body: { otpCode, orderId },
       });
 
       if (error) {
         console.error('Error verifying OTP:', error);
-        toast.error('Código inválido o expirado');
+        const errorMessage = error instanceof Error ? error.message : 'Código inválido o expirado';
+        toast.error(errorMessage);
         return;
       }
 

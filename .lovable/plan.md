@@ -1,18 +1,16 @@
-He verificado la implementación de las funcionalidades de seguridad solicitadas tanto para el Superadmin como para el Administrador.
+He investigado el problema reportado al revelar el PIN de un pedido. Aunque no he podido encontrar registros de errores específicos en los logs recientes, he detectado una posible causa de confusión en el flujo:
 
-### Resumen de la verificación:
-1. **Base de Datos**: La tabla `mark_delivered_otp_codes` ha sido creada correctamente para gestionar los códigos de autorización de entrega.
-2. **Funciones Backend**:
-   - `send-reveal-pin-otp` y `verify-reveal-pin-otp` ahora permiten el acceso tanto a `superadmin` como a `admin`.
-   - Se han creado las nuevas funciones `send-mark-delivered-otp` y `verify-mark-delivered-otp` para el flujo de entrega segura.
-3. **Interfaz de Usuario**:
-   - **Revelar PIN**: El botón de llave (🔑) ahora está visible para Administradores y Superadmins. He ajustado el texto del diálogo para reflejar que ambos roles tienen acceso previa verificación por correo.
-   - **Marcar como Entregado**: Tanto en la vista de lista (acciones masivas) como en el detalle del pedido, si un Administrador o Superadmin intenta cambiar el estado a "Entregado", se activa automáticamente el nuevo diálogo de verificación OTP.
-   - **Flujo de WhatsApp**: El botón de WhatsApp sigue disponible para enviar el PIN directamente al cliente sin mostrarlo en pantalla.
+Actualmente, existen dos tipos de verificaciones OTP muy similares:
+1. **Para revelar el PIN**: Envía un código para mostrar el PIN de seguridad de un pedido.
+2. **Para marcar como entregado**: Envía un código para autorizar el cambio de estado a "Entregado".
 
-### Próximos pasos recomendados para probar:
-- Entrar con una cuenta de **Administrador**.
-- Intentar revelar el PIN de un pedido (debería llegarte un código al correo).
-- Intentar cambiar el estado de un pedido a "Entregado" (debería pedirte un código OTP enviado a tu correo).
+Es posible que se esté intentando usar el código de una acción para la otra, o que el sistema esté fallando silenciosamente si los datos del pedido no coinciden exactamente con lo esperado en la base de datos.
 
-¿Te gustaría que realice algún ajuste adicional en los mensajes o en el flujo?
+### Mi plan para solucionar y verificar esto es:
+
+1.  **Mejorar el registro de errores (Logging)**: Añadiré más detalles a las funciones de verificación en el servidor para que, si falla, podamos ver exactamente por qué (ej. "OTP no encontrado", "OTP expirado", "Pedido no coincide").
+2.  **Clarificar la Interfaz**: Me aseguraré de que los diálogos indiquen claramente para qué acción es el código que se está solicitando (Revelar PIN vs. Confirmar Entrega).
+3.  **Sincronización de Tipos**: Asegurarme de que el `order_id` se maneje de forma consistente entre la base de datos (UUID) y la aplicación.
+4.  **Prueba de Integridad**: Verificaré que los códigos se estén guardando correctamente en la tabla `reveal_pin_otp_codes`.
+
+¿Te parece bien si procedo con estas mejoras de diagnóstico y corrección? De esta forma, si el error persiste, la aplicación te dirá exactamente qué está mal (ej. "Código expirado" o "ID de pedido inválido").
