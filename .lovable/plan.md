@@ -1,42 +1,18 @@
+He verificado la implementación de las funcionalidades de seguridad solicitadas tanto para el Superadmin como para el Administrador.
 
+### Resumen de la verificación:
+1. **Base de Datos**: La tabla `mark_delivered_otp_codes` ha sido creada correctamente para gestionar los códigos de autorización de entrega.
+2. **Funciones Backend**:
+   - `send-reveal-pin-otp` y `verify-reveal-pin-otp` ahora permiten el acceso tanto a `superadmin` como a `admin`.
+   - Se han creado las nuevas funciones `send-mark-delivered-otp` y `verify-mark-delivered-otp` para el flujo de entrega segura.
+3. **Interfaz de Usuario**:
+   - **Revelar PIN**: El botón de llave (🔑) ahora está visible para Administradores y Superadmins. He ajustado el texto del diálogo para reflejar que ambos roles tienen acceso previa verificación por correo.
+   - **Marcar como Entregado**: Tanto en la vista de lista (acciones masivas) como en el detalle del pedido, si un Administrador o Superadmin intenta cambiar el estado a "Entregado", se activa automáticamente el nuevo diálogo de verificación OTP.
+   - **Flujo de WhatsApp**: El botón de WhatsApp sigue disponible para enviar el PIN directamente al cliente sin mostrarlo en pantalla.
 
-## Plan: Comisiones para Repartidores
+### Próximos pasos recomendados para probar:
+- Entrar con una cuenta de **Administrador**.
+- Intentar revelar el PIN de un pedido (debería llegarte un código al correo).
+- Intentar cambiar el estado de un pedido a "Entregado" (debería pedirte un código OTP enviado a tu correo).
 
-### Resumen
-Agregar un sistema de comisiones para repartidores que funcione igual que el de vendedores, pero basado en los pedidos que **entregan** (no los que venden). Cada producto tendrá un campo adicional `repartidor_commission_amount` para definir cuánto gana el repartidor por unidad entregada.
-
----
-
-### Cambios necesarios
-
-#### 1. Base de datos
-- Agregar columna `repartidor_commission_amount` (numeric, default 0) a la tabla `products`
-- Agregar `'repartidor'` a la ruta `/commissions` en permisos de acceso
-
-#### 2. Hook de comisiones (`src/hooks/useCommissions.ts`)
-- Agregar `useRepartidorCommissions(year, month)` — calcula comisiones de todos los repartidores activos, basado en pedidos con `status = 'delivered'` agrupados por `repartidor_id`, usando `delivered_at` para los períodos quincenales
-- Agregar `useMyRepartidorCommissions(repartidorId, year, month)` — vista personal del repartidor
-- Extender `useProductCommissions` para soportar el tipo `'repartidor'` al editar montos
-
-#### 3. Página de Comisiones (`src/pages/CommissionsPage.tsx`)
-- **Admin**: Agregar pestaña "Repartidores" junto a "Vendedores" y "Operarios"
-- **Admin**: Mostrar tabla de comisiones por repartidor con desglose quincenal
-- **Admin**: En configuración de productos, agregar columna para editar `repartidor_commission_amount`
-- **Repartidor**: Mostrar su resumen personal de comisiones (igual que vendedor ve las suyas)
-- Exportación PDF para comisiones de repartidores
-
-#### 4. Permisos de acceso (`src/contexts/AuthContext.tsx`)
-- Agregar `'repartidor'` al array de roles permitidos en `/commissions`
-
-### Lógica de cálculo
-La comisión del repartidor se calcula igual que la del vendedor:
-- Filtra pedidos `delivered` del mes, agrupados por `repartidor_id`
-- Multiplica `quantity × repartidor_commission_amount` por cada item
-- Divide en quincenas (1-15 y 16-fin de mes) usando `delivered_at`
-
-### Archivos a modificar
-1. **Migración SQL** — nueva columna en `products`
-2. `src/hooks/useCommissions.ts` — nuevos hooks
-3. `src/pages/CommissionsPage.tsx` — UI para admin y repartidor
-4. `src/contexts/AuthContext.tsx` — permiso de ruta
-
+¿Te gustaría que realice algún ajuste adicional en los mensajes o en el flujo?
