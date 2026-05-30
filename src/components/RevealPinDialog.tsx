@@ -110,7 +110,7 @@ export function RevealPinDialog({
                 Verificación de Seguridad
               </DialogTitle>
               <DialogDescription>
-                Esta acción es solo para Superadmins. Se enviará un código de verificación a tu correo registrado para poder ver el PIN del pedido.
+                Esta acción es solo para Administradores y Superadmins. Se enviará un código de verificación a tu correo registrado para poder ver el PIN del pedido.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-4">
