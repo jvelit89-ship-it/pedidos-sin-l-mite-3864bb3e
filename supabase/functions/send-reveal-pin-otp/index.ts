@@ -58,6 +58,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const { orderId }: SendOtpRequest = await req.json();
+    console.log(`Generando OTP para usuario ${user.id}, pedido ${orderId}`);
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -74,9 +75,9 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     if (otpError) {
-      console.error("Error storing OTP:", otpError);
+      console.error("Error storing OTP in DB:", otpError);
       return new Response(
-        JSON.stringify({ error: "Failed to generate OTP" }),
+        JSON.stringify({ error: "Failed to generate OTP", details: otpError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
