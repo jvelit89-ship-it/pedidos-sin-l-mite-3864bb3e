@@ -222,18 +222,51 @@ export default function DirectOrderPage() {
     { title: 'Confirmar', icon: ShoppingCart },
   ];
 
-  if (!companyId) return <div className="p-8 text-center">Enlace inválido</div>;
+  if (loading && !company) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center space-y-4">
+        <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+        <p className="text-slate-500 font-medium">Cargando portal de pedidos...</p>
+      </div>
+    </div>
+  );
+
+  if (!company) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
+      <Card className="max-w-md w-full text-center p-8 border-none shadow-xl">
+        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">Portal no disponible</h2>
+        <p className="text-slate-500 mb-6">El enlace de pedidos no es válido o la empresa no está configurada correctamente.</p>
+        <Button className="w-full" onClick={() => window.location.href = '/'}>Volver al inicio</Button>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Header */}
-      <div className="bg-primary text-primary-foreground p-6 shadow-md">
-        <div className="max-w-md mx-auto flex flex-col items-center gap-2">
-          <div className="bg-white/20 p-3 rounded-full">
-            <ShoppingCart className="w-8 h-8" />
+      <div className="bg-primary text-primary-foreground p-8 shadow-lg relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-black/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="max-w-md mx-auto flex flex-col items-center gap-4 relative z-10">
+          <div className="bg-white p-3 rounded-2xl shadow-inner">
+            <ShoppingCart className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">{company?.name || 'Pedidos Directos'}</h1>
-          <p className="text-primary-foreground/80 text-sm">Portal de Pedidos Online</p>
+          <div className="text-center">
+            <h1 className="text-2xl font-black tracking-tight leading-tight">
+              Agua Santa Maria y Ecohielo
+            </h1>
+            <p className="text-primary-foreground/90 font-medium mt-1">
+              Área de Pedidos Online
+            </p>
+          </div>
+          <Badge variant="outline" className="bg-white/20 border-white/30 text-white font-bold py-1 px-4 rounded-full backdrop-blur-sm uppercase tracking-widest text-[10px]">
+            {company.name}
+          </Badge>
         </div>
       </div>
 
