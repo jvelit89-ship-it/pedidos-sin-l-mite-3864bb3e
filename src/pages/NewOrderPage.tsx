@@ -81,6 +81,7 @@ export default function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [isPreOrder, setIsPreOrder] = useState(false);
   
   // Backdated order for admins
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -427,12 +428,14 @@ export default function NewOrderPage() {
         };
       });
 
-      // Check if any item has no stock -> this becomes a backorder
-      const hasOutOfStockItems = orderItems.some(item => {
+      // Check if any item has insufficient stock -> this becomes a backorder automatically
+      const hasInsufficientStock = orderItems.some(item => {
         const product = products.find(p => p.id === item.productId);
-        return product && product.stock === 0;
+        return product && item.quantity > product.stock;
       });
-      const orderStatus = hasOutOfStockItems ? 'backorder' : 'pending';
+      
+      const orderStatus = (isPreOrder || hasInsufficientStock) ? 'backorder' : 'pending';
+      const isBackorder = orderStatus === 'backorder';
 
       // If backdating, create a timestamp at 12:00 noon of that date (Lima time)
       let customCreatedAt: string | undefined;
@@ -520,8 +523,8 @@ export default function NewOrderPage() {
           delivery_pin: (orderData as any).delivery_pin, // Add the PIN to the sales note
         } as any);
 
-        toast.success(hasOutOfStockItems ? 'Pre-pedido creado' : 'Pedido creado', {
-          description: hasOutOfStockItems 
+        toast.success(isBackorder ? 'Pre-pedido creado' : 'Pedido creado', {
+          description: isBackorder 
             ? 'El pedido quedará en lista de espera hasta que haya stock disponible'
             : 'El pedido ha sido registrado correctamente',
         });
@@ -796,9 +799,22 @@ export default function NewOrderPage() {
             </CardContent>
           </Card>
 
-        {/* Receipt Type */}
+        {/* Receipt Type & Pre-order Toggle */}
         <Card>
-          <CardContent className="p-3 space-y-3">
+          <CardContent className="p-3 space-y-4">
+            {/* Pre-order manual toggle */}
+            <div className="flex items-center space-x-2 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-200 dark:border-amber-900 mb-2">
+              <Checkbox 
+                id="pre-order" 
+                checked={isPreOrder} 
+                onCheckedChange={(checked) => setIsPreOrder(checked as boolean)} 
+              />
+              <Label htmlFor="pre-order" className="text-amber-800 dark:text-amber-400 font-bold cursor-pointer flex items-center gap-1.5">
+                <CalendarClock className="w-4 h-4" />
+                Registrar como Pre-pedido (⏳)
+              </Label>
+            </div>
+
             <div className="space-y-3">
               <Label>Tipo de Comprobante</Label>
               <RadioGroup
