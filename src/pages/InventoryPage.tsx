@@ -657,6 +657,14 @@ export default function InventoryPage() {
                     </Select>
                   </div>
                   <div className="space-y-2 col-span-2">
+                    <Label>{settings.language === 'es' ? 'URL de Imagen' : 'Image URL'}</Label>
+                    <Input
+                      value={formData.image_url}
+                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                      placeholder="https://ejemplo.com/imagen.jpg"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
                     <Label>{t.notes}</Label>
                     <Textarea
                       value={formData.notes}
