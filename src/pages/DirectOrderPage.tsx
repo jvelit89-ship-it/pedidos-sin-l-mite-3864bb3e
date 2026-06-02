@@ -161,15 +161,37 @@ export default function DirectOrderPage() {
       // 1. Upsert Customer
       let customerId = customer.id;
       if (!customerId) {
-        const { data: newCust, error: custErr } = await supabase
+        // Check again if customer was created by another process while user was filling the form
+        const { data: existingCust } = await supabase
           .from('customers')
-          .insert({ ...customer, document_id: documentNumber })
-          .select()
-          .single();
-        if (custErr) throw custErr;
-        customerId = newCust.id;
+          .select('id')
+          .eq('document_id', documentNumber)
+          .maybeSingle();
+          
+        if (existingCust) {
+          customerId = existingCust.id;
+          await supabase.from('customers').update({
+            name: customer.name,
+            phone: customer.phone,
+            address: customer.address,
+            // Don't update company_id if it already belongs to one, 
+            // but for this order it will use the current companyId
+          }).eq('id', customerId);
+        } else {
+          const { data: newCust, error: custErr } = await supabase
+            .from('customers')
+            .insert({ ...customer, document_id: documentNumber, company_id: companyId })
+            .select()
+            .single();
+          if (custErr) throw custErr;
+          customerId = newCust.id;
+        }
       } else {
-        await supabase.from('customers').update(customer).eq('id', customerId);
+        await supabase.from('customers').update({
+          name: customer.name,
+          phone: customer.phone,
+          address: customer.address
+        }).eq('id', customerId);
       }
 
       // 2. Create Order
