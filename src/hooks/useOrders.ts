@@ -135,7 +135,7 @@ export function useOrders() {
 
     
     toast.success('Pedido creado');
-    return orderData;
+    return orderWithPin;
   }, []);
 
   const updateOrder = useCallback(async (id: string, updates: Partial<Order>) => {
