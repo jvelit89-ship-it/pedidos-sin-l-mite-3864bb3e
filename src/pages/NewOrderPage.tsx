@@ -948,7 +948,7 @@ export default function NewOrderPage() {
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
