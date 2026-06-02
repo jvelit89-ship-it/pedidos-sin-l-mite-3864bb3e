@@ -26,6 +26,7 @@ import { SecureImage } from '@/components/SecureImage';
 interface Customer {
   id: string;
   name: string;
+  document_id: string | null;
   business_name: string | null;
   phone: string | null;
   email: string | null;
@@ -66,6 +67,7 @@ export default function CustomersPage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    document_id: '',
     business_name: '',
     phone: '',
     address: '',
@@ -485,6 +487,7 @@ export default function CustomersPage() {
 
       await updateCustomer(selectedCustomer.id, {
         name: formData.name,
+        document_id: formData.document_id || null,
         business_name: formData.business_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
@@ -501,6 +504,7 @@ export default function CustomersPage() {
       // Create customer first to get ID, then upload photo
       const newCustomer = await addCustomer({
         name: formData.name,
+        document_id: formData.document_id || null,
         business_name: formData.business_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
@@ -535,6 +539,7 @@ export default function CustomersPage() {
     setShowAddressConfirmation(false);
     setFormData({
       name: '',
+      document_id: '',
       business_name: '',
       phone: '',
       address: '',
@@ -554,6 +559,7 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setFormData({
       name: customer.name,
+      document_id: customer.document_id || '',
       business_name: customer.business_name || '',
       phone: customer.phone || '',
       address: customer.address || '',
@@ -649,6 +655,21 @@ export default function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      {settings.language === 'es' ? 'DNI / RUC' : 'Document ID'}
+                    </Label>
+                    <Input
+                      value={formData.document_id}
+                      onChange={(e) => setFormData({ ...formData, document_id: e.target.value.replace(/\D/g, '') })}
+                      placeholder="Ej: 12345678"
+                      maxLength={11}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
                     <Label>{settings.language === 'es' ? 'Nombre del Negocio' : 'Business Name'}</Label>
                     <Input
                       value={formData.business_name}
@@ -656,28 +677,27 @@ export default function CustomersPage() {
                       placeholder={settings.language === 'es' ? 'Opcional' : 'Optional'}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>{t.phone} *</Label>
-                  <Input
-                    value={formData.phone}
-                    onChange={(e) => {
-                      // Only allow digits
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 9);
-                      setFormData({ ...formData, phone: value });
-                    }}
-                    placeholder="987654321"
-                    pattern="[0-9]{9}"
-                    maxLength={9}
-                    inputMode="numeric"
-                    required
-                  />
-                  {formData.phone && formData.phone.length !== 9 && (
-                    <p className="text-xs text-destructive">
-                      {settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits'}
-                    </p>
-                  )}
+                  <div className="space-y-2">
+                    <Label>{t.phone} *</Label>
+                    <Input
+                      value={formData.phone}
+                      onChange={(e) => {
+                        // Only allow digits
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                        setFormData({ ...formData, phone: value });
+                      }}
+                      placeholder="987654321"
+                      pattern="[0-9]{9}"
+                      maxLength={9}
+                      inputMode="numeric"
+                      required
+                    />
+                    {formData.phone && formData.phone.length !== 9 && (
+                      <p className="text-xs text-destructive">
+                        {settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits'}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1123,12 +1143,20 @@ export default function CustomersPage() {
                         )}
                       </div>
                       <div className="mt-1 space-y-1 text-sm text-muted-foreground">
-                        {c.phone && (
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-3.5 h-3.5" />
-                            {c.phone}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                          {c.document_id && (
+                            <div className="flex items-center gap-1.5">
+                              <CreditCard className="w-3.5 h-3.5" />
+                              {c.document_id}
+                            </div>
+                          )}
+                          {c.phone && (
+                            <div className="flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5" />
+                              {c.phone}
+                            </div>
+                          )}
+                        </div>
                         {c.address && (
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5" />
