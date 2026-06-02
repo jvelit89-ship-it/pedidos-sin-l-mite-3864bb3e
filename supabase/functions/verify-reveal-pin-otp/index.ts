@@ -81,10 +81,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get the order delivery_pin
-    const { data: orderData, error: orderError } = await supabase
-      .from("orders")
-      .select("delivery_pin")
+    // Get the order delivery_pin from the secure table
+    const { data: pinData, error: pinError } = await supabase
+      .from("order_delivery_pins")
+      .select("pin")
       .eq("id", otpData.order_id)
       .single();
 
