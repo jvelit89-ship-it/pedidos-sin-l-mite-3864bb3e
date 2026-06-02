@@ -11,6 +11,7 @@ interface Product {
   sku: string;
   category: string | null;
   stock: number;
+  reserved_stock: number;
   min_stock: number;
   stock_critical_level: number;
   price: number;
@@ -19,6 +20,7 @@ interface Product {
   created_at: string;
   updated_at: string;
   product_type: 'final' | 'raw_material';
+  image_url?: string | null;
 }
 
 interface ProductionHistory {
