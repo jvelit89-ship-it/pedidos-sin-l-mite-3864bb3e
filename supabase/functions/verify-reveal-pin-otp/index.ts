@@ -88,10 +88,10 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", otpData.order_id)
       .single();
 
-    if (orderError || !orderData) {
-      console.error("Error fetching order pin:", orderError);
+    if (pinError || !pinData) {
+      console.error("Error fetching order pin:", pinError);
       return new Response(
-        JSON.stringify({ error: "No se pudo encontrar el pedido" }),
+        JSON.stringify({ error: "No se pudo encontrar el PIN de este pedido" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
