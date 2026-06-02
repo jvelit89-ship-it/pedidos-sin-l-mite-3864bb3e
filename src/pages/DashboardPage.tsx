@@ -201,33 +201,23 @@ export default function DashboardPage() {
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-primary rounded-2xl shadow-lg shadow-primary/20">
-                    <Link className="w-6 h-6 text-white" />
+                    <ExternalLink className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Portal de Pedidos Online</h3>
-                    <p className="text-sm text-slate-500">Comparte este enlace con tus clientes para recibir pedidos directamente.</p>
+                    <p className="text-sm text-slate-500">Accede directamente al área de pedidos para clientes.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
                   <div className="bg-white border rounded-lg px-4 py-2 text-sm font-mono flex-1 md:flex-none text-slate-600 truncate">
-                    {window.location.origin}/pedidos-online
+                    pedidos.innsanma.com/pedidos-online
                   </div>
-                  <Button 
-                    size="icon" 
-                    variant="outline" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/pedidos-online`);
-                      toast.success("Enlace copiado al portapapeles");
-                    }}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
                   <Button 
                     variant="default"
                     className="gap-2"
-                    onClick={() => window.open('/pedidos-online', '_blank')}
+                    onClick={() => window.open('https://pedidos.innsanma.com/pedidos-online', '_blank')}
                   >
-                    Ver Portal <ExternalLink className="w-4 h-4" />
+                    Abrir Portal <ExternalLink className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
