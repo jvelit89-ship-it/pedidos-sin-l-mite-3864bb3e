@@ -58,6 +58,7 @@ interface Product {
   stock: number;
   reserved_stock: number; // Stock en tránsito (cargado en vehículos pero no entregado)
   min_stock: number;
+  stock_critical_level: number;
   price: number;
   notes: string | null;
   company_id: string;
