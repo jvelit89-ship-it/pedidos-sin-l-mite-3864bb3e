@@ -192,6 +192,7 @@ export function useProductionWaste() {
 
 export function useAdvancedProduction() {
   const { getRecipesForProduct, recipes } = useProductionRecipes();
+  const { user, isAdmin: isUserAdmin } = useAuth();
 
   const produceWithRecipe = useCallback(async (
     outputProductId: string,
@@ -206,24 +207,13 @@ export function useAdvancedProduction() {
       return false;
     }
 
-    // Get current user and role
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast.error('Error de autenticación');
       return false;
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, name')
-      .eq('user_id', user.id)
-      .single();
-
-    const role = profile?.role || 'operario';
-    const isAdmin = role === 'admin' || role === 'superadmin';
-
     // If operario, use pending production flow
-    if (!isAdmin) {
+    if (!isUserAdmin) {
       const { data: { session } } = await supabase.auth.getSession();
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
       const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -235,7 +225,6 @@ export function useAdvancedProduction() {
       }
 
       // Add special notes for recipe-based production if needed
-      // For now, we'll just use the notes field
       const recipeNotes = notes ? `${notes} (Producción con Receta)` : '(Producción con Receta)';
 
       const { error } = await untypedClient
@@ -245,7 +234,7 @@ export function useAdvancedProduction() {
           quantity,
           notes: recipeNotes,
           requested_by: user.id,
-          requested_by_name: profile?.name || 'Operario',
+          requested_by_name: user.name || 'Operario',
           company_id: companyId,
           status: 'pending',
         });
