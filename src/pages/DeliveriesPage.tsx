@@ -568,34 +568,30 @@ export default function DeliveriesPage() {
                               
                               {delivery.status === 'ready' && (
                                 <Button
-                                  size="sm"
+                                  size="lg"
                                   onClick={() => handleStatusUpdate(delivery.id, 'delivery')}
-                                  className="gap-2"
+                                  className="flex-1 sm:flex-none gap-2"
                                 >
-                                  <Truck className="w-4 h-4" />
+                                  <Truck className="w-5 h-5" />
                                   Iniciar Entrega
                                 </Button>
                               )}
                               
                               {delivery.status === 'delivery' && (
                                 <motion.div
+                                  className="flex-1 sm:flex-none"
                                   animate={{ 
-                                    scale: [1, 1.05, 1],
-                                    boxShadow: [
-                                      '0 0 0 0 hsl(var(--status-delivered) / 0)',
-                                      '0 0 0 8px hsl(var(--status-delivered) / 0.3)',
-                                      '0 0 0 0 hsl(var(--status-delivered) / 0)',
-                                    ],
+                                    scale: [1, 1.02, 1],
                                   }}
                                   transition={{ duration: 1.5, repeat: Infinity }}
                                 >
                                   <Button
-                                    size="sm"
+                                    size="lg"
                                     onClick={() => requestDeliveryConfirmation(delivery)}
-                                    className="gap-2 bg-[hsl(var(--status-delivered))] hover:bg-[hsl(var(--status-delivered))]/90 font-bold"
+                                    className="w-full gap-2 bg-[hsl(var(--status-delivered))] hover:bg-[hsl(var(--status-delivered))]/90 font-bold text-lg h-14"
                                   >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    ¡MARCAR ENTREGADO!
+                                    <CheckCircle2 className="w-6 h-6" />
+                                    MARCAR ENTREGADO
                                   </Button>
                                 </motion.div>
                               )}
