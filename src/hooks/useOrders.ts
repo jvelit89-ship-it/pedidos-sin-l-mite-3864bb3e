@@ -25,7 +25,7 @@ interface Order {
   updated_at: string;
   delivered_at: string | null;
   tracking_code: string | null;
-  delivery_pin: string | null;
+  
   customers?: {
     customer_type: string | null;
     phone: string | null;
