@@ -114,6 +114,7 @@ export default function InventoryPage() {
     category: '',
     stock: 0,
     min_stock: 5,
+    stock_critical_level: 5,
     price: 0,
     notes: '',
     product_type: 'final' as 'final' | 'raw_material',
