@@ -235,6 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canAccessRoute,
         isAdmin,
         isSuperAdmin,
+        isOperario,
         canEditCustomers,
       }}
     >
