@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Supplier } from '@/hooks/useSuppliers';
+import { handleError } from '@/lib/error-handler';
+
 
 export interface Purchase {
   id: string;
@@ -171,12 +173,9 @@ export function usePurchases() {
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'Create Purchase' });
     },
+
   });
 
   // Cancel purchase mutation
@@ -203,12 +202,9 @@ export function usePurchases() {
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'Cancel Purchase' });
     },
+
   });
 
   // Get purchase details with items
