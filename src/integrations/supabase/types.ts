@@ -2073,6 +2073,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      merge_duplicate_customers: { Args: never; Returns: Json }
       recalculate_company_stock: {
         Args: { _company_id: string }
         Returns: number
