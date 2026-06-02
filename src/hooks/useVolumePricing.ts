@@ -9,6 +9,8 @@ export interface VolumePricingRule {
   min_quantity: number;
   unit_price: number;
   is_active: boolean;
+  promotion_days?: number[];
+  is_online_exclusive?: boolean;
   company_id: string;
   created_at: string;
   updated_at: string;
@@ -41,7 +43,9 @@ export function useVolumePricing(productId?: string) {
   const addRule = useCallback(async (
     productId: string,
     minQuantity: number,
-    unitPrice: number
+    unitPrice: number,
+    promotionDays: number[] = [],
+    isOnlineExclusive: boolean = false
   ) => {
     const companyId = await getUserCompanyId();
     if (!companyId) {
@@ -55,6 +59,8 @@ export function useVolumePricing(productId?: string) {
         product_id: productId,
         min_quantity: minQuantity,
         unit_price: unitPrice,
+        promotion_days: promotionDays,
+        is_online_exclusive: isOnlineExclusive,
         company_id: companyId,
       })
       .select()
@@ -73,7 +79,7 @@ export function useVolumePricing(productId?: string) {
 
   const updateRule = useCallback(async (
     id: string,
-    updates: Partial<Pick<VolumePricingRule, 'min_quantity' | 'unit_price' | 'is_active'>>
+    updates: Partial<Pick<VolumePricingRule, 'min_quantity' | 'unit_price' | 'is_active' | 'promotion_days' | 'is_online_exclusive'>>
   ) => {
     const { data, error } = await supabase
       .from('volume_pricing_rules')
@@ -119,11 +125,26 @@ export function useVolumePricing(productId?: string) {
     productId: string,
     quantity: number,
     basePrice: number,
-    allRules: VolumePricingRule[]
+    allRules: VolumePricingRule[],
+    isOnline: boolean = false
   ): { price: number; appliedRule: VolumePricingRule | null; discount: number } => {
+    const currentDay = new Date().getDay(); // 0=Sunday, 1=Monday, ...
+
     // Filter active rules for this product, sorted by min_quantity descending
     const productRules = allRules
-      .filter(r => r.product_id === productId && r.is_active)
+      .filter(r => {
+        if (r.product_id !== productId || !r.is_active) return false;
+        
+        // If it's online exclusive and we are not in online portal, skip
+        if (r.is_online_exclusive && !isOnline) return false;
+
+        // If it has specific promotion days, check if today is one of them
+        if (r.promotion_days && r.promotion_days.length > 0) {
+          if (!r.promotion_days.includes(currentDay)) return false;
+        }
+
+        return true;
+      })
       .sort((a, b) => b.min_quantity - a.min_quantity);
 
     // Find the first rule where quantity meets the minimum
