@@ -44,4 +44,8 @@ verify_jwt = false
  
  [functions.get-distributor-data]
  verify_jwt = false
+ 
+ [functions.expand-url]
+ verify_jwt = false
+
 

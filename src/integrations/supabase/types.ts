@@ -366,6 +366,7 @@ export type Database = {
           document_id: string | null
           email: string | null
           facade_photo_url: string | null
+          google_maps_link: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -385,6 +386,7 @@ export type Database = {
           document_id?: string | null
           email?: string | null
           facade_photo_url?: string | null
+          google_maps_link?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -404,6 +406,7 @@ export type Database = {
           document_id?: string | null
           email?: string | null
           facade_photo_url?: string | null
+          google_maps_link?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
