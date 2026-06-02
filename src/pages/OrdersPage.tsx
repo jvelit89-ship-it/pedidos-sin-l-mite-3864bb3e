@@ -27,6 +27,8 @@ import {
   Search, 
   Filter,
   Package,
+  ShoppingCart,
+  Factory,
   ChevronRight,
   Loader2,
   Trash2,
