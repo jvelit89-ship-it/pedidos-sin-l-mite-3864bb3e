@@ -1374,6 +1374,7 @@ export type Database = {
           reserved_stock: number
           sku: string
           stock: number
+          stock_critical_level: number | null
           updated_at: string
         }
         Insert: {
@@ -1393,6 +1394,7 @@ export type Database = {
           reserved_stock?: number
           sku: string
           stock?: number
+          stock_critical_level?: number | null
           updated_at?: string
         }
         Update: {
@@ -1412,6 +1414,7 @@ export type Database = {
           reserved_stock?: number
           sku?: string
           stock?: number
+          stock_critical_level?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2074,6 +2077,15 @@ export type Database = {
     Functions: {
       check_is_admin: { Args: never; Returns: boolean }
       close_truck_extra_load: { Args: { _load_id: string }; Returns: undefined }
+      get_low_stock_products: {
+        Args: { p_company_id: string }
+        Returns: {
+          id: string
+          name: string
+          stock: number
+          stock_critical_level: number
+        }[]
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
