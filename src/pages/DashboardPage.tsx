@@ -38,6 +38,7 @@ import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPane
 import { PendingProductionPanel } from '@/components/PendingProductionPanel';
 import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPanel';
 import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
+import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -223,6 +224,7 @@ export default function DashboardPage() {
 
           {/* Smart Alerts & Health Indicators */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <LowStockAlert />
             <SmartAlerts alerts={smartAlerts} thresholdMinutes={ALERT_THRESHOLD_MINUTES} />
             <HealthIndicators {...healthIndicators} />
           </div>

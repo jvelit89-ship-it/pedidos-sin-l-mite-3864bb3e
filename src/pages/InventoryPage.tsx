@@ -58,6 +58,7 @@ interface Product {
   stock: number;
   reserved_stock: number; // Stock en tránsito (cargado en vehículos pero no entregado)
   min_stock: number;
+  stock_critical_level: number;
   price: number;
   notes: string | null;
   company_id: string;
@@ -113,6 +114,7 @@ export default function InventoryPage() {
     category: '',
     stock: 0,
     min_stock: 5,
+    stock_critical_level: 5,
     price: 0,
     notes: '',
     product_type: 'final' as 'final' | 'raw_material',
@@ -126,6 +128,7 @@ export default function InventoryPage() {
       category: '',
       stock: 0,
       min_stock: 5,
+      stock_critical_level: 5,
       price: 0,
       notes: '',
       product_type: 'final',
@@ -155,6 +158,7 @@ export default function InventoryPage() {
         category: product.category || '',
         stock: product.stock,
         min_stock: product.min_stock,
+        stock_critical_level: product.stock_critical_level || 5,
         price: product.price,
         notes: product.notes || '',
         product_type: product.product_type || 'final',
@@ -177,6 +181,7 @@ export default function InventoryPage() {
         category: formData.category || null,
         stock: formData.stock,
         min_stock: formData.min_stock,
+        stock_critical_level: formData.stock_critical_level,
         price: formData.price,
         notes: formData.notes || null,
         product_type: formData.product_type,
@@ -192,6 +197,7 @@ export default function InventoryPage() {
         category: formData.category || null,
         stock: formData.stock,
         min_stock: formData.min_stock,
+        stock_critical_level: formData.stock_critical_level,
         price: formData.price,
         notes: formData.notes || null,
         product_type: formData.product_type,
@@ -264,6 +270,7 @@ export default function InventoryPage() {
 
   const getStockStatus = (product: Product) => {
     if (product.stock === 0) return { status: 'out', label: settings.language === 'es' ? 'Agotado' : 'Out of stock', className: 'stock-out' };
+    if (product.stock <= product.stock_critical_level) return { status: 'critical', label: settings.language === 'es' ? 'Stock crítico' : 'Critical stock', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' };
     if (product.stock <= product.min_stock) return { status: 'low', label: settings.language === 'es' ? 'Stock bajo' : 'Low stock', className: 'stock-low' };
     return { status: 'normal', label: 'Normal', className: 'stock-normal' };
   };
@@ -626,6 +633,16 @@ export default function InventoryPage() {
                       min="0"
                       value={formData.min_stock || ''}
                       onChange={(e) => setFormData({ ...formData, min_stock: parseInt(e.target.value) || 0 })}
+                      onFocus={(e) => e.target.select()}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{settings.language === 'es' ? 'Stock Crítico (Alerta)' : 'Critical Stock (Alert)'}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.stock_critical_level || ''}
+                      onChange={(e) => setFormData({ ...formData, stock_critical_level: parseInt(e.target.value) || 0 })}
                       onFocus={(e) => e.target.select()}
                     />
                   </div>
