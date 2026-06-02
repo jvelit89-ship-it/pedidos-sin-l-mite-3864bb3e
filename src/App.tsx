@@ -7,6 +7,9 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { SyncProvider } from '@/contexts/SyncContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { AppLayout } from '@/components/AppLayout';
+import { useEffect } from 'react';
+import { handleError } from '@/lib/error-handler';
+
 
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
@@ -41,7 +44,26 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => <AppLayout>{children}</AppLayout>;
 
 const App = () => {
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      handleError(event.reason, { context: 'Unhandled Promise Rejection', silent: true });
+    };
+
+    const handleGlobalError = (event: ErrorEvent) => {
+      handleError(event.error, { context: 'Global Error', silent: true });
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleGlobalError);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleGlobalError);
+    };
+  }, []);
+
   return (
+
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SyncProvider>
