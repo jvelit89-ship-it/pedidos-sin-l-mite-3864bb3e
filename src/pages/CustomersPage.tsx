@@ -487,6 +487,7 @@ export default function CustomersPage() {
 
       await updateCustomer(selectedCustomer.id, {
         name: formData.name,
+        document_id: formData.document_id || null,
         business_name: formData.business_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
