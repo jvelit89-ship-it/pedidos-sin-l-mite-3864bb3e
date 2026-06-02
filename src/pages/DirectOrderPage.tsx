@@ -22,8 +22,11 @@ import {
   MapPin, 
   ShoppingCart,
   Factory,
-  ArrowRight
+  ArrowRight,
+  Tag,
+  Percent
 } from 'lucide-react';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface Product {
   id: string;
@@ -44,6 +47,7 @@ interface Company {
 
 export default function DirectOrderPage() {
   const { companyId } = useParams<{ companyId: string }>();
+  const { formatCurrency } = useSettings();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -54,6 +58,8 @@ export default function DirectOrderPage() {
   const [customer, setCustomer] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
+  const [customerPrices, setCustomerPrices] = useState<any[]>([]);
   
   const [orderSource, setOrderSource] = useState<'vendedor' | 'factory'>('factory');
   const [selectedVendedorId, setSelectedVendedorId] = useState('');
@@ -75,15 +81,17 @@ export default function DirectOrderPage() {
 
         if (!currentCompanyId) return;
 
-        const [compRes, prodRes, vendRes] = await Promise.all([
+        const [compRes, prodRes, vendRes, rulesRes] = await Promise.all([
           supabase.from('companies').select('id, name').eq('id', currentCompanyId).single(),
           supabase.from('products').select('id, name, price, stock').eq('company_id', currentCompanyId).eq('product_type', 'final'),
-          supabase.from('vendedores').select('id, name').eq('company_id', currentCompanyId).eq('active', true)
+          supabase.from('vendedores').select('id, name').eq('company_id', currentCompanyId).eq('active', true),
+          supabase.from('volume_pricing_rules').select('*').eq('company_id', currentCompanyId).eq('is_active', true)
         ]);
         
         if (compRes.data) setCompany(compRes.data);
         if (prodRes.data) setProducts(prodRes.data);
         if (vendRes.data) setVendedores(vendRes.data);
+        if (rulesRes.data) setPricingRules(rulesRes.data);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -110,6 +118,15 @@ export default function DirectOrderPage() {
 
       if (data) {
         setCustomer(data);
+        
+        // Fetch specific prices for this customer
+        const { data: specPrices } = await supabase
+          .from('customer_product_prices')
+          .select('*')
+          .eq('customer_id', data.id)
+          .eq('is_active', true);
+        
+        if (specPrices) setCustomerPrices(specPrices);
         toast.success('Cliente encontrado');
       } else {
         setCustomer({ 
@@ -153,9 +170,38 @@ export default function DirectOrderPage() {
     });
   };
 
+  const getProductPrice = (productId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return 0;
+
+    // 1. Check customer specific price
+    const customerPrice = customerPrices.find(cp => cp.product_id === productId);
+    if (customerPrice) return customerPrice.unit_price;
+
+    // 2. Check promotional/volume pricing rules
+    const currentDay = new Date().getDay();
+    const applicableRules = pricingRules
+      .filter(r => {
+        if (r.product_id !== productId) return false;
+        
+        // Check days if specified
+        if (r.promotion_days && r.promotion_days.length > 0) {
+          if (!r.promotion_days.includes(currentDay)) return false;
+        }
+
+        return quantity >= r.min_quantity;
+      })
+      .sort((a, b) => b.min_quantity - a.min_quantity);
+
+    if (applicableRules.length > 0) {
+      return applicableRules[0].unit_price;
+    }
+
+    return product.price;
+  };
+
   const totalAmount = Object.entries(selectedProducts).reduce((acc, [id, qty]) => {
-    const p = products.find(prod => prod.id === id);
-    return acc + (p?.price || 0) * qty;
+    return acc + getProductPrice(id, qty) * qty;
   }, 0);
 
   const submitOrder = async () => {
@@ -226,8 +272,8 @@ export default function DirectOrderPage() {
           product_id: id,
           product_name: product.name,
           quantity: qty,
-          unit_price: product.price,
-          total: product.price * qty
+          unit_price: getProductPrice(id, qty),
+          total: getProductPrice(id, qty) * qty
         };
       });
 
