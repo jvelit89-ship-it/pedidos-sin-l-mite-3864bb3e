@@ -635,6 +635,16 @@ export default function InventoryPage() {
                       onFocus={(e) => e.target.select()}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>{settings.language === 'es' ? 'Stock Crítico (Alerta)' : 'Critical Stock (Alert)'}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.stock_critical_level || ''}
+                      onChange={(e) => setFormData({ ...formData, stock_critical_level: parseInt(e.target.value) || 0 })}
+                      onFocus={(e) => e.target.select()}
+                    />
+                  </div>
                   <div className="space-y-2 col-span-2">
                     <Label>{settings.language === 'es' ? 'Precio Unitario' : 'Unit Price'} *</Label>
                     <Input
