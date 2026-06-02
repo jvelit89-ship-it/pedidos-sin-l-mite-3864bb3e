@@ -208,13 +208,13 @@ export default function DashboardPage() {
           {/* Invoice Requests Panel */}
           <InvoiceRequestsPanel />
 
-          {/* Pending Production Panel */}
-          <PendingProductionPanel />
-
           {/* Empty Containers Panel */}
           <EmptyContainersPanel />
         </>
       )}
+
+      {/* Production Control Panel - Visible to Admins (all pending) and Operarios (their own pending/corrections) */}
+      <PendingProductionPanel />
 
       {/* Filters */}
       <Card>

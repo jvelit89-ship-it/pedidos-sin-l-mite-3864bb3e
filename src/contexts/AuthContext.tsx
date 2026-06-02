@@ -14,6 +14,7 @@ interface AuthContextType {
   canAccessRoute: (path: string) => boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isOperario: boolean;
   canEditCustomers: boolean;
 }
 
@@ -234,6 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canAccessRoute,
         isAdmin,
         isSuperAdmin,
+        isOperario,
         canEditCustomers,
       }}
     >

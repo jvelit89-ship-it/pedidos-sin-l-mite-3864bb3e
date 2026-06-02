@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface ProductionRecipe {
@@ -191,6 +192,7 @@ export function useProductionWaste() {
 
 export function useAdvancedProduction() {
   const { getRecipesForProduct, recipes } = useProductionRecipes();
+  const { user, isAdmin: isUserAdmin } = useAuth();
 
   const produceWithRecipe = useCallback(async (
     outputProductId: string,
@@ -205,15 +207,50 @@ export function useAdvancedProduction() {
       return false;
     }
 
-    // Get current user id early for dedup check
-    const { data: { user } } = await supabase.auth.getUser();
-    const producedBy = user?.id || null;
-
-    if (!producedBy) {
-      console.error('No se pudo obtener el ID del usuario para producción');
+    if (!user) {
       toast.error('Error de autenticación');
       return false;
     }
+
+    // If operario, use pending production flow
+    if (!isUserAdmin) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { createClient } = await import('@supabase/supabase-js');
+      const untypedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      
+      if (session) {
+        await untypedClient.auth.setSession(session);
+      }
+
+      // Add special notes for recipe-based production if needed
+      const recipeNotes = notes ? `${notes} (Producción con Receta)` : '(Producción con Receta)';
+
+      const { error } = await untypedClient
+        .from('pending_production')
+        .insert({
+          product_id: outputProductId,
+          quantity,
+          notes: recipeNotes,
+          requested_by: user.id,
+          requested_by_name: user.name || 'Operario',
+          company_id: companyId,
+          status: 'pending',
+        });
+
+      if (error) {
+        console.error('Error submitting for approval:', error);
+        toast.error('Error al enviar para aprobación');
+        return false;
+      }
+
+      toast.success('Producción enviada para aprobación del administrador');
+      return true;
+    }
+
+    // Admins continue with direct production
+    const producedBy = user.id;
 
     // Duplicate prevention: check for same product+quantity+user within last 30 seconds
     const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
@@ -254,8 +291,6 @@ export function useAdvancedProduction() {
         return false;
       }
     }
-
-    // producedBy already obtained above for dedup check
 
     // SOLO insertamos el registro de producción
     // El trigger auto_update_stock_on_production se encarga de:
