@@ -630,7 +630,7 @@ export default function CustomersPage() {
       longitude: customer.longitude,
       vendedor_id: customer.vendedor_id || '',
       facade_photo_url: customer.facade_photo_url,
-      google_maps_link: '',
+      google_maps_link: customer.google_maps_link || '',
     });
     if (customer.facade_photo_url) {
       setPhotoPreview(customer.facade_photo_url);
