@@ -345,7 +345,14 @@ export default function DirectOrderPage() {
                       <Input 
                         placeholder={`Ej: ${documentType === 'dni' ? '12345678' : '20123456789'}`} 
                         value={documentNumber} 
-                        onChange={(e) => setDocumentNumber(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setDocumentNumber(val);
+                          if ((documentType === 'dni' && val.length === 8) || (documentType === 'ruc' && val.length === 11)) {
+                            // Automatically trigger search when length is reached
+                            setTimeout(() => findCustomerByValue(val), 100);
+                          }
+                        }}
                         className="h-12 text-lg font-mono pl-10"
                         maxLength={documentType === 'dni' ? 8 : 11}
                       />
