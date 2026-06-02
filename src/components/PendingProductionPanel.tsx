@@ -139,13 +139,6 @@ export function PendingProductionPanel() {
             <div className="h-16 bg-muted rounded"></div>
           </div>
         </CardContent>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-2">
-            <div className="h-16 bg-muted rounded"></div>
-            <div className="h-16 bg-muted rounded"></div>
-          </div>
-        </CardContent>
       </Card>
     );
   }
