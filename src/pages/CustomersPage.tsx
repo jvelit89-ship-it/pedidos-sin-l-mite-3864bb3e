@@ -504,6 +504,7 @@ export default function CustomersPage() {
       // Create customer first to get ID, then upload photo
       const newCustomer = await addCustomer({
         name: formData.name,
+        document_id: formData.document_id || null,
         business_name: formData.business_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
