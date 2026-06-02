@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: pinData, error: pinError } = await supabase
       .from("order_delivery_pins")
       .select("pin")
-      .eq("id", otpData.order_id)
+      .eq("order_id", otpData.order_id)
       .single();
 
     if (pinError || !pinData) {
