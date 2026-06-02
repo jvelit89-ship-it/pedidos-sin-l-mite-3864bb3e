@@ -60,18 +60,35 @@ export default function DirectOrderPage() {
   const [selectedProducts, setSelectedProducts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!companyId) return;
-    
     async function fetchData() {
-      const [compRes, prodRes, vendRes] = await Promise.all([
-        supabase.from('companies').select('id, name').eq('id', companyId).single(),
-        supabase.from('products').select('id, name, price, stock').eq('company_id', companyId).eq('product_type', 'final'),
-        supabase.from('vendedores').select('id, name').eq('company_id', companyId).eq('active', true)
-      ]);
-      
-      if (compRes.data) setCompany(compRes.data);
-      if (prodRes.data) setProducts(prodRes.data);
-      if (vendRes.data) setVendedores(vendRes.data);
+      setLoading(true);
+      try {
+        let currentCompanyId = companyId;
+        
+        // If no companyId, get the first one
+        if (!currentCompanyId) {
+          const { data: firstCompany } = await supabase.from('companies').select('id').limit(1).single();
+          if (firstCompany) {
+            currentCompanyId = firstCompany.id;
+          }
+        }
+
+        if (!currentCompanyId) return;
+
+        const [compRes, prodRes, vendRes] = await Promise.all([
+          supabase.from('companies').select('id, name').eq('id', currentCompanyId).single(),
+          supabase.from('products').select('id, name, price, stock').eq('company_id', currentCompanyId).eq('product_type', 'final'),
+          supabase.from('vendedores').select('id, name').eq('company_id', currentCompanyId).eq('active', true)
+        ]);
+        
+        if (compRes.data) setCompany(compRes.data);
+        if (prodRes.data) setProducts(prodRes.data);
+        if (vendRes.data) setVendedores(vendRes.data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
     
     fetchData();
