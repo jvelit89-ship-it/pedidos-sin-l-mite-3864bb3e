@@ -253,10 +253,24 @@ export default function DirectOrderPage() {
     setLoading(true);
 
     try {
-      // 1. Upsert Customer
+      // 1. Get Company ID reliably
+      let currentCompanyId = companyId;
+      if (!currentCompanyId && company?.id) {
+        currentCompanyId = company.id;
+      }
+      
+      if (!currentCompanyId) {
+        const { data: firstCompany } = await supabase.from('companies').select('id').limit(1).single();
+        if (firstCompany) {
+          currentCompanyId = firstCompany.id;
+        }
+      }
+
+      if (!currentCompanyId) throw new Error('No se pudo determinar el ID de la empresa');
+
+      // 2. Upsert Customer
       let customerId = customer.id;
       if (!customerId) {
-        // Check again if customer was created by another process while user was filling the form
         const { data: existingCust } = await supabase
           .from('customers')
           .select('id')
@@ -265,60 +279,68 @@ export default function DirectOrderPage() {
           
         if (existingCust) {
           customerId = existingCust.id;
-          await supabase.from('customers').update({
-            name: customer.name,
-            phone: customer.phone,
-            address: customer.address,
-            // Don't update company_id if it already belongs to one, 
-            // but for this order it will use the current companyId
+          const { error: updErr } = await supabase.from('customers').update({
+            name: customer.name || 'Cliente Sin Nombre',
+            phone: customer.phone || '',
+            address: customer.address || '',
           }).eq('id', customerId);
+          if (updErr) console.error('Error updating customer:', updErr);
         } else {
           const { data: newCust, error: custErr } = await supabase
             .from('customers')
-            .insert({ ...customer, document_id: documentNumber, company_id: companyId })
+            .insert({ 
+              name: customer.name || 'Cliente Sin Nombre',
+              phone: customer.phone || '',
+              address: customer.address || '',
+              document_id: documentNumber, 
+              company_id: currentCompanyId,
+              customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
+            })
             .select()
             .single();
           if (custErr) throw custErr;
           customerId = newCust.id;
         }
       } else {
-        await supabase.from('customers').update({
-          name: customer.name,
-          phone: customer.phone,
-          address: customer.address
+        const { error: updErr } = await supabase.from('customers').update({
+          name: customer.name || 'Cliente Sin Nombre',
+          phone: customer.phone || '',
+          address: customer.address || ''
         }).eq('id', customerId);
+        if (updErr) console.error('Error updating existing customer:', updErr);
       }
 
-      // 2. Create Order
+      // 3. Create Order
       const { data: order, error: ordErr } = await supabase
         .from('orders')
         .insert({
-          company_id: companyId,
+          company_id: currentCompanyId,
           customer_id: customerId,
-          customer_name: customer.name,
+          customer_name: customer.name || 'Cliente Sin Nombre',
           total: totalAmount,
           status: 'pending',
           order_source: 'online',
           is_factory_direct: orderSource === 'factory',
-          delivery_address: customer.address,
+          delivery_address: customer.address || '',
           vendedor_id: orderSource === 'vendedor' ? selectedVendedorId : null,
-          vendedor_name: orderSource === 'vendedor' ? vendedores.find(v => v.id === selectedVendedorId)?.name : 'Directo de Fábrica'
+          vendedor_name: orderSource === 'vendedor' ? (vendedores.find(v => v.id === selectedVendedorId)?.name || 'Vendedor') : 'Directo de Fábrica'
         })
         .select()
         .single();
         
       if (ordErr) throw ordErr;
 
-      // 3. Create Items
+      // 4. Create Items
       const items = Object.entries(selectedProducts).map(([id, qty]) => {
         const product = products.find(p => p.id === id)!;
+        const unitPrice = getProductPrice(id, qty);
         return {
           order_id: order.id,
           product_id: id,
           product_name: product.name,
           quantity: qty,
-          unit_price: getProductPrice(id, qty),
-          total: getProductPrice(id, qty) * qty
+          unit_price: unitPrice,
+          total: unitPrice * qty
         };
       });
 
@@ -327,9 +349,11 @@ export default function DirectOrderPage() {
 
       toast.success('Pedido registrado con éxito');
       setStep(6);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error submitting order:', e);
-      toast.error('Error al registrar pedido');
+      toast.error('Error al registrar pedido', {
+        description: e.message || 'Verifica los datos e intenta nuevamente'
+      });
     } finally {
       setLoading(false);
     }
