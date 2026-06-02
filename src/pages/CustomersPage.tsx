@@ -26,6 +26,7 @@ import { SecureImage } from '@/components/SecureImage';
 interface Customer {
   id: string;
   name: string;
+  document_id: string | null;
   business_name: string | null;
   phone: string | null;
   email: string | null;
