@@ -6,19 +6,50 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { usePendingProduction } from '@/hooks/usePendingProduction';
 import { useProducts } from '@/hooks/useProducts';
-import { Check, X, Clock, Trash2, Package, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Check, X, Clock, Trash2, Package, AlertTriangle, Edit3, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 export function PendingProductionPanel() {
-  const { pendingItems, loading, approveProduction, rejectProduction, deletePending } = usePendingProduction();
+  const { 
+    pendingItems, 
+    loading, 
+    approveProduction, 
+    rejectProduction, 
+    requestCorrection, 
+    updatePending,
+    deletePending 
+  } = usePendingProduction();
   const { products, refetch: refetchProducts } = useProducts();
+  const { user, isAdmin } = useAuth();
+  
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [correctionNote, setCorrectionNote] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
+  
+  // Edit state for operarios
+  const [editQuantity, setEditQuantity] = useState(0);
+  const [editNotes, setEditNotes] = useState('');
 
-  const pendingOnly = pendingItems.filter((p: any) => p.status === 'pending');
+  const isOperario = user?.role === 'operario';
+
+  const visibleItems = pendingItems.filter((p: any) => {
+    if (isAdmin) {
+      // Admins see everything that is pending or requested for correction
+      return p.status === 'pending' || p.status === 'correction_requested';
+    } else if (isOperario) {
+      // Operarios see their own items that are pending or need correction
+      return p.requested_by === user?.id && (p.status === 'pending' || p.status === 'correction_requested');
+    }
+    return false;
+  });
 
   const getProductName = (productId: string) => {
     const product = products.find((p: any) => p.id === productId);
@@ -43,6 +74,46 @@ export function PendingProductionPanel() {
     setProcessing(selectedId);
     await rejectProduction(selectedId, rejectReason);
     setRejectDialogOpen(false);
+    setSelectedId(null);
+    setProcessing(null);
+  };
+
+  const handleOpenCorrection = (id: string) => {
+    setSelectedId(id);
+    setCorrectionNote('');
+    setCorrectionDialogOpen(true);
+  };
+
+  const handleRequestCorrection = async () => {
+    if (!selectedId || !correctionNote) {
+      toast.error('Por favor ingresa una observación');
+      return;
+    }
+    setProcessing(selectedId);
+    await requestCorrection(selectedId, correctionNote);
+    setCorrectionDialogOpen(false);
+    setSelectedId(null);
+    setProcessing(null);
+  };
+
+  const handleOpenEdit = (item: any) => {
+    setSelectedId(item.id);
+    setEditQuantity(item.quantity);
+    setEditNotes(item.notes || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdatePending = async () => {
+    if (!selectedId || editQuantity <= 0) {
+      toast.error('Cantidad inválida');
+      return;
+    }
+    setProcessing(selectedId);
+    await updatePending(selectedId, {
+      quantity: editQuantity,
+      notes: editNotes
+    });
+    setEditDialogOpen(false);
     setSelectedId(null);
     setProcessing(null);
   };
