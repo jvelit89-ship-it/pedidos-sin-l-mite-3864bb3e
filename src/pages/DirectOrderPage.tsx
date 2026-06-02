@@ -24,7 +24,9 @@ import {
   Factory,
   ArrowRight,
   Tag,
-  Percent
+  Percent,
+  Droplets,
+  GlassWater
 } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 
@@ -603,18 +605,28 @@ export default function DirectOrderPage() {
                       <Card className="border-none shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 group rounded-2xl bg-white flex flex-col">
                         <CardContent className="p-0 flex flex-col flex-1">
                           <div className="flex items-stretch gap-0 h-full">
-                            {/* Imagen del Producto */}
+                            {/* Imagen del Producto o Icono Representativo */}
                             <div className="w-[110px] sm:w-1/3 bg-slate-100 flex items-center justify-center p-2 relative overflow-hidden min-h-[140px] shrink-0">
-                              {p.image_url ? (
-                                <img 
-                                  src={p.image_url} 
-                                  alt={p.name} 
-                                  className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
-                                />
+                              {p.name.toLowerCase().includes('hielo') ? (
+                                <div className="flex flex-col items-center gap-2 text-blue-400">
+                                  <div className="p-4 bg-blue-50 rounded-2xl shadow-inner">
+                                    <Package className="w-12 h-12" />
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-wider opacity-70">Hielo</span>
+                                </div>
+                              ) : p.name.toLowerCase().includes('bidon') ? (
+                                <div className="flex flex-col items-center gap-2 text-primary">
+                                  <div className="p-4 bg-primary/5 rounded-2xl shadow-inner">
+                                    <Droplets className="w-12 h-12" />
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-wider opacity-70">Bidón 20L</span>
+                                </div>
                               ) : (
-                                <div className="flex flex-col items-center gap-2 text-slate-300">
-                                  <Package className="w-10 h-10" />
-                                  <span className="text-[10px] font-bold uppercase tracking-tighter opacity-50">Producto</span>
+                                <div className="flex flex-col items-center gap-2 text-blue-500">
+                                  <div className="p-4 bg-blue-50 rounded-2xl shadow-inner">
+                                    <GlassWater className="w-12 h-12" />
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-wider opacity-70">Botella</span>
                                 </div>
                               )}
                               
