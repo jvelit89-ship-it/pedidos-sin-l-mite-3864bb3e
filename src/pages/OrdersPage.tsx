@@ -68,7 +68,7 @@ interface Order {
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
-  delivery_pin: string | null;
+  delivery_pin?: string | null;
   customers?: {
     customer_type: string | null;
     phone: string | null;
