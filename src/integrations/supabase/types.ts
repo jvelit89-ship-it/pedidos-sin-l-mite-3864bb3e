@@ -814,6 +814,46 @@ export type Database = {
           },
         ]
       }
+      order_delivery_pins: {
+        Row: {
+          created_at: string | null
+          order_id: string
+          pin: string
+        }
+        Insert: {
+          created_at?: string | null
+          order_id: string
+          pin: string
+        }
+        Update: {
+          created_at?: string | null
+          order_id?: string
+          pin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_delivery_pins_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "customer_order_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_delivery_pins_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "order_tracking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_delivery_pins_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           id: string
@@ -888,7 +928,6 @@ export type Database = {
           delivery_latitude: number | null
           delivery_longitude: number | null
           delivery_photo_url: string | null
-          delivery_pin: string | null
           id: string
           notes: string | null
           repartidor_id: string | null
@@ -914,7 +953,6 @@ export type Database = {
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
-          delivery_pin?: string | null
           id?: string
           notes?: string | null
           repartidor_id?: string | null
@@ -940,7 +978,6 @@ export type Database = {
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
-          delivery_pin?: string | null
           id?: string
           notes?: string | null
           repartidor_id?: string | null
@@ -2032,6 +2069,10 @@ export type Database = {
         Returns: number
       }
       recalculate_my_company_stock: { Args: never; Returns: number }
+      verify_order_pin: {
+        Args: { p_order_id: string; p_pin: string }
+        Returns: boolean
+      }
     }
     Enums: {
       customer_category: "regular" | "premium" | "vip"
