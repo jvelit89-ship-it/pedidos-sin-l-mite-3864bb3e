@@ -24,8 +24,9 @@ serve(async (req) => {
     console.log('Expanding URL:', url);
 
     // Follow redirects to get the final URL
+    // Use GET because some shorteners (like goo.gl) might not support HEAD properly
     const response = await fetch(url, {
-      method: 'HEAD',
+      method: 'GET',
       redirect: 'follow',
     });
 
