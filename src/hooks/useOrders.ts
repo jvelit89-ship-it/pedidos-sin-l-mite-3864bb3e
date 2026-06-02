@@ -68,14 +68,13 @@ export function useOrders() {
   }, []);
 
   const createOrder = useCallback(async (
-    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code' | 'delivery_pin'> & { created_at?: string },
+    order: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'delivered_at' | 'tracking_code'> & { created_at?: string },
     items: Omit<OrderItem, 'id' | 'order_id'>[]
   ) => {
     // Build order data, including optional custom created_at for backdated orders
     const orderToInsert = {
       ...order,
       created_at: order.created_at || new Date().toISOString(),
-      delivery_pin: Math.floor(1000 + Math.random() * 9000).toString(), // Generate 4-digit PIN
     };
 
     // Insert order
@@ -84,6 +83,29 @@ export function useOrders() {
       .insert(orderToInsert)
       .select()
       .single();
+    
+    if (orderError || !orderData) {
+      toast.error('Error al crear pedido');
+      console.error('Error creating order:', orderError);
+      return null;
+    }
+
+    // Generate 4-digit PIN and insert into separate table
+    const deliveryPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const { error: pinError } = await supabase
+      .from('order_delivery_pins')
+      .insert({
+        order_id: orderData.id,
+        pin: deliveryPin
+      });
+
+    if (pinError) {
+      console.error('Error saving delivery pin:', pinError);
+    }
+
+    // Attach pin to the returned data for immediate use (like WhatsApp sharing)
+    const orderWithPin = { ...orderData, delivery_pin: deliveryPin };
+
     
     if (orderError || !orderData) {
       toast.error('Error al crear pedido');
