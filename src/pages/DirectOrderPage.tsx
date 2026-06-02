@@ -374,12 +374,12 @@ export default function DirectOrderPage() {
         <div className="max-w-md mx-auto flex flex-col items-center gap-6 relative z-10">
           <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl shadow-2xl border border-white/20">
             <div className="bg-white p-3 rounded-2xl shadow-inner">
-              <ShoppingCart className="w-12 h-12 text-primary" />
+              <ShoppingCart className="w-10 h-10 text-primary" />
             </div>
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-black tracking-tight leading-tight text-white drop-shadow-sm">
-              Agua Santa Maria y Ecohielo
+              Agua Santa María y Ecohielo
             </h1>
             <p className="text-blue-100 font-medium mt-2 text-lg opacity-90">
               Bienvenido a tu Tienda Online
@@ -600,11 +600,11 @@ export default function DirectOrderPage() {
                       animate={{ opacity: 1, scale: 1 }} 
                       transition={{ delay: i * 0.05 }}
                     >
-                      <Card className="border-none shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 group rounded-2xl bg-white">
-                        <CardContent className="p-0">
-                          <div className="flex items-stretch gap-0">
+                      <Card className="border-none shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 group rounded-2xl bg-white flex flex-col">
+                        <CardContent className="p-0 flex flex-col flex-1">
+                          <div className="flex items-stretch gap-0 h-full">
                             {/* Imagen del Producto */}
-                            <div className="w-1/3 bg-slate-100 flex items-center justify-center p-2 relative overflow-hidden min-h-[140px]">
+                            <div className="w-[110px] sm:w-1/3 bg-slate-100 flex items-center justify-center p-2 relative overflow-hidden min-h-[140px] shrink-0">
                               {p.image_url ? (
                                 <img 
                                   src={p.image_url} 
@@ -628,38 +628,38 @@ export default function DirectOrderPage() {
                             </div>
 
                             {/* Info del Producto */}
-                            <div className="flex-1 p-4 flex flex-col justify-between">
+                            <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between min-w-0">
                               <div>
-                                <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1 group-hover:text-primary transition-colors">
+                                <h3 className="font-bold text-slate-800 text-base sm:text-lg leading-tight mb-1 group-hover:text-primary transition-colors line-clamp-2">
                                   {p.name}
                                 </h3>
-                                <div className="flex flex-wrap items-baseline gap-2">
-                                  <p className="text-primary font-black text-xl">
+                                <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
+                                  <p className="text-primary font-black text-lg sm:text-xl whitespace-nowrap">
                                     S/ {Number(currentPrice).toFixed(2)}
                                   </p>
                                   {hasDiscount && (
-                                    <p className="text-sm text-slate-400 line-through decoration-slate-300">
+                                    <p className="text-[11px] sm:text-sm text-slate-400 line-through decoration-slate-300 whitespace-nowrap">
                                       S/ {Number(p.price).toFixed(2)}
                                     </p>
                                   )}
                                 </div>
                               </div>
 
-                              <div className="mt-4 flex items-center justify-between">
-                                <div className="flex items-center gap-3 bg-slate-100 rounded-2xl border border-slate-200 p-1 shadow-inner">
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1 sm:gap-3 bg-slate-100 rounded-2xl border border-slate-200 p-0.5 sm:p-1 shadow-inner shrink-0">
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-9 w-9 rounded-xl hover:bg-white hover:text-primary transition-all active:scale-95"
+                                    className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl hover:bg-white hover:text-primary transition-all active:scale-95"
                                     onClick={() => handleProductQty(p.id, -1)}
                                   >
                                     -
                                   </Button>
-                                  <span className="w-6 text-center font-black text-base text-slate-700">{selectedProducts[p.id] || 0}</span>
+                                  <span className="w-4 sm:w-6 text-center font-black text-sm sm:text-base text-slate-700">{selectedProducts[p.id] || 0}</span>
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-9 w-9 rounded-xl hover:bg-white hover:text-primary transition-all active:scale-95"
+                                    className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl hover:bg-white hover:text-primary transition-all active:scale-95"
                                     onClick={() => handleProductQty(p.id, 1)}
                                   >
                                     +
@@ -667,7 +667,7 @@ export default function DirectOrderPage() {
                                 </div>
 
                                 {qty > 0 && (
-                                  <Badge variant="outline" className="border-primary/30 text-primary font-bold bg-primary/5">
+                                  <Badge variant="outline" className="border-primary/30 text-primary font-bold bg-primary/5 text-[10px] sm:text-xs whitespace-nowrap px-1.5 sm:px-2.5">
                                     S/ {(currentPrice * qty).toFixed(2)}
                                   </Badge>
                                 )}
