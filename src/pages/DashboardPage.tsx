@@ -17,7 +17,10 @@ import {
   XCircle,
   Calendar,
   TrendingUp,
-  Package
+  Package,
+  Link,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
