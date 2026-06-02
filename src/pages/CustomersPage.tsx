@@ -41,6 +41,7 @@ interface Customer {
   company_id: string;
   facade_photo_url: string | null;
   vendedor_id: string | null;
+  google_maps_link: string | null;
   created_at: string;
   updated_at: string;
 }
