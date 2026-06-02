@@ -194,70 +194,55 @@ export default function CustomersPage() {
   // Extract coordinates from Google Maps link
   const parseGoogleMapsLink = (link: string): { lat: number; lng: number } | null => {
     try {
-      // Decode URL first to handle encoded characters
       const decodedLink = decodeURIComponent(link);
       
-      // Pattern 1: @lat,lng (most common format from Google Maps)
-      // Example: https://www.google.com/maps/place/.../@-12.0464,-77.0428,17z
       const atPattern = /@(-?\d+\.?\d*),(-?\d+\.?\d*)/;
       const atMatch = decodedLink.match(atPattern);
       if (atMatch) {
         return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
       }
       
-      // Pattern 2: ?q=lat,lng or &q=lat,lng
-      // Example: https://www.google.com/maps?q=-12.0464,-77.0428
       const qPattern = /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
       const qMatch = decodedLink.match(qPattern);
       if (qMatch) {
         return { lat: parseFloat(qMatch[1]), lng: parseFloat(qMatch[2]) };
       }
       
-      // Pattern 3: /place/lat,lng
-      const placePattern = /\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+      const placePattern = /\/(?:place|search)\/(-?\d+\.?\d*),(-?\d+\.?\d*)/;
       const placeMatch = decodedLink.match(placePattern);
       if (placeMatch) {
         return { lat: parseFloat(placeMatch[1]), lng: parseFloat(placeMatch[2]) };
       }
 
-      // Pattern 4: ll=lat,lng
       const llPattern = /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
       const llMatch = decodedLink.match(llPattern);
       if (llMatch) {
         return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
       }
 
-      // Pattern 5: !3d lat !4d lng (from embed URLs)
-      // Example: ...!3d-12.0464!4d-77.0428
       const embedPattern = /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/;
       const embedMatch = decodedLink.match(embedPattern);
       if (embedMatch) {
         return { lat: parseFloat(embedMatch[1]), lng: parseFloat(embedMatch[2]) };
       }
 
-      // Pattern 6: data= with coordinates (newer format)
-      // Example: ...data=!4m...!3m2!1d-12.0464!2d-77.0428
       const dataPattern = /!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/;
       const dataMatch = decodedLink.match(dataPattern);
       if (dataMatch) {
         return { lat: parseFloat(dataMatch[1]), lng: parseFloat(dataMatch[2]) };
       }
 
-      // Pattern 7: center=lat,lng
       const centerPattern = /center=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
       const centerMatch = decodedLink.match(centerPattern);
       if (centerMatch) {
         return { lat: parseFloat(centerMatch[1]), lng: parseFloat(centerMatch[2]) };
       }
 
-      // Pattern 8: Generic coordinate pattern anywhere in URL
-      // Look for decimal coordinates that look like lat,lng
-      const genericPattern = /(-?\d{1,3}\.\d{4,}),\s*(-?\d{1,3}\.\d{4,})/;
+      const genericPattern = /(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/;
       const genericMatch = decodedLink.match(genericPattern);
       if (genericMatch) {
         const lat = parseFloat(genericMatch[1]);
         const lng = parseFloat(genericMatch[2]);
-        // Validate coordinates are in valid range
         if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
           return { lat, lng };
         }
