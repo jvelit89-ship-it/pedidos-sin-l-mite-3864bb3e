@@ -203,23 +203,45 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
               </div>
 
               <div className="space-y-3">
-                <Label>{settings.language === 'es' ? 'Días de Promoción (Opcional)' : 'Promotion Days (Optional)'}</Label>
+                <div className="flex items-center justify-between">
+                  <Label>{settings.language === 'es' ? 'Días de Promoción (Opcional)' : 'Promotion Days (Optional)'}</Label>
+                  <div className="flex gap-1">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-2 text-[10px]"
+                      onClick={() => setPromotionDays([2, 4])}
+                    >
+                      {settings.language === 'es' ? 'M y J' : 'T & Th'}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-2 text-[10px]"
+                      onClick={() => setPromotionDays([])}
+                    >
+                      {settings.language === 'es' ? 'Todos' : 'All'}
+                    </Button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: 'L', value: 1 },
-                    { label: 'M', value: 2 },
-                    { label: 'Mi', value: 3 },
-                    { label: 'J', value: 4 },
-                    { label: 'V', value: 5 },
-                    { label: 'S', value: 6 },
-                    { label: 'D', value: 0 },
+                    { label: settings.language === 'es' ? 'Lun' : 'Mon', value: 1 },
+                    { label: settings.language === 'es' ? 'Mar' : 'Tue', value: 2 },
+                    { label: settings.language === 'es' ? 'Mié' : 'Wed', value: 3 },
+                    { label: settings.language === 'es' ? 'Jue' : 'Thu', value: 4 },
+                    { label: settings.language === 'es' ? 'Vie' : 'Fri', value: 5 },
+                    { label: settings.language === 'es' ? 'Sáb' : 'Sat', value: 6 },
+                    { label: settings.language === 'es' ? 'Dom' : 'Sun', value: 0 },
                   ].map((day) => (
                     <Button
                       key={day.value}
                       type="button"
                       variant={promotionDays.includes(day.value) ? 'default' : 'outline'}
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-8 min-w-[40px] px-2"
                       onClick={() => {
                         setPromotionDays(prev => 
                           prev.includes(day.value) 
@@ -233,9 +255,11 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {settings.language === 'es' 
-                    ? 'Si no seleccionas días, se aplicará siempre'
-                    : 'If no days are selected, it will always apply'}
+                  {promotionDays.length === 2 && promotionDays.includes(2) && promotionDays.includes(4) 
+                    ? (settings.language === 'es' ? 'Oferta especial de Martes y Jueves' : 'Special Tuesday & Thursday offer')
+                    : settings.language === 'es' 
+                      ? 'Si no seleccionas días, se aplicará siempre'
+                      : 'If no days are selected, it will always apply'}
                 </p>
               </div>
 

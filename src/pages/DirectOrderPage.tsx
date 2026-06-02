@@ -184,14 +184,33 @@ export default function DirectOrderPage() {
       .filter(r => {
         if (r.product_id !== productId) return false;
         
-        // Check days if specified
-        if (r.promotion_days && r.promotion_days.length > 0) {
-          if (!r.promotion_days.includes(currentDay)) return false;
+        // If we are in the online portal, prioritize online exclusive rules
+        // or rules that are not specifically for factory sales if that's the case
+        // But the user specifically wants these to be "for the online portal"
+        
+        // If it's a factory order, we check for rules
+        // Promotion days check
+        const hasPromotionDays = r.promotion_days && r.promotion_days.length > 0;
+        if (hasPromotionDays && !r.promotion_days.includes(currentDay)) {
+          return false;
         }
 
         return quantity >= r.min_quantity;
       })
-      .sort((a, b) => b.min_quantity - a.min_quantity);
+      .sort((a, b) => {
+        // Priority 1: Promotion days (more specific)
+        const aHasDays = a.promotion_days && a.promotion_days.length > 0;
+        const bHasDays = b.promotion_days && b.promotion_days.length > 0;
+        if (aHasDays && !bHasDays) return -1;
+        if (!aHasDays && bHasDays) return 1;
+        
+        // Priority 2: Online exclusive
+        if (a.is_online_exclusive && !b.is_online_exclusive) return -1;
+        if (!a.is_online_exclusive && b.is_online_exclusive) return 1;
+        
+        // Priority 3: Quantity (higher quantity wins)
+        return b.min_quantity - a.min_quantity;
+      });
 
     if (applicableRules.length > 0) {
       return applicableRules[0].unit_price;
