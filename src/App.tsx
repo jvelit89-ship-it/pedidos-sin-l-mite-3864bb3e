@@ -38,6 +38,7 @@ import SuppliersPage from './pages/SuppliersPage';
 // Public pages (no auth required)
 import OrderTrackingPage from './pages/OrderTrackingPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
+import DirectOrderPage from './pages/DirectOrderPage';
 import DistributorPortalPage from './pages/DistributorPortalPage';
 
 const queryClient = new QueryClient();
