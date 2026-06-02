@@ -776,11 +776,6 @@ export default function OrdersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                              {isAdmin && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
                                   className="text-primary hover:text-primary hover:bg-primary/5"
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -806,6 +801,7 @@ export default function OrdersPage() {
                                   <MessageSquare className="w-5 h-5" />
                                 </Button>
                               )}
+
 
 
                           <div className="text-right hidden sm:block">
