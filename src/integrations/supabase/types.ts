@@ -2069,6 +2069,7 @@ export type Database = {
       }
     }
     Functions: {
+      check_is_admin: { Args: never; Returns: boolean }
       close_truck_extra_load: { Args: { _load_id: string }; Returns: undefined }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
