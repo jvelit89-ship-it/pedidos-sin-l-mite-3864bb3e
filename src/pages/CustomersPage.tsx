@@ -61,6 +61,7 @@ export default function CustomersPage() {
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{ lat: string; lon: string; display_name: string }>>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [isSearchingDocument, setIsSearchingDocument] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -473,6 +474,41 @@ export default function CustomersPage() {
     }
   };
 
+  const handleSearchDocument = async () => {
+    const docId = formData.document_id.trim();
+    if (docId.length !== 8 && docId.length !== 11) {
+      toast.error('DNI debe tener 8 dígitos y RUC 11 dígitos');
+      return;
+    }
+
+    setIsSearchingDocument(true);
+    try {
+      const type = docId.length === 8 ? 'dni' : 'ruc';
+      const { data, error } = await supabase.functions.invoke('query-document', {
+        body: { document_type: type, document_number: docId }
+      });
+
+      if (error) throw error;
+      if (data.success) {
+        const result = data.data;
+        setFormData(prev => ({
+          ...prev,
+          name: result.razon_social || result.nombre || prev.name,
+          business_name: result.razon_social || prev.business_name,
+          address: result.direccion || prev.address,
+        }));
+        toast.success('Datos encontrados exitosamente');
+      } else {
+        toast.error(data.error || 'No se encontraron datos');
+      }
+    } catch (error) {
+      console.error('Error searching document:', error);
+      toast.error('Error al consultar documento');
+    } finally {
+      setIsSearchingDocument(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -676,12 +712,29 @@ export default function CustomersPage() {
                       <CreditCard className="w-4 h-4" />
                       {settings.language === 'es' ? 'DNI / RUC' : 'Document ID'}
                     </Label>
-                    <Input
-                      value={formData.document_id}
-                      onChange={(e) => setFormData({ ...formData, document_id: e.target.value.replace(/\D/g, '') })}
-                      placeholder="Ej: 12345678"
-                      maxLength={11}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        value={formData.document_id}
+                        onChange={(e) => setFormData({ ...formData, document_id: e.target.value.replace(/\D/g, '') })}
+                        placeholder="Ej: 12345678"
+                        maxLength={11}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleSearchDocument}
+                        disabled={isSearchingDocument || !formData.document_id}
+                        title="Buscar datos"
+                      >
+                        {isSearchingDocument ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Search className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
 

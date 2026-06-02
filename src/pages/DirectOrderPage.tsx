@@ -110,36 +110,58 @@ export default function DirectOrderPage() {
 
     setLoading(true);
     try {
-      const { data } = await supabase
+      // 1. First search in our database
+      const { data: localCustomer } = await supabase
         .from('customers')
         .select('*')
         .eq('document_id', val)
         .maybeSingle();
 
-      if (data) {
-        setCustomer(data);
+      if (localCustomer) {
+        setCustomer(localCustomer);
         
         // Fetch specific prices for this customer
         const { data: specPrices } = await supabase
           .from('customer_product_prices')
           .select('*')
-          .eq('customer_id', data.id)
+          .eq('customer_id', localCustomer.id)
           .eq('is_active', true);
         
         if (specPrices) setCustomerPrices(specPrices);
         toast.success('Cliente encontrado');
+        setStep(2);
       } else {
-        setCustomer({ 
-          document_id: val, 
-          name: '', 
-          phone: '', 
-          address: '', 
-          company_id: companyId,
-          customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
+        // 2. If not found, query external document service
+        toast.info('Buscando datos oficiales...');
+        const { data: docData, error: docError } = await supabase.functions.invoke('query-document', {
+          body: { document_type: documentType, document_number: val }
         });
+
+        if (!docError && docData?.success) {
+          const result = docData.data;
+          setCustomer({ 
+            document_id: val, 
+            name: result.razon_social || result.nombre || '', 
+            phone: '', 
+            address: result.direccion || '', 
+            company_id: companyId,
+            customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
+          });
+          toast.success('Datos recuperados automáticamente');
+        } else {
+          setCustomer({ 
+            document_id: val, 
+            name: '', 
+            phone: '', 
+            address: '', 
+            company_id: companyId,
+            customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
+          });
+        }
+        setStep(2);
       }
-      setStep(2);
     } catch (e) {
+      console.error('Error finding customer:', e);
       toast.error('Error al buscar cliente');
     } finally {
       setLoading(false);
