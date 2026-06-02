@@ -15,13 +15,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
 import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
+import { TopCustomersReport } from '@/components/TopCustomersReport';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard, Tag, Package } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard, Tag, Package, Trophy } from 'lucide-react';
 import { DistributorCreditsManager } from '@/components/DistributorCreditsManager';
 import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { PrepaidPackagesManager } from '@/components/PrepaidPackagesManager';
 import { SecureImage } from '@/components/SecureImage';
+
 
 interface Customer {
   id: string;
@@ -54,6 +56,7 @@ export default function CustomersPage() {
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isTopCustomersOpen, setIsTopCustomersOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{ lat: string; lon: string; display_name: string }>>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
@@ -61,6 +64,7 @@ export default function CustomersPage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [showAddressConfirmation, setShowAddressConfirmation] = useState(false);
