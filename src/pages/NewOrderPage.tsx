@@ -843,9 +843,7 @@ export default function NewOrderPage() {
                 </div>
               </RadioGroup>
               <p className="text-xs text-muted-foreground">
-                {receiptType === 'ticket' 
-                  ? 'Sin documento requerido' 
-                  : `Requiere ${receiptType === 'boleta' ? 'DNI o RUC' : 'RUC'} del cliente`}
+                Documento obligatorio para todos los pedidos
               </p>
             </div>
 
