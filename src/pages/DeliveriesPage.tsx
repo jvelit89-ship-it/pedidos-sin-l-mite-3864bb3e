@@ -319,14 +319,31 @@ export default function DeliveriesPage() {
   const handleConfirmDelivery = async () => {
     if (!orderToConfirm) return;
     
-    // Check PIN if present
-    if (orderToConfirm.delivery_pin && pinInput !== orderToConfirm.delivery_pin) {
-      setPinError(true);
-      toast.error('PIN incorrecto', {
-        description: 'El código ingresado no coincide con el enviado al cliente.'
+    setIsVerifyingLocation(true);
+    try {
+      // Verify PIN using RPC (securely)
+      const { data: isPinValid, error: pinError } = await supabase.rpc('verify_order_pin', {
+        p_order_id: orderToConfirm.id,
+        p_pin: pinInput
       });
+
+      if (pinError) throw pinError;
+
+      if (!isPinValid) {
+        setPinError(true);
+        toast.error('PIN incorrecto', {
+          description: 'El código ingresado no es válido para este pedido.'
+        });
+        return;
+      }
+    } catch (err) {
+      console.error('Error verifying PIN:', err);
+      toast.error('Error al verificar el PIN');
       return;
+    } finally {
+      setIsVerifyingLocation(false);
     }
+
 
     const additionalUpdates: any = {};
     if (deliveryLocation) {
