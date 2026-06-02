@@ -388,6 +388,7 @@ export default function DirectOrderPage() {
                         onChange={(e) => setCustomer({...customer, name: e.target.value})} 
                         className="h-12 pl-10"
                         placeholder="Ingresa tu nombre"
+                        required
                       />
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
@@ -397,9 +398,11 @@ export default function DirectOrderPage() {
                     <div className="relative">
                       <Input 
                         value={customer.phone} 
-                        onChange={(e) => setCustomer({...customer, phone: e.target.value})} 
+                        onChange={(e) => setCustomer({...customer, phone: e.target.value.replace(/\D/g, '')})} 
                         className="h-12 pl-10"
                         placeholder="Ej: 987654321"
+                        maxLength={9}
+                        required
                       />
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
@@ -412,13 +415,20 @@ export default function DirectOrderPage() {
                         onChange={(e) => setCustomer({...customer, address: e.target.value})} 
                         className="h-12 pl-10"
                         placeholder="Av. Las Magnolias 123..."
+                        required
                       />
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
                   </div>
                   <div className="flex gap-3 pt-4">
                     <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(1)}><ChevronLeft className="w-4 h-4 mr-1" /> Atrás</Button>
-                    <Button className="flex-[2] h-12" onClick={() => setStep(3)} disabled={!customer.name || !customer.phone || !customer.address}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
+                    <Button className="flex-[2] h-12" onClick={() => {
+                      if (customer.phone && customer.phone.length !== 9) {
+                        toast.error('El teléfono debe tener 9 dígitos');
+                        return;
+                      }
+                      setStep(3);
+                    }} disabled={!customer.name || !customer.phone || !customer.address}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
                   </div>
                 </CardContent>
               </Card>
