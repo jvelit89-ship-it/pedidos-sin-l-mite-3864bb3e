@@ -103,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", otpData.id);
 
     return new Response(
-      JSON.stringify({ success: true, deliveryPin: orderData.delivery_pin }),
+      JSON.stringify({ success: true, deliveryPin: pinData.pin }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
