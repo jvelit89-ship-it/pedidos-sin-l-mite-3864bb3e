@@ -541,18 +541,31 @@ export default function DirectOrderPage() {
                   <h2 className="text-lg font-bold">Catálogo de Productos</h2>
                   <Badge variant="outline" className="bg-white">{products.length} productos</Badge>
                 </div>
-                {products.map((p, i) => (
-                  <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <Card className="border-none shadow-sm overflow-hidden">
-                      <CardContent className="p-0">
-                        <div className="flex items-center p-4 gap-4">
-                          <div className="bg-slate-100 p-3 rounded-lg text-slate-400">
-                            <Package className="w-6 h-6" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-bold text-slate-800">{p.name}</h3>
-                            <p className="text-primary font-bold">S/ {Number(p.price).toFixed(2)}</p>
-                          </div>
+                {products.map((p, i) => {
+                  const qty = selectedProducts[p.id] || 0;
+                  const currentPrice = getProductPrice(p.id, qty || 1); // Show potential price for at least 1 unit
+                  const hasDiscount = currentPrice < p.price;
+                  
+                  return (
+                    <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                      <Card className="border-none shadow-sm overflow-hidden">
+                        <CardContent className="p-0">
+                          <div className="flex items-center p-4 gap-4">
+                            <div className="bg-slate-100 p-3 rounded-lg text-slate-400">
+                              <Package className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-slate-800">{p.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <p className="text-primary font-bold">S/ {Number(currentPrice).toFixed(2)}</p>
+                                {hasDiscount && (
+                                  <p className="text-xs text-slate-400 line-through">S/ {Number(p.price).toFixed(2)}</p>
+                                )}
+                              </div>
+                              {hasDiscount && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-[10px] h-4">OFERTA</Badge>
+                              )}
+                            </div>
                           <div className="flex items-center gap-1 bg-slate-50 rounded-full border p-1">
                             <Button 
                               size="icon" 
@@ -575,8 +588,9 @@ export default function DirectOrderPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
                 
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                   <div className="max-w-md mx-auto flex items-center justify-between gap-4">
