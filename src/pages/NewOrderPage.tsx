@@ -464,7 +464,8 @@ export default function NewOrderPage() {
 
       if (orderData) {
         // Store PIN and phone for WhatsApp sharing
-        setCurrentOrderPin(orderData.delivery_pin);
+        const orderPin = (orderData as any).delivery_pin;
+        setCurrentOrderPin(orderPin);
         setCurrentCustomerPhone(customer.phone);
         
         // Deduct prepaid balances for items that used a prepaid package
