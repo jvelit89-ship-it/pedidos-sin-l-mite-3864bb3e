@@ -224,6 +224,7 @@ export default function DashboardPage() {
 
           {/* Smart Alerts & Health Indicators */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <LowStockAlert />
             <SmartAlerts alerts={smartAlerts} thresholdMinutes={ALERT_THRESHOLD_MINUTES} />
             <HealthIndicators {...healthIndicators} />
           </div>
