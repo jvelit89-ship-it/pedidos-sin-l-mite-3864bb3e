@@ -642,10 +642,11 @@ export default function DirectOrderPage() {
                     <p className="text-sm font-bold px-1">Productos</p>
                     {Object.entries(selectedProducts).map(([id, qty]) => {
                       const p = products.find(prod => prod.id === id);
+                      const price = getProductPrice(id, qty);
                       return (
                         <div key={id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 px-1">
                           <span>{qty}x {p?.name}</span>
-                          <span className="font-medium">S/ {((p?.price || 0) * qty).toFixed(2)}</span>
+                          <span className="font-medium">S/ {(price * qty).toFixed(2)}</span>
                         </div>
                       );
                     })}
