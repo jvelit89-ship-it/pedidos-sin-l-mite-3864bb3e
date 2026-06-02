@@ -9,6 +9,8 @@ import { useSupabaseAuth } from '@/hooks/useAuth';
 import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '@/lib/error-handler';
+
 import { z } from 'zod';
 import { Loader2, LogIn, Mail, Package } from 'lucide-react';
 
@@ -86,9 +88,10 @@ export default function AuthPage() {
         if (error.message.includes('Invalid login')) {
           toast.error('Credenciales incorrectas');
         } else {
-          toast.error(error.message);
+          handleError(error, { context: 'Inicio de Sesión' });
         }
       } else {
+
         toast.success('Bienvenido');
       }
     } finally {
@@ -118,10 +121,9 @@ export default function AuthPage() {
       });
 
       if (error) {
-        toast.error('Error al enviar correo', {
-          description: error.message,
-        });
+        handleError(error, { context: 'Restablecer Contraseña' });
       } else {
+
         toast.success('Correo enviado', {
           description: 'Revisa tu bandeja de entrada para restablecer tu contraseña. El enlace expira en 1 hora.',
         });
