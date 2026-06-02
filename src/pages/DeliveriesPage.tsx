@@ -640,7 +640,7 @@ export default function DeliveriesPage() {
                 Solicita al cliente **{orderToConfirm?.customer_name}** el código de entrega de 4 dígitos.
               </div>
 
-              {orderToConfirm?.delivery_pin && (
+              {orderToConfirm && (
                 <div className="space-y-2">
                   <Label htmlFor="pin" className={pinError ? "text-destructive" : ""}>
                     Código PIN de Entrega
