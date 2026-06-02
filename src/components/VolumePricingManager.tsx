@@ -26,12 +26,16 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
   const [selectedProductId, setSelectedProductId] = useState(productId || '');
   const [minQuantity, setMinQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
+  const [promotionDays, setPromotionDays] = useState<number[]>([]);
+  const [isOnlineExclusive, setIsOnlineExclusive] = useState(false);
 
   const resetForm = () => {
     setEditingRule(null);
     setSelectedProductId(productId || '');
     setMinQuantity(1);
     setUnitPrice(0);
+    setPromotionDays([]);
+    setIsOnlineExclusive(false);
   };
 
   const handleOpenDialog = (rule?: VolumePricingRule) => {
@@ -40,6 +44,8 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
       setSelectedProductId(rule.product_id);
       setMinQuantity(rule.min_quantity);
       setUnitPrice(rule.unit_price);
+      setPromotionDays(rule.promotion_days || []);
+      setIsOnlineExclusive(rule.is_online_exclusive || false);
     } else {
       resetForm();
     }
@@ -54,8 +60,8 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
       return;
     }
 
-    if (minQuantity < 2) {
-      toast.error('La cantidad mínima debe ser al menos 2');
+    if (minQuantity < 1) {
+      toast.error('La cantidad mínima debe ser al menos 1');
       return;
     }
 
@@ -74,9 +80,11 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
       await updateRule(editingRule.id, {
         min_quantity: minQuantity,
         unit_price: unitPrice,
+        promotion_days: promotionDays,
+        is_online_exclusive: isOnlineExclusive,
       });
     } else {
-      await addRule(selectedProductId, minQuantity, unitPrice);
+      await addRule(selectedProductId, minQuantity, unitPrice, promotionDays, isOnlineExclusive);
     }
 
     setIsDialogOpen(false);
@@ -164,7 +172,7 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
                   <Label>{settings.language === 'es' ? 'Desde (unidades)' : 'From (units)'}</Label>
                   <Input
                     type="number"
-                    min="2"
+                    min="1"
                     value={minQuantity}
                     onChange={(e) => setMinQuantity(parseInt(e.target.value) || 0)}
                     required
@@ -191,6 +199,54 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
                       : 'Discounted price'}
                   </p>
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>{settings.language === 'es' ? 'Días de Promoción (Opcional)' : 'Promotion Days (Optional)'}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'L', value: 1 },
+                    { label: 'M', value: 2 },
+                    { label: 'Mi', value: 3 },
+                    { label: 'J', value: 4 },
+                    { label: 'V', value: 5 },
+                    { label: 'S', value: 6 },
+                    { label: 'D', value: 0 },
+                  ].map((day) => (
+                    <Button
+                      key={day.value}
+                      type="button"
+                      variant={promotionDays.includes(day.value) ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        setPromotionDays(prev => 
+                          prev.includes(day.value) 
+                            ? prev.filter(d => d !== day.value) 
+                            : [...prev, day.value]
+                        );
+                      }}
+                    >
+                      {day.label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {settings.language === 'es' 
+                    ? 'Si no seleccionas días, se aplicará siempre'
+                    : 'If no days are selected, it will always apply'}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2 py-2">
+                <Switch 
+                  id="online-exclusive" 
+                  checked={isOnlineExclusive} 
+                  onCheckedChange={setIsOnlineExclusive}
+                />
+                <Label htmlFor="online-exclusive" className="cursor-pointer">
+                  {settings.language === 'es' ? 'Exclusivo Pedidos Online' : 'Online Orders Exclusive'}
+                </Label>
               </div>
 
               {selectedProductId && (
@@ -272,13 +328,29 @@ export function VolumePricingManager({ productId }: VolumePricingManagerProps) {
                           <div className="flex-1">
                             <p className="font-medium">
                               {settings.language === 'es' ? 'Desde ' : 'From '}
-                              {rule.min_quantity} {settings.language === 'es' ? 'unidades' : 'units'}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatCurrency(rule.unit_price)} c/u
-                              <span className="text-green-600 ml-2">(-{discount}%)</span>
-                            </p>
-                          </div>
+                                {rule.min_quantity} {settings.language === 'es' ? 'unidades' : 'units'}
+                                {rule.is_online_exclusive && (
+                                  <Badge variant="outline" className="ml-2 text-[10px] h-4">Online</Badge>
+                                )}
+                              </p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {rule.promotion_days && rule.promotion_days.length > 0 ? (
+                                  rule.promotion_days.sort((a,b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)).map(day => (
+                                    <span key={day} className="text-[10px] bg-primary/10 text-primary px-1 rounded">
+                                      {['D', 'L', 'M', 'Mi', 'J', 'V', 'S'][day]}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground italic">
+                                    {settings.language === 'es' ? 'Todos los días' : 'Every day'}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {formatCurrency(rule.unit_price)} c/u
+                                <span className="text-green-600 ml-2">(-{discount}%)</span>
+                              </p>
+                            </div>
                           <Switch
                             checked={rule.is_active}
                             onCheckedChange={(checked) => handleToggle(rule.id, checked)}
