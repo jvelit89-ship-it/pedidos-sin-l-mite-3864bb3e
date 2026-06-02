@@ -95,31 +95,25 @@ export default function DirectOrderPage() {
     document.title = "Pedidos Online | Agua Santa Maria y Ecohielo";
   }, [companyId]);
 
-  const findCustomer = async () => {
-    if (!documentNumber) return;
-    if (documentType === 'dni' && documentNumber.length !== 8) {
-      toast.error('DNI debe tener 8 dígitos');
-      return;
-    }
-    if (documentType === 'ruc' && documentNumber.length !== 11) {
-      toast.error('RUC debe tener 11 dígitos');
-      return;
-    }
+  const findCustomerByValue = async (val: string) => {
+    if (!val) return;
+    if (documentType === 'dni' && val.length !== 8) return;
+    if (documentType === 'ruc' && val.length !== 11) return;
 
     setLoading(true);
     try {
       const { data } = await supabase
         .from('customers')
         .select('*')
-        .eq('document_id', documentNumber)
-        .eq('company_id', companyId)
+        .eq('document_id', val)
         .maybeSingle();
 
       if (data) {
         setCustomer(data);
+        toast.success('Cliente encontrado');
       } else {
         setCustomer({ 
-          document_id: documentNumber, 
+          document_id: val, 
           name: '', 
           phone: '', 
           address: '', 
@@ -133,6 +127,19 @@ export default function DirectOrderPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const findCustomer = async () => {
+    if (!documentNumber) return;
+    if (documentType === 'dni' && documentNumber.length !== 8) {
+      toast.error('DNI debe tener 8 dígitos');
+      return;
+    }
+    if (documentType === 'ruc' && documentNumber.length !== 11) {
+      toast.error('RUC debe tener 11 dígitos');
+      return;
+    }
+    await findCustomerByValue(documentNumber);
   };
 
   const handleProductQty = (id: string, delta: number) => {
@@ -159,15 +166,37 @@ export default function DirectOrderPage() {
       // 1. Upsert Customer
       let customerId = customer.id;
       if (!customerId) {
-        const { data: newCust, error: custErr } = await supabase
+        // Check again if customer was created by another process while user was filling the form
+        const { data: existingCust } = await supabase
           .from('customers')
-          .insert({ ...customer, document_id: documentNumber })
-          .select()
-          .single();
-        if (custErr) throw custErr;
-        customerId = newCust.id;
+          .select('id')
+          .eq('document_id', documentNumber)
+          .maybeSingle();
+          
+        if (existingCust) {
+          customerId = existingCust.id;
+          await supabase.from('customers').update({
+            name: customer.name,
+            phone: customer.phone,
+            address: customer.address,
+            // Don't update company_id if it already belongs to one, 
+            // but for this order it will use the current companyId
+          }).eq('id', customerId);
+        } else {
+          const { data: newCust, error: custErr } = await supabase
+            .from('customers')
+            .insert({ ...customer, document_id: documentNumber, company_id: companyId })
+            .select()
+            .single();
+          if (custErr) throw custErr;
+          customerId = newCust.id;
+        }
       } else {
-        await supabase.from('customers').update(customer).eq('id', customerId);
+        await supabase.from('customers').update({
+          name: customer.name,
+          phone: customer.phone,
+          address: customer.address
+        }).eq('id', customerId);
       }
 
       // 2. Create Order
@@ -321,7 +350,14 @@ export default function DirectOrderPage() {
                       <Input 
                         placeholder={`Ej: ${documentType === 'dni' ? '12345678' : '20123456789'}`} 
                         value={documentNumber} 
-                        onChange={(e) => setDocumentNumber(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setDocumentNumber(val);
+                          if ((documentType === 'dni' && val.length === 8) || (documentType === 'ruc' && val.length === 11)) {
+                            // Automatically trigger search when length is reached
+                            setTimeout(() => findCustomerByValue(val), 100);
+                          }
+                        }}
                         className="h-12 text-lg font-mono pl-10"
                         maxLength={documentType === 'dni' ? 8 : 11}
                       />
@@ -352,6 +388,7 @@ export default function DirectOrderPage() {
                         onChange={(e) => setCustomer({...customer, name: e.target.value})} 
                         className="h-12 pl-10"
                         placeholder="Ingresa tu nombre"
+                        required
                       />
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
@@ -361,9 +398,11 @@ export default function DirectOrderPage() {
                     <div className="relative">
                       <Input 
                         value={customer.phone} 
-                        onChange={(e) => setCustomer({...customer, phone: e.target.value})} 
+                        onChange={(e) => setCustomer({...customer, phone: e.target.value.replace(/\D/g, '')})} 
                         className="h-12 pl-10"
                         placeholder="Ej: 987654321"
+                        maxLength={9}
+                        required
                       />
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
@@ -376,13 +415,20 @@ export default function DirectOrderPage() {
                         onChange={(e) => setCustomer({...customer, address: e.target.value})} 
                         className="h-12 pl-10"
                         placeholder="Av. Las Magnolias 123..."
+                        required
                       />
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
                   </div>
                   <div className="flex gap-3 pt-4">
                     <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(1)}><ChevronLeft className="w-4 h-4 mr-1" /> Atrás</Button>
-                    <Button className="flex-[2] h-12" onClick={() => setStep(3)} disabled={!customer.name || !customer.phone || !customer.address}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
+                    <Button className="flex-[2] h-12" onClick={() => {
+                      if (customer.phone && customer.phone.length !== 9) {
+                        toast.error('El teléfono debe tener 9 dígitos');
+                        return;
+                      }
+                      setStep(3);
+                    }} disabled={!customer.name || !customer.phone || !customer.address}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
                   </div>
                 </CardContent>
               </Card>
