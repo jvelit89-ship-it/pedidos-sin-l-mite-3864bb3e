@@ -14,6 +14,7 @@ interface AuthContextType {
   canAccessRoute: (path: string) => boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isOperario: boolean;
   canEditCustomers: boolean;
 }
 
