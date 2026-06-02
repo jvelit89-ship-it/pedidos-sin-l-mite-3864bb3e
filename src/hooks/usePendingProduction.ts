@@ -309,6 +309,85 @@ export function usePendingProduction() {
     }
   }, [fetchPending]);
 
+  // Request correction (admins only)
+  const requestCorrection = useCallback(async (pendingId: string, notes: string): Promise<boolean> => {
+    try {
+      if (!notes) {
+        toast.error('Debes ingresar una observación para la corrección');
+        return false;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Sync session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await untypedClient.auth.setSession(session);
+      }
+
+      const { error } = await untypedClient
+        .from('pending_production')
+        .update({
+          status: 'correction_requested',
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
+          review_notes: notes,
+        })
+        .eq('id', pendingId);
+
+      if (error) {
+        toast.error('Error al solicitar corrección');
+        return false;
+      }
+
+      toast.success('Solicitud de corrección enviada al operario');
+      fetchPending();
+      return true;
+    } catch (error) {
+      console.error('Error requesting correction:', error);
+      toast.error('Error al procesar solicitud');
+      return false;
+    }
+  }, [fetchPending]);
+
+  // Update pending production (operarios correcting their work)
+  const updatePending = useCallback(async (
+    pendingId: string,
+    updates: { quantity?: number; notes?: string }
+  ): Promise<boolean> => {
+    try {
+      // Sync session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await untypedClient.auth.setSession(session);
+      }
+
+      const { error } = await untypedClient
+        .from('pending_production')
+        .update({
+          ...updates,
+          status: 'pending', // Reset to pending after correction
+          reviewed_by: null,
+          reviewed_at: null,
+          review_notes: null,
+        })
+        .eq('id', pendingId);
+
+      if (error) {
+        toast.error('Error al actualizar registro');
+        return false;
+      }
+
+      toast.success('Registro corregido y enviado nuevamente');
+      fetchPending();
+      return true;
+    } catch (error) {
+      console.error('Error updating pending production:', error);
+      toast.error('Error al actualizar');
+      return false;
+    }
+  }, [fetchPending]);
+
   // Delete pending production
   const deletePending = useCallback(async (pendingId: string): Promise<boolean> => {
     // Sync session
@@ -343,6 +422,8 @@ export function usePendingProduction() {
     submitForApproval,
     approveProduction,
     rejectProduction,
+    requestCorrection,
+    updatePending,
     deletePending,
     checkDuplicate,
   };
