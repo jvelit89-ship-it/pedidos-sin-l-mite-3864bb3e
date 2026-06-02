@@ -209,26 +209,68 @@ export function useProductionHistory(productId?: string) {
       return false;
     }
 
-    // Get current user id
+    // Get current user and role
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError) {
+    if (authError || !user) {
       console.error('Error getting user for production:', authError);
-    }
-    
-    const producedBy = user?.id || null;
-    
-    if (!producedBy) {
-      console.error('[Production] No user ID found for production');
       toast.error('Error de autenticación');
       return false;
     }
+
+    // Fetch role from user_roles
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const role = roleData?.role || 'vendedor';
+    const isAdmin = role === 'admin' || role === 'superadmin';
+
+    // If operario, use pending production flow
+    if (role === 'operario') {
+      // Import and use pending production logic
+      // We can't use the hook here easily, so we'll do the insert directly
+      // Or we can just rely on the UI calling the right function.
+      // But for safety, let's implement it here too.
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', user.id)
+        .single();
+
+      const { error: pendingError } = await supabase
+        .from('pending_production')
+        .insert({
+          product_id: productId,
+          quantity,
+          notes: notes || null,
+          requested_by: user.id,
+          requested_by_name: profile?.name || 'Operario',
+          company_id: companyId,
+          status: 'pending',
+        });
+
+      if (pendingError) {
+        console.error('Error submitting for approval:', pendingError);
+        toast.error('Error al enviar para aprobación');
+        return false;
+      }
+
+      toast.success('Producción enviada para aprobación del administrador');
+      return true;
+    }
+
+    // Admins continue with direct production
+    const producedBy = user.id;
     
     console.log('[Production] Registering production:', {
       productId,
       quantity,
       producedBy,
-      userId: user?.id,
+      userId: user.id,
     });
 
     // SOLO insertamos el registro de producción
@@ -272,12 +314,6 @@ export function useProductionHistory(productId?: string) {
       refetch(),
       refetchProducts(),
     ]);
-    
-    // Fallback delayed refetch
-    setTimeout(() => {
-      refetch();
-      refetchProducts();
-    }, 1000);
     
     return true;
   }, [refetch, refetchProducts]);
