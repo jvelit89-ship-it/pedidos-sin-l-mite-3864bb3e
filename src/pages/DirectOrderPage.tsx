@@ -95,33 +95,25 @@ export default function DirectOrderPage() {
     document.title = "Pedidos Online | Agua Santa Maria y Ecohielo";
   }, [companyId]);
 
-  const findCustomer = async () => {
-    if (!documentNumber) return;
-    if (documentType === 'dni' && documentNumber.length !== 8) {
-      toast.error('DNI debe tener 8 dígitos');
-      return;
-    }
-    if (documentType === 'ruc' && documentNumber.length !== 11) {
-      toast.error('RUC debe tener 11 dígitos');
-      return;
-    }
+  const findCustomerByValue = async (val: string) => {
+    if (!val) return;
+    if (documentType === 'dni' && val.length !== 8) return;
+    if (documentType === 'ruc' && val.length !== 11) return;
 
     setLoading(true);
     try {
       const { data } = await supabase
         .from('customers')
         .select('*')
-        .eq('document_id', documentNumber)
+        .eq('document_id', val)
         .maybeSingle();
 
       if (data) {
         setCustomer(data);
-        // If customer exists but in a different company, we should probably still use it but ensure company_id is correct for the order
-        // However, the user said "en automatico jalar el cliente", so we'll use this customer.
-        // We'll update the company_id to the current one if it's a "general" customer or just let it be.
+        toast.success('Cliente encontrado');
       } else {
         setCustomer({ 
-          document_id: documentNumber, 
+          document_id: val, 
           name: '', 
           phone: '', 
           address: '', 
@@ -135,6 +127,19 @@ export default function DirectOrderPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const findCustomer = async () => {
+    if (!documentNumber) return;
+    if (documentType === 'dni' && documentNumber.length !== 8) {
+      toast.error('DNI debe tener 8 dígitos');
+      return;
+    }
+    if (documentType === 'ruc' && documentNumber.length !== 11) {
+      toast.error('RUC debe tener 11 dígitos');
+      return;
+    }
+    await findCustomerByValue(documentNumber);
   };
 
   const handleProductQty = (id: string, delta: number) => {
