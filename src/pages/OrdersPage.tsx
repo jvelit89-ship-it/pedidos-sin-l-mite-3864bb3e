@@ -120,6 +120,7 @@ export default function OrdersPage() {
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
+  const isRepartidor = user?.role === 'repartidor';
 
   // Filter orders based on role
   const roleFilteredOrders = orders.filter((order: Order) => {
