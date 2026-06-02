@@ -313,7 +313,38 @@ export default function CustomersPage() {
       
       toast.success('Ubicación extraída del enlace');
     } else if (link.includes('google') || link.includes('maps') || isShortUrl(link)) {
-      toast.error('No se pudo extraer la ubicación. Intenta copiar el enlace completo desde la barra de direcciones.');
+      // Fallback: try to extract a search query or place name
+      try {
+        const decodedLink = decodeURIComponent(link);
+        const searchPattern = /[?&]q=([^&]+)/;
+        const placePattern = /\/(?:place|search)\/([^/?]+)/;
+        
+        const match = decodedLink.match(searchPattern) || decodedLink.match(placePattern);
+        
+        if (match && match[1] && !match[1].includes(',')) {
+          const query = match[1].replace(/\+/g, ' ');
+          toast.info(`Buscando ubicación para: ${query}`);
+          const results = await searchAddress(query);
+          if (results && results.length > 0) {
+            const result = results[0];
+            const lat = parseFloat(result.lat);
+            const lon = parseFloat(result.lon);
+            
+            setFormData(prev => ({
+              ...prev,
+              latitude: lat,
+              longitude: lon,
+              address: query
+            }));
+            toast.success('Ubicación encontrada mediante búsqueda');
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Error in fallback geocoding:', e);
+      }
+      
+      toast.error('No se pudo extraer la ubicación automática. Por favor, asegúrate de que el enlace sea correcto o ingresa la dirección manualmente.');
     }
   };
 
