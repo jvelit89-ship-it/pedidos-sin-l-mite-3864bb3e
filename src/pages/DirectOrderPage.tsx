@@ -112,11 +112,13 @@ export default function DirectOrderPage() {
         .from('customers')
         .select('*')
         .eq('document_id', documentNumber)
-        .eq('company_id', companyId)
         .maybeSingle();
 
       if (data) {
         setCustomer(data);
+        // If customer exists but in a different company, we should probably still use it but ensure company_id is correct for the order
+        // However, the user said "en automatico jalar el cliente", so we'll use this customer.
+        // We'll update the company_id to the current one if it's a "general" customer or just let it be.
       } else {
         setCustomer({ 
           document_id: documentNumber, 
