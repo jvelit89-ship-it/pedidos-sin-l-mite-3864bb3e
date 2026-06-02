@@ -1143,12 +1143,20 @@ export default function CustomersPage() {
                         )}
                       </div>
                       <div className="mt-1 space-y-1 text-sm text-muted-foreground">
-                        {c.phone && (
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-3.5 h-3.5" />
-                            {c.phone}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                          {c.document_id && (
+                            <div className="flex items-center gap-1.5">
+                              <CreditCard className="w-3.5 h-3.5" />
+                              {c.document_id}
+                            </div>
+                          )}
+                          {c.phone && (
+                            <div className="flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5" />
+                              {c.phone}
+                            </div>
+                          )}
+                        </div>
                         {c.address && (
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5" />
