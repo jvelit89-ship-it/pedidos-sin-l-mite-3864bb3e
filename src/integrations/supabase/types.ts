@@ -934,6 +934,8 @@ export type Database = {
           delivery_latitude: number | null
           delivery_longitude: number | null
           delivery_photo_url: string | null
+          document_number: string | null
+          document_type: string | null
           id: string
           is_factory_direct: boolean | null
           notes: string | null
@@ -961,6 +963,8 @@ export type Database = {
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
+          document_number?: string | null
+          document_type?: string | null
           id?: string
           is_factory_direct?: boolean | null
           notes?: string | null
@@ -988,6 +992,8 @@ export type Database = {
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
+          document_number?: string | null
+          document_type?: string | null
           id?: string
           is_factory_direct?: boolean | null
           notes?: string | null
