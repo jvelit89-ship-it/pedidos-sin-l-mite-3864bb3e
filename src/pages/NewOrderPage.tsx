@@ -102,8 +102,8 @@ export default function NewOrderPage() {
     verified: boolean;
   } | null>(null);
 
-  // Document is required only for boleta/factura
-  const requiresDocument = receiptType !== 'ticket';
+  // Document is now required for ALL orders
+  const requiresDocument = true;
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
   // Only show final products for sale (not raw materials)
@@ -843,15 +843,13 @@ export default function NewOrderPage() {
                 </div>
               </RadioGroup>
               <p className="text-xs text-muted-foreground">
-                {receiptType === 'ticket' 
-                  ? 'Sin documento requerido' 
-                  : `Requiere ${receiptType === 'boleta' ? 'DNI o RUC' : 'RUC'} del cliente`}
+                Documento obligatorio para todos los pedidos
               </p>
             </div>
 
             {/* Document fields - only shown for boleta/factura */}
             {requiresDocument && (
-              <>
+              <div className="bg-muted/30 p-3 rounded-lg border border-primary/10 space-y-3">
                 <div className="space-y-3">
                   <Label>Tipo de Documento *</Label>
                   <RadioGroup
@@ -950,7 +948,7 @@ export default function NewOrderPage() {
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
