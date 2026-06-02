@@ -1,0 +1,1 @@
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS google_maps_link TEXT;
