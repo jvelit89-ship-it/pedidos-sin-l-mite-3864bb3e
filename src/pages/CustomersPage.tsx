@@ -15,13 +15,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { MapView } from '@/components/MapView';
 import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
+import { TopCustomersReport } from '@/components/TopCustomersReport';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard, Tag, Package } from 'lucide-react';
+import { Plus, Search, Users, Phone, MapPin, Edit2, Eye, Map, Loader2, Camera, MapPinned, User, X, Image, Trash2, ImagePlus, Store, ShoppingBag, ExternalLink, Link2, Truck, CreditCard, Tag, Package, Trophy } from 'lucide-react';
 import { DistributorCreditsManager } from '@/components/DistributorCreditsManager';
 import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { PrepaidPackagesManager } from '@/components/PrepaidPackagesManager';
 import { SecureImage } from '@/components/SecureImage';
+
 
 interface Customer {
   id: string;
@@ -54,6 +56,7 @@ export default function CustomersPage() {
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isTopCustomersOpen, setIsTopCustomersOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{ lat: string; lon: string; display_name: string }>>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
@@ -61,6 +64,7 @@ export default function CustomersPage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [showAddressConfirmation, setShowAddressConfirmation] = useState(false);
@@ -621,19 +625,32 @@ export default function CustomersPage() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">{t.customers}</h1>
-        {canEditCustomers && (
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) handleCloseDialog();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" /> {t.newCustomer}
-              </Button>
-            </DialogTrigger>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button 
+              variant="outline" 
+              onClick={() => setIsTopCustomersOpen(true)}
+              className="gap-2 border-amber-200 hover:bg-amber-50 text-amber-700"
+            >
+              <Trophy className="w-4 h-4 text-amber-500" />
+              Top 100
+            </Button>
+          )}
+          {canEditCustomers && (
+            <Dialog
+
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) handleCloseDialog();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" /> {t.newCustomer}
+                </Button>
+              </DialogTrigger>
+
             <DialogContent 
               className="max-w-lg max-h-[90vh] overflow-y-auto"
               onInteractOutside={(e) => e.preventDefault()}
@@ -1006,6 +1023,10 @@ export default function CustomersPage() {
           </Dialog>
         )}
       </div>
+    </div>
+
+
+
 
       <Card>
         <CardContent className="p-4 space-y-3">
@@ -1392,6 +1413,17 @@ export default function CustomersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Top 100 Customers Dialog */}
+      <Dialog open={isTopCustomersOpen} onOpenChange={setIsTopCustomersOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ranking de Clientes</DialogTitle>
+          </DialogHeader>
+          <TopCustomersReport />
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
