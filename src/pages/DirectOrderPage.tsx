@@ -33,6 +33,7 @@ interface Product {
   name: string;
   price: number;
   stock: number;
+  image_url: string | null;
 }
 
 interface Vendedor {
@@ -83,7 +84,7 @@ export default function DirectOrderPage() {
 
         const [compRes, prodRes, vendRes, rulesRes] = await Promise.all([
           supabase.from('companies').select('id, name').eq('id', currentCompanyId).single(),
-          supabase.from('products').select('id, name, price, stock').eq('company_id', currentCompanyId).eq('product_type', 'final'),
+          supabase.from('products').select('id, name, price, stock, image_url').eq('company_id', currentCompanyId).eq('product_type', 'final'),
           supabase.from('vendedores').select('id, name').eq('company_id', currentCompanyId).eq('active', true),
           supabase.from('volume_pricing_rules').select('*').eq('company_id', currentCompanyId).eq('is_active', true)
         ]);
@@ -362,32 +363,37 @@ export default function DirectOrderPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Top Header */}
-      <div className="bg-primary text-primary-foreground p-8 shadow-lg relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-black/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Top Header con Estilo Mejorado */}
+      <div className="bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-primary-foreground p-10 shadow-xl relative overflow-hidden">
+        {/* Elementos decorativos abstractos */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-black/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-32 bg-white/5 skew-y-6 pointer-events-none" />
         
-        <div className="max-w-md mx-auto flex flex-col items-center gap-4 relative z-10">
-          <div className="bg-white p-3 rounded-2xl shadow-inner">
-            <ShoppingCart className="w-10 h-10 text-primary" />
+        <div className="max-w-md mx-auto flex flex-col items-center gap-6 relative z-10">
+          <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl shadow-2xl border border-white/20">
+            <div className="bg-white p-3 rounded-2xl shadow-inner">
+              <ShoppingCart className="w-12 h-12 text-primary" />
+            </div>
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-black tracking-tight leading-tight">
+            <h1 className="text-3xl font-black tracking-tight leading-tight text-white drop-shadow-sm">
               Agua Santa Maria y Ecohielo
             </h1>
-            <p className="text-primary-foreground/90 font-medium mt-1">
-              Área de Pedidos Online
+            <p className="text-blue-100 font-medium mt-2 text-lg opacity-90">
+              Bienvenido a tu Tienda Online
             </p>
           </div>
-          <Badge variant="outline" className="bg-white/20 border-white/30 text-white font-bold py-1 px-4 rounded-full backdrop-blur-sm uppercase tracking-widest text-[10px]">
-            {company.name}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-white/20 border-white/30 text-white font-bold py-1.5 px-6 rounded-full backdrop-blur-sm uppercase tracking-widest text-[11px] shadow-lg">
+              {company.name}
+            </Badge>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-4 pb-24">
+      <div className="max-w-md mx-auto p-5 pb-24">
         {/* Progress Bar */}
         {step < 6 && (
           <div className="flex justify-between mb-8 overflow-x-auto py-2 px-1">
@@ -584,51 +590,92 @@ export default function DirectOrderPage() {
                 </div>
                 {products.map((p, i) => {
                   const qty = selectedProducts[p.id] || 0;
-                  const currentPrice = getProductPrice(p.id, qty || 1); // Show potential price for at least 1 unit
+                  const currentPrice = getProductPrice(p.id, qty || 1);
                   const hasDiscount = currentPrice < p.price;
                   
                   return (
-                    <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                      <Card className="border-none shadow-sm overflow-hidden">
+                    <motion.div 
+                      key={p.id} 
+                      initial={{ opacity: 0, scale: 0.95 }} 
+                      animate={{ opacity: 1, scale: 1 }} 
+                      transition={{ delay: i * 0.05 }}
+                    >
+                      <Card className="border-none shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 group rounded-2xl bg-white">
                         <CardContent className="p-0">
-                          <div className="flex items-center p-4 gap-4">
-                            <div className="bg-slate-100 p-3 rounded-lg text-slate-400">
-                              <Package className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-bold text-slate-800">{p.name}</h3>
-                              <div className="flex items-center gap-2">
-                                <p className="text-primary font-bold">S/ {Number(currentPrice).toFixed(2)}</p>
-                                {hasDiscount && (
-                                  <p className="text-xs text-slate-400 line-through">S/ {Number(p.price).toFixed(2)}</p>
-                                )}
-                              </div>
+                          <div className="flex items-stretch gap-0">
+                            {/* Imagen del Producto */}
+                            <div className="w-1/3 bg-slate-100 flex items-center justify-center p-2 relative overflow-hidden min-h-[140px]">
+                              {p.image_url ? (
+                                <img 
+                                  src={p.image_url} 
+                                  alt={p.name} 
+                                  className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center gap-2 text-slate-300">
+                                  <Package className="w-10 h-10" />
+                                  <span className="text-[10px] font-bold uppercase tracking-tighter opacity-50">Producto</span>
+                                </div>
+                              )}
+                              
                               {hasDiscount && (
-                                <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-[10px] h-4">OFERTA</Badge>
+                                <div className="absolute top-2 left-2 z-10">
+                                  <Badge className="bg-green-500 hover:bg-green-600 border-none text-[10px] font-black shadow-md px-2 py-0.5">
+                                    -{Math.round(((p.price - currentPrice) / p.price) * 100)}%
+                                  </Badge>
+                                </div>
                               )}
                             </div>
-                          <div className="flex items-center gap-1 bg-slate-50 rounded-full border p-1">
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-8 w-8 rounded-full"
-                              onClick={() => handleProductQty(p.id, -1)}
-                            >
-                              -
-                            </Button>
-                            <span className="w-6 text-center font-bold text-sm">{selectedProducts[p.id] || 0}</span>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-8 w-8 rounded-full"
-                              onClick={() => handleProductQty(p.id, 1)}
-                            >
-                              +
-                            </Button>
+
+                            {/* Info del Producto */}
+                            <div className="flex-1 p-4 flex flex-col justify-between">
+                              <div>
+                                <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1 group-hover:text-primary transition-colors">
+                                  {p.name}
+                                </h3>
+                                <div className="flex flex-wrap items-baseline gap-2">
+                                  <p className="text-primary font-black text-xl">
+                                    S/ {Number(currentPrice).toFixed(2)}
+                                  </p>
+                                  {hasDiscount && (
+                                    <p className="text-sm text-slate-400 line-through decoration-slate-300">
+                                      S/ {Number(p.price).toFixed(2)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="mt-4 flex items-center justify-between">
+                                <div className="flex items-center gap-3 bg-slate-100 rounded-2xl border border-slate-200 p-1 shadow-inner">
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-9 w-9 rounded-xl hover:bg-white hover:text-primary transition-all active:scale-95"
+                                    onClick={() => handleProductQty(p.id, -1)}
+                                  >
+                                    -
+                                  </Button>
+                                  <span className="w-6 text-center font-black text-base text-slate-700">{selectedProducts[p.id] || 0}</span>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-9 w-9 rounded-xl hover:bg-white hover:text-primary transition-all active:scale-95"
+                                    onClick={() => handleProductQty(p.id, 1)}
+                                  >
+                                    +
+                                  </Button>
+                                </div>
+
+                                {qty > 0 && (
+                                  <Badge variant="outline" className="border-primary/30 text-primary font-bold bg-primary/5">
+                                    S/ {(currentPrice * qty).toFixed(2)}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
                     </motion.div>
                   );
                 })}

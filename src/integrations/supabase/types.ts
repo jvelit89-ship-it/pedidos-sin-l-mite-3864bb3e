@@ -1360,6 +1360,7 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          image_url: string | null
           min_stock: number
           name: string
           notes: string | null
@@ -1378,6 +1379,7 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          image_url?: string | null
           min_stock?: number
           name: string
           notes?: string | null
@@ -1396,6 +1398,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           min_stock?: number
           name?: string
           notes?: string | null
