@@ -12,6 +12,7 @@ interface Product {
   category: string | null;
   stock: number;
   min_stock: number;
+  stock_critical_level: number;
   price: number;
   notes: string | null;
   company_id: string;
