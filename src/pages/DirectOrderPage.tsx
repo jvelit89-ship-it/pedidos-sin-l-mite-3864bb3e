@@ -300,6 +300,7 @@ export default function DirectOrderPage() {
           status: 'pending',
           order_source: 'online',
           is_factory_direct: orderSource === 'factory',
+          delivery_address: customer.address,
           vendedor_id: orderSource === 'vendedor' ? selectedVendedorId : null,
           vendedor_name: orderSource === 'vendedor' ? vendedores.find(v => v.id === selectedVendedorId)?.name : 'Directo de Fábrica'
         })
