@@ -729,7 +729,7 @@ export default function CustomersPage() {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
-                      {settings.language === 'es' ? 'DNI / RUC' : 'Document ID'}
+                      {settings.language === 'es' ? 'DNI / RUC *' : 'Document ID *'}
                     </Label>
                     <div className="flex gap-2">
                       <Input
@@ -738,6 +738,7 @@ export default function CustomersPage() {
                         placeholder="Ej: 12345678"
                         maxLength={11}
                         className="flex-1"
+                        required
                       />
                       <Button
                         type="button"
