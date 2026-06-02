@@ -769,6 +769,16 @@ export default function OrdersPage() {
                             <span className={`px-2.5 py-1 text-xs rounded-full font-medium inline-flex items-center gap-1 ${ORDER_STATUS_CONFIG[order.status].className}`}>
                               {ORDER_STATUS_CONFIG[order.status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[order.status].label : ORDER_STATUS_CONFIG[order.status].labelEn}
                             </span>
+                            {order.order_source === 'online' && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
+                                <ShoppingCart className="w-3 h-3 mr-1" /> Online
+                              </Badge>
+                            )}
+                            {order.is_factory_direct && (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">
+                                <Factory className="w-3 h-3 mr-1" /> Fábrica
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
                             <span>#{order.id.slice(0, 8)}</span>
