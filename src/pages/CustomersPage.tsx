@@ -67,6 +67,7 @@ export default function CustomersPage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    document_id: '',
     business_name: '',
     phone: '',
     address: '',
