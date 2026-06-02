@@ -172,13 +172,14 @@ export default function DirectOrderPage() {
   };
 
   const findCustomer = async () => {
-    if (!documentNumber) return;
-    if (documentType === 'dni' && documentNumber.length !== 8) {
-      toast.error('DNI debe tener 8 dígitos');
+    if (!documentNumber) {
+      toast.error('Por favor, ingresa un número de documento');
       return;
     }
-    if (documentType === 'ruc' && documentNumber.length !== 11) {
-      toast.error('RUC debe tener 11 dígitos');
+    
+    const expectedLength = documentType === 'dni' ? 8 : 11;
+    if (documentNumber.length !== expectedLength) {
+      toast.error(`${documentType.toUpperCase()} debe tener ${expectedLength} dígitos`);
       return;
     }
     await findCustomerByValue(documentNumber);
@@ -328,7 +329,10 @@ export default function DirectOrderPage() {
         .select()
         .single();
         
-      if (ordErr) throw ordErr;
+      if (ordErr) {
+        console.error('Error in order creation:', ordErr);
+        throw ordErr;
+      }
 
       // 4. Create Items
       const items = Object.entries(selectedProducts).map(([id, qty]) => {
