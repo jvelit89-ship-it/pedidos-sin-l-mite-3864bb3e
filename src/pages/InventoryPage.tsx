@@ -270,6 +270,7 @@ export default function InventoryPage() {
 
   const getStockStatus = (product: Product) => {
     if (product.stock === 0) return { status: 'out', label: settings.language === 'es' ? 'Agotado' : 'Out of stock', className: 'stock-out' };
+    if (product.stock <= product.stock_critical_level) return { status: 'critical', label: settings.language === 'es' ? 'Stock crítico' : 'Critical stock', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' };
     if (product.stock <= product.min_stock) return { status: 'low', label: settings.language === 'es' ? 'Stock bajo' : 'Low stock', className: 'stock-low' };
     return { status: 'normal', label: 'Normal', className: 'stock-normal' };
   };
