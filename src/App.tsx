@@ -76,6 +76,7 @@ const App = () => {
                 <Routes>
                   {/* Public routes - Customer Portal */}
                   <Route path="/track" element={<CustomerPortalPage />} />
+                  <Route path="/pedidos-directos/:companyId" element={<DirectOrderPage />} />
                   <Route path="/distribuidor" element={<DistributorPortalPage />} />
                   <Route path="/track/:trackingCode" element={<OrderTrackingPage />} />
                   
