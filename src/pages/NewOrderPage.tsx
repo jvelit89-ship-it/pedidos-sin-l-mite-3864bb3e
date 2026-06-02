@@ -81,7 +81,7 @@ export default function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
-  const [isPreOrder, setIsPrePreOrder] = useState(false);
+  const [isPreOrder, setIsPreOrder] = useState(false);
   
   // Backdated order for admins
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
