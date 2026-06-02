@@ -625,19 +625,31 @@ export default function CustomersPage() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">{t.customers}</h1>
-        {canEditCustomers && (
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) handleCloseDialog();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" /> {t.newCustomer}
-              </Button>
-            </DialogTrigger>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button 
+              variant="outline" 
+              onClick={() => setIsTopCustomersOpen(true)}
+              className="gap-2 border-amber-200 hover:bg-amber-50 text-amber-700"
+            >
+              <Trophy className="w-4 h-4 text-amber-500" />
+              Top 100
+            </Button>
+          )}
+          {canEditCustomers && (
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) handleCloseDialog();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" /> {t.newCustomer}
+                </Button>
+              </DialogTrigger>
+
             <DialogContent 
               className="max-w-lg max-h-[90vh] overflow-y-auto"
               onInteractOutside={(e) => e.preventDefault()}
@@ -1396,6 +1408,17 @@ export default function CustomersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Top 100 Customers Dialog */}
+      <Dialog open={isTopCustomersOpen} onOpenChange={setIsTopCustomersOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ranking de Clientes</DialogTitle>
+          </DialogHeader>
+          <TopCustomersReport />
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
