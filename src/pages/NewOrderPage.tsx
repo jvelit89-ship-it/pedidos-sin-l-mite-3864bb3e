@@ -849,6 +849,7 @@ export default function NewOrderPage() {
 
             {/* Document fields - only shown for boleta/factura */}
             {requiresDocument && (
+              <div className="bg-muted/30 p-3 rounded-lg border border-primary/10 space-y-3">
               <>
                 <div className="space-y-3">
                   <Label>Tipo de Documento *</Label>
