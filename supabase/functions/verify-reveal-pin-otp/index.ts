@@ -81,17 +81,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get the order delivery_pin
-    const { data: orderData, error: orderError } = await supabase
-      .from("orders")
-      .select("delivery_pin")
+    // Get the order delivery_pin from the secure table
+    const { data: pinData, error: pinError } = await supabase
+      .from("order_delivery_pins")
+      .select("pin")
       .eq("id", otpData.order_id)
       .single();
 
-    if (orderError || !orderData) {
-      console.error("Error fetching order pin:", orderError);
+    if (pinError || !pinData) {
+      console.error("Error fetching order pin:", pinError);
       return new Response(
-        JSON.stringify({ error: "No se pudo encontrar el pedido" }),
+        JSON.stringify({ error: "No se pudo encontrar el PIN de este pedido" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -103,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", otpData.id);
 
     return new Response(
-      JSON.stringify({ success: true, deliveryPin: orderData.delivery_pin }),
+      JSON.stringify({ success: true, deliveryPin: pinData.pin }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {

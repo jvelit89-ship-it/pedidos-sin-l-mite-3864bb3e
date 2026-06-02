@@ -464,7 +464,8 @@ export default function NewOrderPage() {
 
       if (orderData) {
         // Store PIN and phone for WhatsApp sharing
-        setCurrentOrderPin(orderData.delivery_pin);
+        const orderPin = (orderData as any).delivery_pin;
+        setCurrentOrderPin(orderPin);
         setCurrentCustomerPhone(customer.phone);
         
         // Deduct prepaid balances for items that used a prepaid package
@@ -516,7 +517,7 @@ export default function NewOrderPage() {
           payment_method: 'Contado',
           document_type: requiresDocument ? documentType : undefined,
           receipt_type: receiptType,
-          delivery_pin: orderData.delivery_pin, // Add the PIN to the sales note
+          delivery_pin: (orderData as any).delivery_pin, // Add the PIN to the sales note
         } as any);
 
         toast.success(hasOutOfStockItems ? 'Pre-pedido creado' : 'Pedido creado', {

@@ -68,7 +68,7 @@ interface Order {
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
-  delivery_pin: string | null;
+  delivery_pin?: string | null;
   customers?: {
     customer_type: string | null;
     phone: string | null;
@@ -120,6 +120,7 @@ export default function OrdersPage() {
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
+  const isRepartidor = user?.role === 'repartidor';
 
   // Filter orders based on role
   const roleFilteredOrders = orders.filter((order: Order) => {
@@ -776,7 +777,7 @@ export default function OrdersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                  className="text-primary hover:text-primary hover:bg-primary/5"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setRevealPinOrderId(order.id);
@@ -787,7 +788,7 @@ export default function OrdersPage() {
                                   <Key className="w-5 h-5" />
                                 </Button>
                               )}
-                              {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && (
+                              {(order.status === 'pending' || order.status === 'ready' || order.status === 'delivery') && !isRepartidor && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -801,6 +802,8 @@ export default function OrdersPage() {
                                   <MessageSquare className="w-5 h-5" />
                                 </Button>
                               )}
+
+
 
                           <div className="text-right hidden sm:block">
                             <p className="text-sm font-medium">
