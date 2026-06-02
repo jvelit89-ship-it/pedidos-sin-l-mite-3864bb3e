@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
+import { handleError } from '@/lib/error-handler';
+
 
 import { OrderStatus } from '@/types';
 
@@ -60,9 +62,10 @@ export function useOrders() {
       .maybeSingle();
     
     if (error) {
-      console.error('Error fetching order:', error);
+      handleError(error, { context: 'Fetch Order', silent: true });
       return null;
     }
+
     
     return data;
   }, []);
@@ -85,10 +88,10 @@ export function useOrders() {
       .single();
     
     if (orderError || !orderData) {
-      toast.error('Error al crear pedido');
-      console.error('Error creating order:', orderError);
+      handleError(orderError || new Error('Failed to create order'), { context: 'Create Order' });
       return null;
     }
+
 
     // Generate 4-digit PIN and insert into separate table
     const deliveryPin = Math.floor(1000 + Math.random() * 9000).toString();
@@ -100,8 +103,9 @@ export function useOrders() {
       });
 
     if (pinError) {
-      console.error('Error saving delivery pin:', pinError);
+      handleError(pinError, { context: 'Save Delivery PIN', silent: true });
     }
+
 
     // Attach pin to the returned data for immediate use (like WhatsApp sharing)
     const orderWithPin = { ...orderData, delivery_pin: deliveryPin };
@@ -124,9 +128,10 @@ export function useOrders() {
       .insert(itemsWithOrderId);
 
     if (itemsError) {
-      console.error('Error creating order items:', itemsError);
+      handleError(itemsError, { context: 'Create Order Items' });
       // Order was created but items failed - still return order
     }
+
 
     // Stock deduction and stock_movements are now handled automatically
     // by the database trigger 'deduct_stock_on_order_item_insert'
@@ -147,10 +152,10 @@ export function useOrders() {
       .single();
     
     if (error) {
-      toast.error('Error al actualizar pedido');
-      console.error('Error updating order:', error);
+      handleError(error, { context: 'Update Order' });
       return null;
     }
+
     
     toast.success('Pedido actualizado');
     return data;
@@ -178,10 +183,10 @@ export function useOrders() {
       .single();
     
     if (error) {
-      toast.error('Error al actualizar estado');
-      console.error('Error updating order status:', error);
+      handleError(error, { context: 'Update Order Status' });
       return null;
     }
+
     
     toast.success('Estado actualizado');
     return data;
@@ -194,10 +199,10 @@ export function useOrders() {
       .eq('id', id);
     
     if (error) {
-      toast.error('Error al eliminar pedido');
-      console.error('Error deleting order:', error);
+      handleError(error, { context: 'Delete Order' });
       return false;
     }
+
     
     toast.success('Pedido eliminado');
     return true;

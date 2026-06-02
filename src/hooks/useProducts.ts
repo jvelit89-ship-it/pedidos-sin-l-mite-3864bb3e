@@ -2,6 +2,8 @@ import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
+import { handleError } from '@/lib/error-handler';
+
 
 interface Product {
   id: string;
@@ -65,10 +67,10 @@ export function useProducts() {
       .single();
     
     if (error) {
-      toast.error('Error al crear producto');
-      console.error('Error creating product:', error);
+      handleError(error, { context: 'Create Product' });
       return null;
     }
+
     
     toast.success('Producto creado');
     refetch();
@@ -84,10 +86,10 @@ export function useProducts() {
       .single();
     
     if (error) {
-      toast.error('Error al actualizar producto');
-      console.error('Error updating product:', error);
+      handleError(error, { context: 'Update Product' });
       return null;
     }
+
     
     refetch();
     return data;
@@ -100,10 +102,10 @@ export function useProducts() {
       .eq('id', id);
     
     if (error) {
-      toast.error('Error al eliminar producto');
-      console.error('Error deleting product:', error);
+      handleError(error, { context: 'Delete Product' });
       return false;
     }
+
     
     toast.success('Producto eliminado');
     refetch();
@@ -119,10 +121,10 @@ export function useProducts() {
       .single();
     
     if (error) {
-      toast.error('Error al actualizar stock');
-      console.error('Error updating stock:', error);
+      handleError(error, { context: 'Update Stock' });
       return null;
     }
+
     
     refetch();
     return data;
@@ -213,10 +215,10 @@ export function useProductionHistory(productId?: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.error('Error getting user for production:', authError);
-      toast.error('Error de autenticación');
+      handleError(authError || new Error('User not found'), { context: 'Add Production (Auth)' });
       return false;
     }
+
 
     // Fetch role from user_roles
     const { data: roleData } = await supabase
@@ -254,10 +256,10 @@ export function useProductionHistory(productId?: string) {
         });
 
       if (pendingError) {
-        console.error('Error submitting for approval:', pendingError);
-        toast.error('Error al enviar para aprobación');
+        handleError(pendingError, { context: 'Submit Production Approval' });
         return false;
       }
+
 
       toast.success('Producción enviada para aprobación del administrador');
       return true;
@@ -289,10 +291,10 @@ export function useProductionHistory(productId?: string) {
       .single();
     
     if (historyError) {
-      toast.error('Error al registrar producción');
-      console.error('Error adding production:', historyError);
+      handleError(historyError, { context: 'Add Production History' });
       return false;
     }
+
 
     // Registrar movimiento de stock para trazabilidad
     await supabase
@@ -333,10 +335,10 @@ export function useProductionHistory(productId?: string) {
       .eq('id', id);
     
     if (error) {
-      toast.error('Error al actualizar producción');
-      console.error('Error updating production:', error);
+      handleError(error, { context: 'Update Production' });
       return false;
     }
+
     
     toast.success('Producción actualizada');
     refetch();

@@ -2,6 +2,8 @@ import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
+import { handleError } from '@/lib/error-handler';
+
 
 interface Customer {
   id: string;
@@ -57,9 +59,10 @@ export function useCustomers() {
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
+        handleError(uploadError, { context: 'Upload Facade Photo', silent: true });
         return null;
       }
+
 
       const { data: { publicUrl } } = supabase.storage
         .from('customer-photos')
@@ -67,9 +70,10 @@ export function useCustomers() {
 
       return publicUrl;
     } catch (error) {
-      console.error('Photo upload error:', error);
+      handleError(error, { context: 'Photo Upload Catch', silent: true });
       return null;
     }
+
   };
 
   const addCustomer = useCallback(async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
@@ -86,10 +90,10 @@ export function useCustomers() {
       .single();
     
     if (error) {
-      toast.error('Error al crear cliente');
-      console.error('Error creating customer:', error);
+      handleError(error, { context: 'Create Customer' });
       return null;
     }
+
     
     toast.success('Cliente creado');
     refetch();
@@ -105,10 +109,10 @@ export function useCustomers() {
       .single();
     
     if (error) {
-      toast.error('Error al actualizar cliente');
-      console.error('Error updating customer:', error);
+      handleError(error, { context: 'Update Customer' });
       return null;
     }
+
     
     toast.success('Cliente actualizado');
     refetch();
@@ -122,10 +126,10 @@ export function useCustomers() {
       .eq('id', id);
     
     if (error) {
-      toast.error('Error al eliminar cliente');
-      console.error('Error deleting customer:', error);
+      handleError(error, { context: 'Delete Customer' });
       return false;
     }
+
     
     toast.success('Cliente eliminado');
     refetch();

@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { handleError } from '@/lib/error-handler';
+
 
 export type SupabaseTable = 
   | 'companies' 
@@ -75,8 +77,13 @@ export function useSupabaseQuery<T>(table: SupabaseTable, options?: QueryOptions
       setData((result || []) as T[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error fetching data');
-      console.error(`Error fetching ${table}:`, err);
+      handleError(err, { 
+        context: `Fetch ${table}`, 
+        silent: true, // Don't show toast for every background fetch error
+        logToDatabase: true 
+      });
     } finally {
+
       setLoading(false);
     }
   }, [table, options?.select, options?.enabled, JSON.stringify(options?.filter), JSON.stringify(options?.orderBy)]);
