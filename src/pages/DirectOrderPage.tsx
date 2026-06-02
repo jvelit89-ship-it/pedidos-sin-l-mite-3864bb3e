@@ -92,6 +92,7 @@ export default function DirectOrderPage() {
     }
     
     fetchData();
+    document.title = "Pedidos Online | Agua Santa Maria y Ecohielo";
   }, [companyId]);
 
   const findCustomer = async () => {
