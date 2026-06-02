@@ -116,6 +116,7 @@ export default function InventoryPage() {
     price: 0,
     notes: '',
     product_type: 'final' as 'final' | 'raw_material',
+    image_url: '',
   });
 
   const resetForm = () => {
@@ -128,6 +129,7 @@ export default function InventoryPage() {
       price: 0,
       notes: '',
       product_type: 'final',
+      image_url: '',
     });
     setEditingProduct(null);
   };
@@ -156,6 +158,7 @@ export default function InventoryPage() {
         price: product.price,
         notes: product.notes || '',
         product_type: product.product_type || 'final',
+        image_url: (product as any).image_url || '',
       });
     } else {
       resetForm();
@@ -177,6 +180,7 @@ export default function InventoryPage() {
         price: formData.price,
         notes: formData.notes || null,
         product_type: formData.product_type,
+        image_url: formData.image_url || null,
       };
       setPendingEditChanges(changes);
       setIsDialogOpen(false);
@@ -191,7 +195,8 @@ export default function InventoryPage() {
         price: formData.price,
         notes: formData.notes || null,
         product_type: formData.product_type,
-      });
+        image_url: formData.image_url || null,
+      } as any);
       setIsDialogOpen(false);
       resetForm();
     }
