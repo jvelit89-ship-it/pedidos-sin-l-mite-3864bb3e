@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -10,8 +10,15 @@ import {
   Users, 
   Settings,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck,
+  AlertTriangle,
+  MapPin,
+  Clock,
+  Smartphone,
+  Info
 } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface StepProps {
   number: number;
@@ -21,28 +28,31 @@ interface StepProps {
 
 function Step({ number, title, description }: StepProps) {
   return (
-    <div className="flex gap-3 items-start">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
+    <div className="flex gap-3 items-start group">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-black border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
         {number}
       </div>
       <div className="flex-1">
-        <h4 className="font-medium text-foreground">{title}</h4>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{title}</h4>
+        <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
       </div>
     </div>
   );
 }
 
-function SectionCard({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+function SectionCard({ icon: Icon, title, description, children }: { icon: any; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <Card className="mb-4">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Icon className="w-5 h-5 text-primary" />
+    <Card className="mb-6 border-none shadow-md overflow-hidden bg-card/50 backdrop-blur-sm">
+      <CardHeader className="pb-4 bg-muted/30">
+        <CardTitle className="flex items-center gap-3 text-xl font-black">
+          <div className="p-2 bg-primary/10 rounded-xl">
+            <Icon className="w-6 h-6 text-primary" />
+          </div>
           {title}
         </CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="pt-6 space-y-6">
         {children}
       </CardContent>
     </Card>
@@ -51,164 +61,118 @@ function SectionCard({ icon: Icon, title, children }: { icon: any; title: string
 
 function AdminManual() {
   return (
-    <div className="space-y-4">
-      <SectionCard icon={ShoppingCart} title="Crear un Pedido">
-        <Step number={1} title="Ir a Pedidos" description="Toca 'Pedidos' en el menú inferior o lateral." />
-        <Step number={2} title="Nuevo Pedido" description="Toca el botón '+' azul arriba a la derecha." />
-        <Step number={3} title="Buscar Cliente" description="Escribe el nombre o teléfono del cliente. Si no existe, créalo." />
-        <Step number={4} title="Agregar Productos" description="Selecciona productos y ajusta cantidades con + y -." />
-        <Step number={5} title="Asignar Vendedor y Repartidor" description="Selecciona quién vende y quién entrega." />
-        <Step number={6} title="Guardar" description="Toca 'Crear Pedido' para finalizar." />
+    <div className="space-y-6">
+      <SectionCard icon={ShieldCheck} title="Panel de Control (Admin)" description="Gestión total de la operación y equipo.">
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="orders">
+            <AccordionTrigger className="font-bold">Gestión de Pedidos Avanzada</AccordionTrigger>
+            <AccordionContent className="space-y-4 pt-2">
+              <Step number={1} title="Crear Pedido Retroactivo" description="Activa 'Fecha anterior' para registrar ventas pasadas que no se anotaron en su momento." />
+              <Step number={2} title="Eliminar/Editar con OTP" description="Para cambios críticos, el sistema pedirá un código enviado a tu correo para validar la acción." />
+              <Step number={3} title="Revelar PIN" description="Si un cliente pierde su PIN de entrega, búscalo en el detalle del pedido y usa 'Revelar PIN'." />
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="team">
+            <AccordionTrigger className="font-bold">Control de Equipo</AccordionTrigger>
+            <AccordionContent className="space-y-4 pt-2">
+              <Step number={1} title="Impersonación" description="Usa el botón de 'Inicio de Sesión' en la lista de personal para ver la app exactamente como ellos la ven." />
+              <Step number={2} title="Configurar Comisiones" description="En cada producto, define el margen exacto para vendedores y operarios." />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </SectionCard>
 
-      <SectionCard icon={Users} title="Gestionar Clientes">
-        <Step number={1} title="Ir a Clientes" description="Toca 'Clientes' en el menú." />
-        <Step number={2} title="Nuevo Cliente" description="Toca '+' y completa: nombre, teléfono (9 dígitos), dirección." />
-        <Step number={3} title="Validar Documento" description="Ingresa DNI (8) o RUC (11) y toca 'Verificar'." />
-        <Step number={4} title="Ubicación" description="Pega enlace de Google Maps o usa GPS automático." />
-        <Step number={5} title="Foto (opcional)" description="Toma foto de la fachada para referencia." />
+      <SectionCard icon={ShoppingCart} title="Flujo Online para Clientes" description="Cómo orientar a tus clientes que compran por la web.">
+        <Step number={1} title="Compartir Enlace" description="Envía el enlace de 'Pedido Online' a tus clientes de confianza o ponlo en tu Bio de redes sociales." />
+        <Step number={2} title="Registro Autónomo" description="El cliente ingresa su DNI/RUC y el sistema jala sus datos automáticamente." />
+        <Step number={3} title="Seguimiento en Tiempo Real" description="Indica al cliente que use el código de 8 dígitos para ver dónde viene el camión en 'Portal Cliente'." />
       </SectionCard>
-
-      <SectionCard icon={Package} title="Gestionar Inventario">
-        <Step number={1} title="Ir a Inventario" description="Toca 'Inventario' en el menú." />
-        <Step number={2} title="Nuevo Producto" description="Toca '+', ingresa nombre, SKU, precio y stock mínimo." />
-        <Step number={3} title="Registrar Producción" description="Toca un producto → 'Producción' → cantidad producida." />
-        <Step number={4} title="Ver Movimientos" description="Toca 'Historial' para ver entradas y salidas." />
-        <Step number={5} title="Configurar Comisiones" description="Edita el producto y define comisión por vendedor/operario." />
-      </SectionCard>
-
-      <SectionCard icon={Users} title="Gestionar Equipo">
-        <Step number={1} title="Ir a Vendedores/Repartidores/Operarios" description="Selecciona la sección del equipo a gestionar." />
-        <Step number={2} title="Crear Usuario" description="Toca '+', ingresa nombre, email y contraseña." />
-        <Step number={3} title="Impersonar" description="Toca 'Iniciar Sesión' para ver como ese usuario." />
-        <Step number={4} title="Volver" description="Usa la barra amarilla arriba para volver a tu cuenta." />
-      </SectionCard>
-
-      <SectionCard icon={Settings} title="Otras Funciones">
-        <Step number={1} title="Ver Comisiones" description="'Comisiones' → selecciona periodo → ve detalle por persona." />
-        <Step number={2} title="Mapa de Clientes" description="'Mapa' → visualiza ubicaciones y pedidos pendientes." />
-        <Step number={3} title="Solicitudes de Factura" description="Dashboard → panel derecho → procesa solicitudes." />
-        <Step number={4} title="Eliminar Pedidos" description="Selecciona pedidos → ingresa código OTP enviado por email." />
-      </SectionCard>
+      
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
+        <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+        <div>
+          <h4 className="font-bold text-amber-900">Seguridad Crítica</h4>
+          <p className="text-sm text-amber-800">Nunca compartas tus credenciales. Los códigos OTP de eliminación son personales y se registran en los registros de auditoría.</p>
+        </div>
+      </div>
     </div>
   );
 }
 
 function VendedorManual() {
   return (
-    <div className="space-y-4">
-      <SectionCard icon={ShoppingCart} title="Tu Trabajo Diario">
-        <div className="bg-muted/50 p-3 rounded-lg mb-4">
-          <p className="text-sm font-medium flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
-            Como vendedor puedes: crear pedidos, gestionar clientes y ver tus comisiones.
-          </p>
+    <div className="space-y-6">
+      <SectionCard icon={ShoppingCart} title="Ventas y Prospección" description="Tu herramienta principal para cerrar negocios.">
+        <Step number={1} title="Crear Pedido" description="Toca '+', busca al cliente. Si es nuevo, regístralo con su DNI/RUC para validar formalidad." />
+        <Step number={2} title="Gestión de Pre-pedidos" description="Si el cliente paga por adelantado (paquetes), asegúrate de marcar 'Usar Paquete Prepago' al crear el pedido." />
+        <Step number={3} title="Asignación de Repartidor" description="Selecciona al repartidor de la zona. El sistema le notificará con una campana al instante." />
+        <Step number={4} title="Notas de Venta" description="Al finalizar, genera la Nota de Venta y compártela por WhatsApp directamente al cliente." />
+      </SectionCard>
+
+      <SectionCard icon={Users} title="Gestión de Clientes" description="Mantén tu cartera organizada.">
+        <Step number={1} title="Geolocalización" description="Es VITAL capturar la ubicación exacta. Usa 'Mi ubicación actual' cuando estés frente al local del cliente." />
+        <Step number={2} title="Foto de Fachada" description="Toma una foto clara del negocio para que el repartidor no se pierda al llegar." />
+        <Step number={3} title="Historial de Compras" description="Revisa qué compró el cliente anteriormente para ofrecerle promociones personalizadas." />
+      </SectionCard>
+
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex gap-3">
+        <Info className="w-6 h-6 text-blue-600 shrink-0" />
+        <div>
+          <h4 className="font-bold text-blue-900">Tip de Venta</h4>
+          <p className="text-sm text-blue-800">Los pedidos registrados antes de las 10 AM tienen prioridad de entrega en la ruta de la mañana.</p>
         </div>
-      </SectionCard>
-
-      <SectionCard icon={ShoppingCart} title="Crear un Pedido">
-        <Step number={1} title="Ir a Pedidos" description="Toca 'Pedidos' en el menú." />
-        <Step number={2} title="Nuevo Pedido" description="Toca el botón '+' azul." />
-        <Step number={3} title="Seleccionar Cliente" description="Busca por nombre o teléfono. Crea uno nuevo si no existe." />
-        <Step number={4} title="Agregar Productos" description="Toca productos para agregarlos. Ajusta cantidad con + y -." />
-        <Step number={5} title="Seleccionar Repartidor" description="Elige quién entregará el pedido." />
-        <Step number={6} title="Confirmar" description="Toca 'Crear Pedido'. ¡Listo!" />
-      </SectionCard>
-
-      <SectionCard icon={Users} title="Registrar Cliente Nuevo">
-        <Step number={1} title="Desde el Pedido" description="Al crear pedido, toca 'Crear cliente nuevo'." />
-        <Step number={2} title="Datos Básicos" description="Nombre, teléfono (9 dígitos) y dirección." />
-        <Step number={3} title="Documento" description="DNI (8 dígitos) o RUC (11 dígitos). Toca 'Verificar'." />
-        <Step number={4} title="Guardar" description="El cliente queda asignado a ti automáticamente." />
-      </SectionCard>
-
-      <SectionCard icon={ArrowRight} title="Cambiar Estado de Pedido">
-        <Step number={1} title="Abrir Pedido" description="Toca el pedido en la lista." />
-        <Step number={2} title="Cambiar Estado" description="Puedes cambiar a: En Preparación, Listo para Envío." />
-        <Step number={3} title="Nota" description="Una vez 'En Camino' o 'Entregado', solo el repartidor puede cambiar." />
-      </SectionCard>
-
-      <SectionCard icon={Settings} title="Ver Tus Comisiones">
-        <Step number={1} title="Ir a Comisiones" description="Toca 'Comisiones' en el menú." />
-        <Step number={2} title="Seleccionar Periodo" description="Elige quincena: 1-15 o 16-fin de mes." />
-        <Step number={3} title="Ver Detalle" description="Verás tus pedidos y comisión ganada por producto." />
-      </SectionCard>
+      </div>
     </div>
   );
 }
 
 function RepartidorManual() {
   return (
-    <div className="space-y-4">
-      <SectionCard icon={Truck} title="Tu Trabajo Diario">
-        <div className="bg-muted/50 p-3 rounded-lg mb-4">
-          <p className="text-sm font-medium flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
-            Como repartidor: ve pedidos listos, actualiza estados y navega a direcciones.
-          </p>
+    <div className="space-y-6">
+      <SectionCard icon={Truck} title="Logística y Entregas" description="Optimiza tu ruta y confirma entregas.">
+        <Step number={1} title="Carga del Camión" description="En tu Dashboard verás el 'Resumen de Carga'. Asegúrate de llevar todo antes de salir." />
+        <Step number={2} title="Inicio de Ruta" description="Marca el pedido como 'En Camino' justo antes de arrancar. El cliente recibirá una notificación." />
+        <Step number={3} title="Confirmación con PIN" description="Al llegar, pide el PIN de 4 dígitos al cliente e ingrésalo en la app para marcar como 'Entregado'." />
+        <Step number={4} title="GPS Integrado" description="Toca el ícono de mapa en el pedido para abrir Google Maps con la ruta optimizada." />
+      </SectionCard>
+
+      <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex gap-3">
+        <Clock className="w-6 h-6 text-orange-600 shrink-0" />
+        <div>
+          <h4 className="font-bold text-orange-900">Alertas de Urgencia</h4>
+          <p className="text-sm text-orange-800">Si un pedido tiene más de 90 minutos pendiente, la app sonará una campana. Prioriza esos pedidos.</p>
         </div>
-      </SectionCard>
-
-      <SectionCard icon={Package} title="Ver Pedidos Asignados">
-        <Step number={1} title="Dashboard" description="Al entrar verás resumen de carga: productos a cargar." />
-        <Step number={2} title="Pedidos Listos" description="Ve los pedidos marcados 'Listo para Envío'." />
-        <Step number={3} title="Alerta de Urgencia" description="Pedidos con más de 90 min suenan alarma." />
-      </SectionCard>
-
-      <SectionCard icon={ArrowRight} title="Actualizar Estado de Entrega">
-        <Step number={1} title="Abrir Pedido" description="Toca el pedido que vas a entregar." />
-        <Step number={2} title="Iniciar Entrega" description="Cambia estado a 'En Camino' cuando salgas." />
-        <Step number={3} title="Confirmar Entrega" description="Al entregar, cambia a 'Entregado'." />
-        <Step number={4} title="Si hay Problema" description="Puedes marcar 'Cancelado' si no se pudo entregar." />
-      </SectionCard>
-
-      <SectionCard icon={Truck} title="Navegar a la Dirección">
-        <Step number={1} title="Abrir Pedido" description="Toca el pedido con dirección." />
-        <Step number={2} title="Ver Mapa" description="Toca el ícono de ubicación o 'Ver en Mapa'." />
-        <Step number={3} title="Abrir Google Maps" description="Toca 'Navegar' para abrir en Google Maps." />
-      </SectionCard>
-
-      <SectionCard icon={Settings} title="Tu Ruta del Día">
-        <Step number={1} title="Ir a Entregas" description="Toca 'Entregas' en el menú." />
-        <Step number={2} title="Ver Mapa" description="Todos tus pedidos pendientes en el mapa." />
-        <Step number={3} title="Optimizar" description="Sigue el orden sugerido para ahorrar tiempo." />
-      </SectionCard>
+      </div>
     </div>
   );
 }
 
-function OperarioManual() {
+function CommonIssuesManual() {
   return (
-    <div className="space-y-4">
-      <SectionCard icon={Package} title="Tu Trabajo Diario">
-        <div className="bg-muted/50 p-3 rounded-lg mb-4">
-          <p className="text-sm font-medium flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
-            Como operario: registra producción, actualiza pedidos a preparación/listo.
-          </p>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={Package} title="Registrar Producción">
-        <Step number={1} title="Ir a Inventario" description="Toca 'Inventario' en el menú." />
-        <Step number={2} title="Seleccionar Producto" description="Busca el producto que fabricaste." />
-        <Step number={3} title="Registrar" description="Toca 'Producción' e ingresa la cantidad." />
-        <Step number={4} title="Confirmar" description="El stock se actualiza automáticamente." />
-      </SectionCard>
-
-      <SectionCard icon={ArrowRight} title="Preparar Pedidos">
-        <Step number={1} title="Ir a Pedidos" description="Toca 'Pedidos' para ver los pendientes." />
-        <Step number={2} title="Pedido Pendiente" description="Abre un pedido en estado 'Pendiente'." />
-        <Step number={3} title="Iniciar Preparación" description="Cambia estado a 'En Preparación'." />
-        <Step number={4} title="Listo para Envío" description="Al terminar, cambia a 'Listo para Envío'." />
-      </SectionCard>
-
-      <SectionCard icon={Settings} title="Ver Tus Comisiones">
-        <Step number={1} title="Ir a Comisiones" description="Toca 'Comisiones' en el menú." />
-        <Step number={2} title="Ver Producción" description="Verás tu producción y comisión ganada." />
-        <Step number={3} title="Periodo" description="Selecciona la quincena para ver el detalle." />
-      </SectionCard>
-    </div>
+    <SectionCard icon={AlertTriangle} title="Resolución de Problemas" description="Qué hacer cuando algo no sale como se espera.">
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="gps">
+          <AccordionTrigger className="font-bold">El GPS no es exacto</AccordionTrigger>
+          <AccordionContent>
+            Asegúrate de tener el GPS activo en 'Modo Alta Precisión' y de estar en un lugar despejado. Si persiste, puedes copiar y pegar la dirección manualmente desde Google Maps.
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="pin">
+          <AccordionTrigger className="font-bold">El cliente no tiene su PIN</AccordionTrigger>
+          <AccordionContent>
+            1. Pide al cliente que revise su SMS/WhatsApp. 
+            2. El administrador puede ver el PIN en el detalle del pedido.
+            3. Si el cliente compró online, el PIN sale en su pantalla de confirmación.
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="stock">
+          <AccordionTrigger className="font-bold">Stock en Rojo</AccordionTrigger>
+          <AccordionContent>
+            Si intentas vender algo sin stock, el pedido se marcará como 'Backorder'. Se entregará automáticamente cuando el Operario registre nueva producción.
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </SectionCard>
   );
 }
 
@@ -218,11 +182,11 @@ export default function ManualPage() {
 
   const getRoleBadge = (role: string) => {
     const colors: Record<string, string> = {
-      admin: 'bg-purple-500',
-      superadmin: 'bg-purple-500',
-      vendedor: 'bg-blue-500',
-      repartidor: 'bg-orange-500',
-      operario: 'bg-green-500'
+      admin: 'bg-purple-600',
+      superadmin: 'bg-purple-600',
+      vendedor: 'bg-blue-600',
+      repartidor: 'bg-orange-600',
+      operario: 'bg-green-600'
     };
     const labels: Record<string, string> = {
       admin: 'Administrador',
@@ -232,7 +196,7 @@ export default function ManualPage() {
       operario: 'Operario'
     };
     return (
-      <Badge className={`${colors[role]} text-white`}>
+      <Badge className={`${colors[role]} text-white px-3 py-1`}>
         {labels[role]}
       </Badge>
     );
@@ -241,29 +205,32 @@ export default function ManualPage() {
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <BookOpen className="w-8 h-8 text-primary" />
-          <h1 className="text-2xl font-bold">Manual de Uso</h1>
+    <div className="p-4 md:p-8 max-w-5xl mx-auto pb-20">
+      <div className="mb-10 text-center">
+        <div className="inline-flex p-3 bg-primary/10 rounded-2xl mb-4">
+          <BookOpen className="w-10 h-10 text-primary" />
         </div>
-        <p className="text-muted-foreground">
-          Guía rápida paso a paso para usar la plataforma.
+        <h1 className="text-4xl font-black tracking-tight mb-3">Centro de Ayuda</h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          Domina la plataforma Agua Santa María con nuestras guías interactivas paso a paso.
         </p>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Tu rol:</span>
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Sesión activa como:</span>
           {getRoleBadge(userRole)}
         </div>
       </div>
 
-      {isAdmin ? (
-        <Tabs defaultValue="admin" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="admin">Admin</TabsTrigger>
-            <TabsTrigger value="vendedor">Vendedor</TabsTrigger>
-            <TabsTrigger value="repartidor">Repartidor</TabsTrigger>
-            <TabsTrigger value="operario">Operario</TabsTrigger>
+      <Tabs defaultValue={isAdmin ? "admin" : userRole} className="w-full">
+        {isAdmin && (
+          <TabsList className="grid w-full grid-cols-4 mb-8 bg-muted/50 p-1 rounded-xl">
+            <TabsTrigger value="admin" className="rounded-lg">Admin</TabsTrigger>
+            <TabsTrigger value="vendedor" className="rounded-lg">Vendedores</TabsTrigger>
+            <TabsTrigger value="repartidor" className="rounded-lg">Repartidores</TabsTrigger>
+            <TabsTrigger value="issues" className="rounded-lg">Soporte</TabsTrigger>
           </TabsList>
+        )}
+        
+        <div className="mt-4">
           <TabsContent value="admin">
             <AdminManual />
           </TabsContent>
@@ -273,17 +240,28 @@ export default function ManualPage() {
           <TabsContent value="repartidor">
             <RepartidorManual />
           </TabsContent>
-          <TabsContent value="operario">
-            <OperarioManual />
+          <TabsContent value="issues">
+            <CommonIssuesManual />
           </TabsContent>
-        </Tabs>
-      ) : (
-        <>
-          {userRole === 'vendedor' && <VendedorManual />}
-          {userRole === 'repartidor' && <RepartidorManual />}
-          {userRole === 'operario' && <OperarioManual />}
-        </>
-      )}
+          
+          {!isAdmin && (
+            <div className="mt-10">
+              <CommonIssuesManual />
+            </div>
+          )}
+        </div>
+      </Tabs>
+
+      <div className="mt-16 p-8 rounded-3xl bg-gradient-to-br from-primary to-blue-700 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+        <div className="space-y-2">
+          <h3 className="text-2xl font-black">¿Necesitas soporte técnico adicional?</h3>
+          <p className="text-blue-100">Estamos aquí para ayudarte a que tu operación nunca se detenga.</p>
+        </div>
+        <Button size="lg" variant="secondary" className="font-bold px-8 shadow-lg" onClick={() => window.open('https://wa.me/tu-numero', '_blank')}>
+          <Smartphone className="w-5 h-5 mr-2" />
+          Contactar Soporte
+        </Button>
+      </div>
     </div>
   );
 }
