@@ -716,7 +716,8 @@ export default function InventoryPage() {
 
         {/* Production Tab */}
         {canRegisterProduction && (
-          <TabsContent value="production">
+          <TabsContent value="production" className="space-y-6">
+            <PendingProductionPanel />
             <ProductionRecipesManager onProductionComplete={() => {
               refetchProducts();
               refetchMovements();
