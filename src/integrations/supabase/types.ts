@@ -1976,8 +1976,10 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_online_exclusive: boolean | null
           min_quantity: number
           product_id: string
+          promotion_days: number[] | null
           unit_price: number
           updated_at: string
         }
@@ -1986,8 +1988,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_online_exclusive?: boolean | null
           min_quantity: number
           product_id: string
+          promotion_days?: number[] | null
           unit_price: number
           updated_at?: string
         }
@@ -1996,8 +2000,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_online_exclusive?: boolean | null
           min_quantity?: number
           product_id?: string
+          promotion_days?: number[] | null
           unit_price?: number
           updated_at?: string
         }
