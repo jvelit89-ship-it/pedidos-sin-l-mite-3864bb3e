@@ -70,6 +70,8 @@ interface Order {
   updated_at: string;
   delivered_at: string | null;
   delivery_pin?: string | null;
+  order_source?: string | null;
+  is_factory_direct?: boolean | null;
   customers?: {
     customer_type: string | null;
     phone: string | null;
