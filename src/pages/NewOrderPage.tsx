@@ -81,6 +81,7 @@ export default function NewOrderPage() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [isPreOrder, setIsPrePreOrder] = useState(false);
   
   // Backdated order for admins
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -427,12 +428,13 @@ export default function NewOrderPage() {
         };
       });
 
-      // Check if any item has no stock -> this becomes a backorder
-      const hasOutOfStockItems = orderItems.some(item => {
+      // Check if any item has insufficient stock -> this becomes a backorder automatically
+      const hasInsufficientStock = orderItems.some(item => {
         const product = products.find(p => p.id === item.productId);
-        return product && product.stock === 0;
+        return product && item.quantity > product.stock;
       });
-      const orderStatus = hasOutOfStockItems ? 'backorder' : 'pending';
+      
+      const orderStatus = (isPreOrder || hasInsufficientStock) ? 'backorder' : 'pending';
 
       // If backdating, create a timestamp at 12:00 noon of that date (Lima time)
       let customCreatedAt: string | undefined;
