@@ -556,6 +556,7 @@ export default function CustomersPage() {
         longitude: formData.longitude,
         vendedor_id: formData.vendedor_id || null,
         facade_photo_url: photoUrl,
+        google_maps_link: formData.google_maps_link || null,
       });
     } else {
       // Create customer first to get ID, then upload photo
@@ -573,6 +574,7 @@ export default function CustomersPage() {
         longitude: formData.longitude,
         vendedor_id: formData.vendedor_id || null,
         facade_photo_url: null,
+        google_maps_link: formData.google_maps_link || null,
       });
 
       // Upload photo if selected
