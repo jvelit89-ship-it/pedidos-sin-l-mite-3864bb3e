@@ -42,7 +42,8 @@ import {
   FileText,
   MoreVertical,
   MessageSquare,
-  Key
+  Key,
+  Share2
 } from 'lucide-react';
 import { RevealPinDialog } from '@/components/RevealPinDialog';
 import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
