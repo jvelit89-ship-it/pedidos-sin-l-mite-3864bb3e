@@ -38,6 +38,7 @@ import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPane
 import { PendingProductionPanel } from '@/components/PendingProductionPanel';
 import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPanel';
 import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
+import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
