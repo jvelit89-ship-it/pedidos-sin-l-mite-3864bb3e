@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types';
+import { handleError } from '@/lib/error-handler';
+
 
 interface Profile {
   id: string;
@@ -52,8 +54,9 @@ export function useSupabaseAuth() {
         });
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      handleError(error, { context: 'User Profile Fetch', silent: true });
     }
+
   }, []);
 
   useEffect(() => {
@@ -122,11 +125,14 @@ export function useSupabaseAuth() {
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
-    if (!error) {
+    if (error) {
+      handleError(error, { context: 'Sign Out' });
+    } else {
       setProfile(null);
     }
     return { error };
   }, []);
+
 
   const isAdmin = profile?.role === 'admin';
   const isSuperAdmin = profile?.role === 'superadmin';
