@@ -122,18 +122,25 @@ export default function DirectOrderPage() {
       if (ordErr) throw ordErr;
 
       // 3. Create Items
-      const items = Object.entries(selectedProducts).map(([id, qty]) => ({
-        order_id: order.id,
-        product_id: id,
-        quantity: qty,
-        unit_price: products.find(p => p.id === id)?.price || 0
-      }));
+      const items = Object.entries(selectedProducts).map(([id, qty]) => {
+        const product = products.find(p => p.id === id)!;
+        return {
+          order_id: order.id,
+          product_id: id,
+          product_name: product.name,
+          quantity: qty,
+          unit_price: product.price,
+          total: product.price * qty
+        };
+      });
 
-      await supabase.from('order_items').insert(items);
+      const { error: itemErr } = await supabase.from('order_items').insert(items);
+      if (itemErr) throw itemErr;
 
       toast.success('Pedido registrado con éxito');
       setStep(6);
     } catch (e) {
+      console.error('Error submitting order:', e);
       toast.error('Error al registrar pedido');
     } finally {
       setLoading(false);
