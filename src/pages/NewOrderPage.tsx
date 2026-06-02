@@ -102,8 +102,8 @@ export default function NewOrderPage() {
     verified: boolean;
   } | null>(null);
 
-  // Document is required only for boleta/factura
-  const requiresDocument = receiptType !== 'ticket';
+  // Document is now required for ALL orders
+  const requiresDocument = true;
 
   const isLoading = loadingCustomers || loadingProducts || loadingTeam;
   // Only show final products for sale (not raw materials)
