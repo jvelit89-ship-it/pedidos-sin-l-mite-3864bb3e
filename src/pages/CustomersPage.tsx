@@ -1022,8 +1022,9 @@ export default function CustomersPage() {
             </DialogContent>
           </Dialog>
         )}
-        </div>
       </div>
+    </div>
+
 
 
 
