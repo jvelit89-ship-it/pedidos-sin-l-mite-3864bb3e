@@ -638,6 +638,7 @@ export default function CustomersPage() {
           )}
           {canEditCustomers && (
             <Dialog
+
               open={isDialogOpen}
               onOpenChange={(open) => {
                 setIsDialogOpen(open);
@@ -1023,6 +1024,7 @@ export default function CustomersPage() {
         )}
         </div>
       </div>
+
 
 
       <Card>
