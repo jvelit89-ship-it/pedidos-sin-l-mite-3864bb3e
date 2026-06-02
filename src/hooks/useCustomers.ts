@@ -8,6 +8,7 @@ import { handleError } from '@/lib/error-handler';
 interface Customer {
   id: string;
   name: string;
+  document_id: string | null;
   business_name: string | null;
   phone: string | null;
   email: string | null;
@@ -15,7 +16,7 @@ interface Customer {
   latitude: number | null;
   longitude: number | null;
   category: 'regular' | 'premium' | 'vip';
-  customer_type: 'minorista' | 'mayorista';
+  customer_type: 'minorista' | 'mayorista' | 'distribuidor';
   notes: string | null;
   company_id: string;
   facade_photo_url: string | null;
