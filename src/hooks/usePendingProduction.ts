@@ -227,7 +227,7 @@ export function usePendingProduction() {
         return false;
       }
 
-      // Add stock movement
+      // Add stock movement for the product itself (since the trigger only handles materials)
       await supabase
         .from('stock_movements')
         .insert({
@@ -239,19 +239,8 @@ export function usePendingProduction() {
           notes: pending.notes,
         });
 
-      // Update product stock
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', pending.product_id)
-        .single();
-
-      if (product) {
-        await supabase
-          .from('products')
-          .update({ stock: product.stock + pending.quantity })
-          .eq('id', pending.product_id);
-      }
+      // NO manual stock update here - the trg_auto_update_stock_on_production_insert trigger
+      // on production_history already increments the product's stock.
 
       // Mark as approved
       await untypedClient
