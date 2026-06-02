@@ -539,6 +539,7 @@ export default function CustomersPage() {
     setShowAddressConfirmation(false);
     setFormData({
       name: '',
+      document_id: '',
       business_name: '',
       phone: '',
       address: '',
@@ -558,6 +559,7 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setFormData({
       name: customer.name,
+      document_id: customer.document_id || '',
       business_name: customer.business_name || '',
       phone: customer.phone || '',
       address: customer.address || '',
