@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfDay, endOfDay, startOfMonth, now } from 'date-fns';
+import { startOfDay, endOfDay, startOfMonth } from 'date-fns';
 
 export interface TopCustomerItem {
+
   id: string;
   name: string;
   business_name: string | null;
