@@ -363,6 +363,7 @@ export type Database = {
           company_id: string
           created_at: string
           customer_type: Database["public"]["Enums"]["customer_type"] | null
+          document_id: string | null
           email: string | null
           facade_photo_url: string | null
           id: string
@@ -381,6 +382,7 @@ export type Database = {
           company_id: string
           created_at?: string
           customer_type?: Database["public"]["Enums"]["customer_type"] | null
+          document_id?: string | null
           email?: string | null
           facade_photo_url?: string | null
           id?: string
@@ -399,6 +401,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           customer_type?: Database["public"]["Enums"]["customer_type"] | null
+          document_id?: string | null
           email?: string | null
           facade_photo_url?: string | null
           id?: string
@@ -929,7 +932,9 @@ export type Database = {
           delivery_longitude: number | null
           delivery_photo_url: string | null
           id: string
+          is_factory_direct: boolean | null
           notes: string | null
+          order_source: string | null
           repartidor_id: string | null
           repartidor_name: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -954,7 +959,9 @@ export type Database = {
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
           id?: string
+          is_factory_direct?: boolean | null
           notes?: string | null
+          order_source?: string | null
           repartidor_id?: string | null
           repartidor_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -979,7 +986,9 @@ export type Database = {
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
           id?: string
+          is_factory_direct?: boolean | null
           notes?: string | null
+          order_source?: string | null
           repartidor_id?: string | null
           repartidor_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]

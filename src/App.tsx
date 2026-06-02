@@ -38,6 +38,7 @@ import SuppliersPage from './pages/SuppliersPage';
 // Public pages (no auth required)
 import OrderTrackingPage from './pages/OrderTrackingPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
+import DirectOrderPage from './pages/DirectOrderPage';
 import DistributorPortalPage from './pages/DistributorPortalPage';
 
 const queryClient = new QueryClient();
@@ -75,6 +76,7 @@ const App = () => {
                 <Routes>
                   {/* Public routes - Customer Portal */}
                   <Route path="/track" element={<CustomerPortalPage />} />
+                  <Route path="/pedidos-directos/:companyId" element={<DirectOrderPage />} />
                   <Route path="/distribuidor" element={<DistributorPortalPage />} />
                   <Route path="/track/:trackingCode" element={<OrderTrackingPage />} />
                   

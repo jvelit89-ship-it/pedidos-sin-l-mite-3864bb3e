@@ -1,0 +1,527 @@
+import { useState, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { 
+  Loader2, 
+  Search, 
+  Package, 
+  User, 
+  CheckCircle2, 
+  ChevronRight, 
+  ChevronLeft, 
+  Building2, 
+  Phone, 
+  MapPin, 
+  ShoppingCart,
+  Factory,
+  ArrowRight
+} from 'lucide-react';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+interface Vendedor {
+  id: string;
+  name: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+}
+
+export default function DirectOrderPage() {
+  const { companyId } = useParams<{ companyId: string }>();
+  
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [documentNumber, setDocumentNumber] = useState('');
+  const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
+  
+  const [company, setCompany] = useState<Company | null>(null);
+  const [customer, setCustomer] = useState<any>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  
+  const [orderSource, setOrderSource] = useState<'vendedor' | 'factory'>('factory');
+  const [selectedVendedorId, setSelectedVendedorId] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!companyId) return;
+    
+    async function fetchData() {
+      const [compRes, prodRes, vendRes] = await Promise.all([
+        supabase.from('companies').select('id, name').eq('id', companyId).single(),
+        supabase.from('products').select('id, name, price, stock').eq('company_id', companyId).eq('product_type', 'final'),
+        supabase.from('vendedores').select('id, name').eq('company_id', companyId).eq('active', true)
+      ]);
+      
+      if (compRes.data) setCompany(compRes.data);
+      if (prodRes.data) setProducts(prodRes.data);
+      if (vendRes.data) setVendedores(vendRes.data);
+    }
+    
+    fetchData();
+  }, [companyId]);
+
+  const findCustomer = async () => {
+    if (!documentNumber) return;
+    if (documentType === 'dni' && documentNumber.length !== 8) {
+      toast.error('DNI debe tener 8 dígitos');
+      return;
+    }
+    if (documentType === 'ruc' && documentNumber.length !== 11) {
+      toast.error('RUC debe tener 11 dígitos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('document_id', documentNumber)
+        .eq('company_id', companyId)
+        .maybeSingle();
+
+      if (data) {
+        setCustomer(data);
+      } else {
+        setCustomer({ 
+          document_id: documentNumber, 
+          name: '', 
+          phone: '', 
+          address: '', 
+          company_id: companyId,
+          customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
+        });
+      }
+      setStep(2);
+    } catch (e) {
+      toast.error('Error al buscar cliente');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProductQty = (id: string, delta: number) => {
+    setSelectedProducts(prev => {
+      const current = prev[id] || 0;
+      const next = Math.max(0, current + delta);
+      const newItems = { ...prev };
+      if (next === 0) delete newItems[id];
+      else newItems[id] = next;
+      return newItems;
+    });
+  };
+
+  const totalAmount = Object.entries(selectedProducts).reduce((acc, [id, qty]) => {
+    const p = products.find(prod => prod.id === id);
+    return acc + (p?.price || 0) * qty;
+  }, 0);
+
+  const submitOrder = async () => {
+    if (!customer || Object.keys(selectedProducts).length === 0) return;
+    setLoading(true);
+
+    try {
+      // 1. Upsert Customer
+      let customerId = customer.id;
+      if (!customerId) {
+        const { data: newCust, error: custErr } = await supabase
+          .from('customers')
+          .insert({ ...customer, document_id: documentNumber })
+          .select()
+          .single();
+        if (custErr) throw custErr;
+        customerId = newCust.id;
+      } else {
+        await supabase.from('customers').update(customer).eq('id', customerId);
+      }
+
+      // 2. Create Order
+      const { data: order, error: ordErr } = await supabase
+        .from('orders')
+        .insert({
+          company_id: companyId,
+          customer_id: customerId,
+          customer_name: customer.name,
+          total: totalAmount,
+          status: 'pending',
+          order_source: 'online',
+          is_factory_direct: orderSource === 'factory',
+          vendedor_id: orderSource === 'vendedor' ? selectedVendedorId : null,
+          vendedor_name: orderSource === 'vendedor' ? vendedores.find(v => v.id === selectedVendedorId)?.name : 'Directo de Fábrica'
+        })
+        .select()
+        .single();
+        
+      if (ordErr) throw ordErr;
+
+      // 3. Create Items
+      const items = Object.entries(selectedProducts).map(([id, qty]) => {
+        const product = products.find(p => p.id === id)!;
+        return {
+          order_id: order.id,
+          product_id: id,
+          product_name: product.name,
+          quantity: qty,
+          unit_price: product.price,
+          total: product.price * qty
+        };
+      });
+
+      const { error: itemErr } = await supabase.from('order_items').insert(items);
+      if (itemErr) throw itemErr;
+
+      toast.success('Pedido registrado con éxito');
+      setStep(6);
+    } catch (e) {
+      console.error('Error submitting order:', e);
+      toast.error('Error al registrar pedido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const steps = [
+    { title: 'Identificación', icon: User },
+    { title: 'Datos', icon: MapPin },
+    { title: 'Canal', icon: Factory },
+    { title: 'Productos', icon: Package },
+    { title: 'Confirmar', icon: ShoppingCart },
+  ];
+
+  if (!companyId) return <div className="p-8 text-center">Enlace inválido</div>;
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Top Header */}
+      <div className="bg-primary text-primary-foreground p-6 shadow-md">
+        <div className="max-w-md mx-auto flex flex-col items-center gap-2">
+          <div className="bg-white/20 p-3 rounded-full">
+            <ShoppingCart className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold">{company?.name || 'Pedidos Directos'}</h1>
+          <p className="text-primary-foreground/80 text-sm">Portal de Pedidos Online</p>
+        </div>
+      </div>
+
+      <div className="max-w-md mx-auto p-4 pb-24">
+        {/* Progress Bar */}
+        {step < 6 && (
+          <div className="flex justify-between mb-8 overflow-x-auto py-2 px-1">
+            {steps.map((s, i) => {
+              const StepIcon = s.icon;
+              const isActive = step === i + 1;
+              const isPast = step > i + 1;
+              return (
+                <div key={i} className="flex flex-col items-center gap-1 min-w-[70px]">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    isActive ? 'bg-primary text-primary-foreground' : 
+                    isPast ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-400'
+                  }`}>
+                    {isPast ? <CheckCircle2 className="w-5 h-5" /> : <StepIcon className="w-5 h-5" />}
+                  </div>
+                  <span className={`text-[10px] font-medium ${isActive ? 'text-primary' : 'text-slate-400'}`}>{s.title}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <Card className="border-none shadow-lg">
+                <CardHeader>
+                  <CardTitle>Bienvenido</CardTitle>
+                  <CardDescription>Ingresa tu documento para comenzar tu pedido</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant={documentType === 'dni' ? 'default' : 'outline'} 
+                      onClick={() => setDocumentType('dni')}
+                      className="h-12"
+                    >DNI</Button>
+                    <Button 
+                      variant={documentType === 'ruc' ? 'default' : 'outline'} 
+                      onClick={() => setDocumentType('ruc')}
+                      className="h-12"
+                    >RUC</Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Número de {documentType.toUpperCase()}</Label>
+                    <div className="relative">
+                      <Input 
+                        placeholder={`Ej: ${documentType === 'dni' ? '12345678' : '20123456789'}`} 
+                        value={documentNumber} 
+                        onChange={(e) => setDocumentNumber(e.target.value.replace(/\D/g, ''))}
+                        className="h-12 text-lg font-mono pl-10"
+                        maxLength={documentType === 'dni' ? 8 : 11}
+                      />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                  <Button className="w-full h-12 text-lg font-semibold mt-4" onClick={findCustomer} disabled={loading || !documentNumber}>
+                    {loading ? <Loader2 className="animate-spin" /> : 'Continuar'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {step === 2 && customer && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <Card className="border-none shadow-lg">
+                <CardHeader>
+                  <CardTitle>Verifica tus Datos</CardTitle>
+                  <CardDescription>Asegúrate de que la información de entrega sea correcta</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nombre / Razón Social</Label>
+                    <div className="relative">
+                      <Input 
+                        value={customer.name} 
+                        onChange={(e) => setCustomer({...customer, name: e.target.value})} 
+                        className="h-12 pl-10"
+                        placeholder="Ingresa tu nombre"
+                      />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Teléfono de Contacto</Label>
+                    <div className="relative">
+                      <Input 
+                        value={customer.phone} 
+                        onChange={(e) => setCustomer({...customer, phone: e.target.value})} 
+                        className="h-12 pl-10"
+                        placeholder="Ej: 987654321"
+                      />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Dirección de Entrega</Label>
+                    <div className="relative">
+                      <Input 
+                        value={customer.address} 
+                        onChange={(e) => setCustomer({...customer, address: e.target.value})} 
+                        className="h-12 pl-10"
+                        placeholder="Av. Las Magnolias 123..."
+                      />
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(1)}><ChevronLeft className="w-4 h-4 mr-1" /> Atrás</Button>
+                    <Button className="flex-[2] h-12" onClick={() => setStep(3)} disabled={!customer.name || !customer.phone || !customer.address}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <Card className="border-none shadow-lg">
+                <CardHeader>
+                  <CardTitle>Canal de Venta</CardTitle>
+                  <CardDescription>Elige cómo prefieres realizar tu pedido</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <RadioGroup value={orderSource} onValueChange={(v: any) => setOrderSource(v)} className="grid gap-4">
+                    <Label htmlFor="factory" className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${orderSource === 'factory' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem value="factory" id="factory" />
+                        <div>
+                          <p className="font-bold">Directo de Fábrica</p>
+                          <p className="text-xs text-muted-foreground">Accede a promos exclusivas</p>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">OFERTAS</Badge>
+                    </Label>
+                    
+                    <Label htmlFor="vendedor" className={`flex flex-col p-4 border rounded-xl cursor-pointer transition-all ${orderSource === 'vendedor' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem value="vendedor" id="vendedor" />
+                        <div>
+                          <p className="font-bold">A través de un Vendedor</p>
+                          <p className="text-xs text-muted-foreground">Asignar a un asesor comercial</p>
+                        </div>
+                      </div>
+                      {orderSource === 'vendedor' && (
+                        <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                          <select 
+                            className="w-full h-10 px-3 py-2 text-sm bg-white border rounded-md focus:outline-none focus:ring-2 focus:ring-primary" 
+                            onChange={(e) => setSelectedVendedorId(e.target.value)}
+                            value={selectedVendedorId}
+                          >
+                            <option value="">Selecciona tu vendedor</option>
+                            {vendedores.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </Label>
+                  </RadioGroup>
+                  <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(2)}><ChevronLeft className="w-4 h-4 mr-1" /> Atrás</Button>
+                    <Button className="flex-[2] h-12" onClick={() => setStep(4)} disabled={orderSource === 'vendedor' && !selectedVendedorId}>
+                      Siguiente <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {step === 4 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                  <h2 className="text-lg font-bold">Catálogo de Productos</h2>
+                  <Badge variant="outline" className="bg-white">{products.length} productos</Badge>
+                </div>
+                {products.map((p, i) => (
+                  <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <Card className="border-none shadow-sm overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="flex items-center p-4 gap-4">
+                          <div className="bg-slate-100 p-3 rounded-lg text-slate-400">
+                            <Package className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-slate-800">{p.name}</h3>
+                            <p className="text-primary font-bold">S/ {Number(p.price).toFixed(2)}</p>
+                          </div>
+                          <div className="flex items-center gap-1 bg-slate-50 rounded-full border p-1">
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8 rounded-full"
+                              onClick={() => handleProductQty(p.id, -1)}
+                            >
+                              -
+                            </Button>
+                            <span className="w-6 text-center font-bold text-sm">{selectedProducts[p.id] || 0}</span>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8 rounded-full"
+                              onClick={() => handleProductQty(p.id, 1)}
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+                
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
+                  <div className="max-w-md mx-auto flex items-center justify-between gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">Total estimado</span>
+                      <span className="text-xl font-black text-primary">S/ {totalAmount.toFixed(2)}</span>
+                    </div>
+                    <Button 
+                      className="h-12 px-8 rounded-full text-lg shadow-lg" 
+                      onClick={() => setStep(5)} 
+                      disabled={Object.keys(selectedProducts).length === 0}
+                    >
+                      Continuar <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 5 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <Card className="border-none shadow-lg">
+                <CardHeader>
+                  <CardTitle>Resumen del Pedido</CardTitle>
+                  <CardDescription>Confirma los detalles antes de finalizar</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-slate-50 p-4 rounded-xl space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Cliente</span>
+                      <span className="font-bold">{customer.name}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Documento</span>
+                      <span className="font-bold">{documentType.toUpperCase()} {documentNumber}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Dirección</span>
+                      <span className="font-bold text-right ml-4">{customer.address}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Canal</span>
+                      <Badge variant="outline">{orderSource === 'factory' ? 'Directo de Fábrica' : `Vendedor: ${vendedores.find(v => v.id === selectedVendedorId)?.name}`}</Badge>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold px-1">Productos</p>
+                    {Object.entries(selectedProducts).map(([id, qty]) => {
+                      const p = products.find(prod => prod.id === id);
+                      return (
+                        <div key={id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 px-1">
+                          <span>{qty}x {p?.name}</span>
+                          <span className="font-medium">S/ {((p?.price || 0) * qty).toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 px-1">
+                    <span className="text-lg font-bold">Total a Pagar</span>
+                    <span className="text-2xl font-black text-primary">S/ {totalAmount.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(4)} disabled={loading}><ChevronLeft className="w-4 h-4 mr-1" /> Atrás</Button>
+                    <Button className="flex-[2] h-12 text-lg font-bold shadow-lg" onClick={submitOrder} disabled={loading}>
+                      {loading ? <Loader2 className="animate-spin" /> : 'Confirmar Pedido'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+          
+          {step === 6 && (
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center p-8 bg-white rounded-3xl shadow-xl mt-8">
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-12 h-12" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-800 mb-2">¡Pedido Recibido!</h2>
+              <p className="text-slate-500 mb-8">Gracias por tu confianza. Estamos procesando tu pedido y te contactaremos pronto.</p>
+              <Button className="w-full h-12 rounded-xl" onClick={() => window.location.reload()}>Realizar otro pedido</Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}

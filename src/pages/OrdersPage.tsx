@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { DeleteOrdersDialog } from '@/components/DeleteOrdersDialog';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
@@ -26,6 +27,8 @@ import {
   Search, 
   Filter,
   Package,
+  ShoppingCart,
+  Factory,
   ChevronRight,
   Loader2,
   Trash2,
@@ -42,7 +45,8 @@ import {
   FileText,
   MoreVertical,
   MessageSquare,
-  Key
+  Key,
+  Share2
 } from 'lucide-react';
 import { RevealPinDialog } from '@/components/RevealPinDialog';
 import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
@@ -69,6 +73,8 @@ interface Order {
   updated_at: string;
   delivered_at: string | null;
   delivery_pin?: string | null;
+  order_source?: string | null;
+  is_factory_direct?: boolean | null;
   customers?: {
     customer_type: string | null;
     phone: string | null;
@@ -459,6 +465,20 @@ export default function OrdersPage() {
               </span>
             </Button>
           )}
+          {isAdmin && user?.companyId && (
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                const url = `${window.location.origin}/pedidos-directos/${user.companyId}`;
+                navigator.clipboard.writeText(url);
+                toast.success('Enlace de Pedidos Directos copiado al portapapeles');
+              }}
+              className="gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Compartir Link</span>
+            </Button>
+          )}
           {canCreateOrders && (
             <Button onClick={() => navigate('/orders/new')} className="gap-2">
               <Plus className="w-4 h-4" />
@@ -752,6 +772,16 @@ export default function OrdersPage() {
                             <span className={`px-2.5 py-1 text-xs rounded-full font-medium inline-flex items-center gap-1 ${ORDER_STATUS_CONFIG[order.status].className}`}>
                               {ORDER_STATUS_CONFIG[order.status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[order.status].label : ORDER_STATUS_CONFIG[order.status].labelEn}
                             </span>
+                            {order.order_source === 'online' && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
+                                <ShoppingCart className="w-3 h-3 mr-1" /> Online
+                              </Badge>
+                            )}
+                            {order.is_factory_direct && (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">
+                                <Factory className="w-3 h-3 mr-1" /> Fábrica
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
                             <span>#{order.id.slice(0, 8)}</span>
