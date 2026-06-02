@@ -205,19 +205,16 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Portal de Pedidos Online</h3>
-                    <p className="text-sm text-slate-500">Accede directamente al área de pedidos para clientes.</p>
+                    <p className="text-sm text-slate-500">Área de pedidos para Agua Santa Maria y Ecohielo.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
-                  <div className="bg-white border rounded-lg px-4 py-2 text-sm font-mono flex-1 md:flex-none text-slate-600 truncate">
-                    pedidos.innsanma.com/pedidos-online
-                  </div>
                   <Button 
                     variant="default"
-                    className="gap-2"
+                    className="w-full md:w-auto gap-2"
                     onClick={() => window.open('https://pedidos.innsanma.com/pedidos-online', '_blank')}
                   >
-                    Abrir Portal <ExternalLink className="w-4 h-4" />
+                    Ir al Portal <ExternalLink className="w-4 h-4" />
                   </Button>
                 </div>
               </div>

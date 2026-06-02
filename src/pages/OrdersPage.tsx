@@ -469,14 +469,12 @@ export default function OrdersPage() {
             <Button 
               variant="outline" 
               onClick={() => {
-                const url = `${window.location.origin}/pedidos-directos/${user.companyId}`;
-                navigator.clipboard.writeText(url);
-                toast.success('Enlace de Pedidos Directos copiado al portapapeles');
+                window.open('https://pedidos.innsanma.com/pedidos-online', '_blank');
               }}
               className="gap-2"
             >
-              <Share2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Compartir Link</span>
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Portal Online</span>
             </Button>
           )}
           {canCreateOrders && (

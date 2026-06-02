@@ -433,39 +433,14 @@ export default function OrderDetailPage() {
                 <div className="flex gap-2">
                   <Button 
                     variant="outline"
-                    className="flex-1 gap-2"
+                    className="w-full gap-2"
                     onClick={() => {
                       const url = `${window.location.origin}/track/${order.tracking_code}`;
-                      navigator.clipboard.writeText(url);
-                      toast.success('Link copiado al portapapeles');
+                      window.open(url, '_blank');
                     }}
                   >
-                    <Copy className="w-4 h-4" />
-                    Copiar
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="flex-1 gap-2"
-                    onClick={async () => {
-                      const url = `${window.location.origin}/track/${order.tracking_code}`;
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: `Seguimiento de Pedido - ${order.tracking_code}`,
-                            text: `Sigue el estado de tu pedido en tiempo real: ${order.customer_name}`,
-                            url,
-                          });
-                        } catch (e) {
-                          // User cancelled
-                        }
-                      } else {
-                        navigator.clipboard.writeText(url);
-                        toast.success('Link copiado al portapapeles');
-                      }
-                    }}
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Compartir
+                    <ExternalLink className="w-4 h-4" />
+                    Ver Seguimiento
                   </Button>
                 </div>
                 <Button 
