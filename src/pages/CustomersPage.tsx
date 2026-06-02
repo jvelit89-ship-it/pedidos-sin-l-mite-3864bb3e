@@ -1021,7 +1021,9 @@ export default function CustomersPage() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
+
 
       <Card>
         <CardContent className="p-4 space-y-3">
