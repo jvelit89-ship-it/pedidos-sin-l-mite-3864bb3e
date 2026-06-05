@@ -391,7 +391,7 @@ export type Database = {
           company_id: string
           created_at: string
           customer_type: Database["public"]["Enums"]["customer_type"] | null
-          document_id: string | null
+          document_id: string
           email: string | null
           facade_photo_url: string | null
           google_maps_link: string | null
@@ -411,7 +411,7 @@ export type Database = {
           company_id: string
           created_at?: string
           customer_type?: Database["public"]["Enums"]["customer_type"] | null
-          document_id?: string | null
+          document_id: string
           email?: string | null
           facade_photo_url?: string | null
           google_maps_link?: string | null
@@ -431,7 +431,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           customer_type?: Database["public"]["Enums"]["customer_type"] | null
-          document_id?: string | null
+          document_id?: string
           email?: string | null
           facade_photo_url?: string | null
           google_maps_link?: string | null
@@ -869,6 +869,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          company_id: string | null
           id: string
           order_id: string
           product_id: string
@@ -878,6 +879,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          company_id?: string | null
           id?: string
           order_id: string
           product_id: string
@@ -887,6 +889,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          company_id?: string | null
           id?: string
           order_id?: string
           product_id?: string
@@ -896,6 +899,13 @@ export type Database = {
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "order_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]

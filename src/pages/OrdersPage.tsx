@@ -469,7 +469,8 @@ export default function OrdersPage() {
             <Button 
               variant="outline" 
               onClick={() => {
-                window.open('https://pedidos.innsanma.com/pedidos-online', '_blank');
+                const url = window.location.origin + `/pedidos-directos/${user.companyId}`;
+                window.open(url, '_blank');
               }}
               className="gap-2"
             >
