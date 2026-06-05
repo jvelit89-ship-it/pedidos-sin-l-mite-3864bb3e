@@ -53,6 +53,7 @@ export function useSuppliers() {
       const { data, error } = await supabase
         .from('suppliers')
         .select('*')
+        .eq('company_id', user?.companyId)
         .eq('is_active', true)
         .order('name');
 
@@ -69,6 +70,7 @@ export function useSuppliers() {
       const { data, error } = await supabase
         .from('suppliers')
         .select('*')
+        .eq('company_id', user?.companyId)
         .order('name');
 
       if (error) throw error;
