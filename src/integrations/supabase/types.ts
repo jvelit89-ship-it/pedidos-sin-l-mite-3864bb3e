@@ -188,6 +188,13 @@ export type Database = {
             foreignKeyName: "commission_payments_vendedor_id_fkey"
             columns: ["vendedor_id"]
             isOneToOne: false
+            referencedRelation: "public_vendedores_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_payments_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
             referencedRelation: "vendedores"
             referencedColumns: ["id"]
           },
@@ -289,6 +296,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customer_prepaid_packages_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_prepaid_packages_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendedores_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customer_prepaid_packages_vendedor_id_fkey"
             columns: ["vendedor_id"]
             isOneToOne: false
@@ -351,6 +372,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
@@ -422,6 +450,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendedores_view"
             referencedColumns: ["id"]
           },
           {
@@ -689,20 +724,6 @@ export type Database = {
             foreignKeyName: "invoice_requests_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "customer_order_history"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoice_requests_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_tracking"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoice_requests_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -841,20 +862,6 @@ export type Database = {
             foreignKeyName: "order_delivery_pins_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
-            referencedRelation: "customer_order_history"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_delivery_pins_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: true
-            referencedRelation: "order_tracking"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_delivery_pins_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -893,20 +900,6 @@ export type Database = {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "customer_order_history"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_tracking"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -915,6 +908,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
@@ -1033,6 +1033,13 @@ export type Database = {
             foreignKeyName: "orders_vendedor_id_fkey"
             columns: ["vendedor_id"]
             isOneToOne: false
+            referencedRelation: "public_vendedores_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
             referencedRelation: "vendedores"
             referencedColumns: ["id"]
           },
@@ -1120,20 +1127,6 @@ export type Database = {
             foreignKeyName: "prepaid_package_usages_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "customer_order_history"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "prepaid_package_usages_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_tracking"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "prepaid_package_usages_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1183,6 +1176,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_edit_otp_codes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
@@ -1263,6 +1263,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "production_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       production_recipes: {
@@ -1309,10 +1316,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "production_recipes_input_product_id_fkey"
+            columns: ["input_product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "production_recipes_output_product_id_fkey"
             columns: ["output_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_recipes_output_product_id_fkey"
+            columns: ["output_product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
@@ -1358,6 +1379,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_waste_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
@@ -1514,6 +1542,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
           {
@@ -1756,6 +1791,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       suppliers: {
@@ -1877,6 +1919,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_extra_load_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
@@ -2037,47 +2086,80 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-        ]
-      }
-    }
-    Views: {
-      customer_order_history: {
-        Row: {
-          created_at: string | null
-          customer_id: string | null
-          customer_name: string | null
-          customer_phone: string | null
-          delivered_at: string | null
-          id: string | null
-          status: Database["public"]["Enums"]["order_status"] | null
-          total: number | null
-          tracking_code: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "orders_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "volume_pricing_rules_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "public_products_view"
             referencedColumns: ["id"]
           },
         ]
       }
-      order_tracking: {
+    }
+    Views: {
+      public_products_view: {
         Row: {
-          created_at: string | null
-          customer_name: string | null
-          customer_phone: string | null
-          delivered_at: string | null
-          delivery_address: string | null
+          company_id: string | null
           id: string | null
-          repartidor_name: string | null
-          status: Database["public"]["Enums"]["order_status"] | null
-          total: number | null
-          tracking_code: string | null
-          updated_at: string | null
+          image_url: string | null
+          name: string | null
+          price: number | null
+          product_type: string | null
+          stock: number | null
         }
-        Relationships: []
+        Insert: {
+          company_id?: string | null
+          id?: string | null
+          image_url?: string | null
+          name?: string | null
+          price?: number | null
+          product_type?: string | null
+          stock?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          id?: string | null
+          image_url?: string | null
+          name?: string | null
+          price?: number | null
+          product_type?: string | null
+          stock?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_vendedores_view: {
+        Row: {
+          company_id: string | null
+          id: string | null
+          name: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendedores_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
