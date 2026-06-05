@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
 import { handleError } from '@/lib/error-handler';
-
-
+import { useAuth } from '@/contexts/AuthContext';
 import { OrderStatus } from '@/types';
 
 interface Order {
