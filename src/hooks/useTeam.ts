@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateTeamUserParams {
   email: string;
@@ -61,7 +62,9 @@ async function getUserCompanyId(): Promise<string | null> {
 }
 
 export function useVendedores() {
+  const { user } = useAuth();
   const { data: vendedores, loading, error, refetch } = useRealtimeQuery<Vendedor>('vendedores', {
+    filter: user?.companyId ? [{ column: 'company_id', value: user.companyId }] : undefined,
     orderBy: { column: 'name', ascending: true },
   });
 
@@ -155,7 +158,9 @@ export function useVendedores() {
 }
 
 export function useRepartidores() {
+  const { user } = useAuth();
   const { data: repartidores, loading, error, refetch } = useRealtimeQuery<Repartidor>('repartidores', {
+    filter: user?.companyId ? [{ column: 'company_id', value: user.companyId }] : undefined,
     orderBy: { column: 'name', ascending: true },
   });
 
@@ -250,7 +255,9 @@ export function useRepartidores() {
 
 // Operarios hook
 export function useOperarios() {
+  const { user } = useAuth();
   const { data: operarios, loading, error, refetch } = useRealtimeQuery<Operario>('operarios', {
+    filter: user?.companyId ? [{ column: 'company_id', value: user.companyId }] : undefined,
     orderBy: { column: 'name', ascending: true },
   });
 

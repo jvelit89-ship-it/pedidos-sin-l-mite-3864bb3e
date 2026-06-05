@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
 import { handleError } from '@/lib/error-handler';
-
-
+import { useAuth } from '@/contexts/AuthContext';
 import { OrderStatus } from '@/types';
 
 interface Order {
@@ -49,8 +48,10 @@ interface OrderWithItems extends Order {
 }
 
 export function useOrders() {
+  const { user } = useAuth();
   const { data: orders, loading, error, refetch } = useRealtimeQuery<OrderWithItems>('orders', {
     select: '*, order_items(*), customers(customer_type, phone)',
+    filter: user?.companyId ? [{ column: 'company_id', value: user.companyId }] : undefined,
     orderBy: { column: 'created_at', ascending: false },
   });
 
