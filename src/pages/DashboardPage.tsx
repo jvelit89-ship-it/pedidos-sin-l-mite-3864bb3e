@@ -39,6 +39,8 @@ import { PendingProductionPanel } from '@/components/PendingProductionPanel';
 import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPanel';
 import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
+import { DeliveryGeostatistics } from '@/components/dashboard/DeliveryGeostatistics';
+
 
 export default function DashboardPage() {
   const { orders, loading } = useOrders();
@@ -235,8 +237,12 @@ export default function DashboardPage() {
             <AllRepartidoresLoad loads={allRepartidoresLoad} />
           </div>
 
+          {/* Delivery Statistics & Map */}
+          <DeliveryGeostatistics orders={orders} />
+
           {/* Stuck Deliveries Panel */}
           <StuckDeliveriesPanel />
+
 
           {/* Invoice Requests Panel */}
           <InvoiceRequestsPanel />
