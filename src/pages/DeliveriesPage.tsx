@@ -350,6 +350,7 @@ export default function DeliveriesPage() {
       additionalUpdates.delivery_latitude = deliveryLocation.lat;
       additionalUpdates.delivery_longitude = deliveryLocation.lng;
     }
+
     
     await handleStatusUpdate(orderToConfirm.id, 'delivered');
     
