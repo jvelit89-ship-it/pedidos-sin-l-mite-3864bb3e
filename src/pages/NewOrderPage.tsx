@@ -183,6 +183,14 @@ export default function NewOrderPage() {
       // Auto-populate document if available
       if (customer.document_id) {
         setDocumentNumber(customer.document_id);
+        // Pre-fill document data from customer record
+        setDocumentData({
+          nombre: customer.name,
+          razon_social: customer.business_name,
+          direccion: customer.address || '',
+          verified: true
+        });
+
         // Infer type: 11 digits is RUC, 8 digits is DNI
         if (customer.document_id.length === 11) {
           setDocumentType('ruc');
