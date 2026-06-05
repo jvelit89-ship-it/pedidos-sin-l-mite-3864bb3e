@@ -834,11 +834,9 @@ export default function NewOrderPage() {
                 value={receiptType}
                 onValueChange={(value) => {
                   setReceiptType(value as 'ticket' | 'boleta' | 'factura');
-                  // Reset document data when changing receipt type
-                  if (value === 'ticket') {
-                    setDocumentNumber('');
-                    setDocumentData(null);
-                  }
+                  // No longer resetting document data when changing receipt type 
+                  // to maintain the DNI/RUC requirement
+
                 }}
                 className="flex gap-4"
               >
