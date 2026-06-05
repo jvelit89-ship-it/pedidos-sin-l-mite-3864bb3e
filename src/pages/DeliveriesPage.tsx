@@ -345,11 +345,24 @@ export default function DeliveriesPage() {
     }
 
 
-    const additionalUpdates: any = {};
-    if (deliveryLocation) {
-      additionalUpdates.delivery_latitude = deliveryLocation.lat;
-      additionalUpdates.delivery_longitude = deliveryLocation.lng;
+    // Prepare location data
+    let locData = deliveryLocation;
+    
+    // If we don't have location yet, try one last time (quick check)
+    if (!locData && "geolocation" in navigator) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+        });
+        locData = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        };
+      } catch (e) {
+        console.log("Final location attempt failed");
+      }
     }
+
 
     
     await handleStatusUpdate(orderToConfirm.id, 'delivered');
