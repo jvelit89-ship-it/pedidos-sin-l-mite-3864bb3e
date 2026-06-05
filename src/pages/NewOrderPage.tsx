@@ -179,6 +179,19 @@ export default function NewOrderPage() {
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
       setDeliveryAddress(customer.address || '');
+      
+      // Auto-populate document if available
+      if (customer.document_id) {
+        setDocumentNumber(customer.document_id);
+        // Infer type: 11 digits is RUC, 8 digits is DNI
+        if (customer.document_id.length === 11) {
+          setDocumentType('ruc');
+          setReceiptType('factura');
+        } else if (customer.document_id.length === 8) {
+          setDocumentType('dni');
+          setReceiptType('boleta');
+        }
+      }
     }
     // Clear prepaid balances when customer changes
     setPrepaidBalances({});
