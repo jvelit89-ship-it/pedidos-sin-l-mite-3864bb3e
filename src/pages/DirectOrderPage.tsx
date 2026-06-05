@@ -72,36 +72,24 @@ export default function DirectOrderPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        let currentCompanyId = companyId;
-        
-        // If no companyId, get the first one
-        if (!currentCompanyId) {
-          const { data: firstCompany } = await supabase.from('companies').select('id').limit(1).single();
-          if (firstCompany) {
-            currentCompanyId = firstCompany.id;
-          }
+        const { data, error } = await supabase.functions.invoke('public-online-order', {
+          body: { action: 'init', companyId: companyId || null }
+        });
+        if (error || !data || data.error) {
+          console.error('Error fetching data:', error || data?.error);
+          return;
         }
-
-        if (!currentCompanyId) return;
-
-        const [compRes, prodRes, vendRes, rulesRes] = await Promise.all([
-          supabase.from('companies').select('id, name').eq('id', currentCompanyId).single(),
-          supabase.from('products').select('id, name, price, stock, image_url').eq('company_id', currentCompanyId).eq('product_type', 'final'),
-          supabase.from('vendedores').select('id, name').eq('company_id', currentCompanyId).eq('active', true),
-          supabase.from('volume_pricing_rules').select('*').eq('company_id', currentCompanyId).eq('is_active', true)
-        ]);
-        
-        if (compRes.data) setCompany(compRes.data);
-        if (prodRes.data) setProducts(prodRes.data);
-        if (vendRes.data) setVendedores(vendRes.data);
-        if (rulesRes.data) setPricingRules(rulesRes.data);
+        if (data.company) setCompany(data.company);
+        setProducts(data.products || []);
+        setVendedores(data.vendedores || []);
+        setPricingRules(data.pricingRules || []);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     }
-    
+
     fetchData();
     document.title = "Pedidos Online | Agua Santa Maria y Ecohielo";
   }, [companyId]);
@@ -113,24 +101,20 @@ export default function DirectOrderPage() {
 
     setLoading(true);
     try {
-      // 1. First search in our database
-      const { data: localCustomer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('document_id', val)
-        .maybeSingle();
+      const currentCompanyId = companyId || company?.id;
+      if (!currentCompanyId) {
+        toast.error('Empresa no configurada');
+        return;
+      }
 
-      if (localCustomer) {
-        setCustomer(localCustomer);
-        
-        // Fetch specific prices for this customer
-        const { data: specPrices } = await supabase
-          .from('customer_product_prices')
-          .select('*')
-          .eq('customer_id', localCustomer.id)
-          .eq('is_active', true);
-        
-        if (specPrices) setCustomerPrices(specPrices);
+      // 1. Lookup in our database via secure edge function
+      const { data: lookupData } = await supabase.functions.invoke('public-online-order', {
+        body: { action: 'lookup', documentId: val, companyId: currentCompanyId }
+      });
+
+      if (lookupData?.customer) {
+        setCustomer(lookupData.customer);
+        setCustomerPrices(lookupData.prices || []);
         toast.success('Cliente encontrado');
         setStep(2);
       } else {
@@ -142,22 +126,22 @@ export default function DirectOrderPage() {
 
         if (!docError && docData?.success) {
           const result = docData.data;
-          setCustomer({ 
-            document_id: val, 
-            name: result.razon_social || result.nombre || '', 
-            phone: '', 
-            address: result.direccion || '', 
-            company_id: companyId,
+          setCustomer({
+            document_id: val,
+            name: result.razon_social || result.nombre || '',
+            phone: '',
+            address: result.direccion || '',
+            company_id: currentCompanyId,
             customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
           });
           toast.success('Datos recuperados automáticamente');
         } else {
-          setCustomer({ 
-            document_id: val, 
-            name: '', 
-            phone: '', 
-            address: '', 
-            company_id: companyId,
+          setCustomer({
+            document_id: val,
+            name: '',
+            phone: '',
+            address: '',
+            company_id: currentCompanyId,
             customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
           });
         }
