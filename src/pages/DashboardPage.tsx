@@ -237,8 +237,12 @@ export default function DashboardPage() {
             <AllRepartidoresLoad loads={allRepartidoresLoad} />
           </div>
 
+          {/* Delivery Statistics & Map */}
+          <DeliveryGeostatistics orders={orders} />
+
           {/* Stuck Deliveries Panel */}
           <StuckDeliveriesPanel />
+
 
           {/* Invoice Requests Panel */}
           <InvoiceRequestsPanel />
