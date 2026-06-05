@@ -179,6 +179,27 @@ export default function NewOrderPage() {
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
       setDeliveryAddress(customer.address || '');
+      
+      // Auto-populate document if available
+      if (customer.document_id) {
+        setDocumentNumber(customer.document_id);
+        // Pre-fill document data from customer record
+        setDocumentData({
+          nombre: customer.name,
+          razon_social: customer.business_name,
+          direccion: customer.address || '',
+          verified: true
+        });
+
+        // Infer type: 11 digits is RUC, 8 digits is DNI
+        if (customer.document_id.length === 11) {
+          setDocumentType('ruc');
+          setReceiptType('factura');
+        } else if (customer.document_id.length === 8) {
+          setDocumentType('dni');
+          setReceiptType('boleta');
+        }
+      }
     }
     // Clear prepaid balances when customer changes
     setPrepaidBalances({});
@@ -466,6 +487,14 @@ export default function NewOrderPage() {
       }, items);
 
       if (orderData) {
+        // Update customer with document ID if they don't have one or if it changed
+        if (selectedCustomerId && documentNumber && (customer.document_id !== documentNumber)) {
+          await supabase
+            .from('customers')
+            .update({ document_id: documentNumber })
+            .eq('id', selectedCustomerId);
+        }
+
         // Store PIN and phone for WhatsApp sharing
         const orderPin = (orderData as any).delivery_pin;
         setCurrentOrderPin(orderPin);
@@ -821,11 +850,9 @@ export default function NewOrderPage() {
                 value={receiptType}
                 onValueChange={(value) => {
                   setReceiptType(value as 'ticket' | 'boleta' | 'factura');
-                  // Reset document data when changing receipt type
-                  if (value === 'ticket') {
-                    setDocumentNumber('');
-                    setDocumentData(null);
-                  }
+                  // No longer resetting document data when changing receipt type 
+                  // to maintain the DNI/RUC requirement
+
                 }}
                 className="flex gap-4"
               >
