@@ -479,6 +479,14 @@ export default function NewOrderPage() {
       }, items);
 
       if (orderData) {
+        // Update customer with document ID if they don't have one or if it changed
+        if (selectedCustomerId && documentNumber && (customer.document_id !== documentNumber)) {
+          await supabase
+            .from('customers')
+            .update({ document_id: documentNumber })
+            .eq('id', selectedCustomerId);
+        }
+
         // Store PIN and phone for WhatsApp sharing
         const orderPin = (orderData as any).delivery_pin;
         setCurrentOrderPin(orderPin);
