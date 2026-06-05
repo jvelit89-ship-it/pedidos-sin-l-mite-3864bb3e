@@ -384,27 +384,35 @@ export default function DirectOrderPage() {
                     >RUC</Button>
                   </div>
                   <div className="space-y-2">
-                    <Label>Número de {documentType.toUpperCase()}</Label>
-                    <div className="relative">
+                    <Label className="text-sm font-semibold text-slate-700">Número de {documentType.toUpperCase()}</Label>
+                    <div className="relative group">
                       <Input 
                         placeholder={`Ej: ${documentType === 'dni' ? '12345678' : '20123456789'}`} 
                         value={documentNumber} 
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '');
                           setDocumentNumber(val);
-                          if ((documentType === 'dni' && val.length === 8) || (documentType === 'ruc' && val.length === 11)) {
-                            // Automatically trigger search when length is reached
+                          const expectedLen = documentType === 'dni' ? 8 : 11;
+                          if (val.length === expectedLen) {
+                            // Automatically trigger search when correct length is reached
                             setTimeout(() => findCustomerByValue(val), 100);
                           }
                         }}
-                        className="h-12 text-lg font-mono pl-10"
+                        className="h-14 text-xl font-mono pl-12 border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all rounded-2xl shadow-sm"
                         maxLength={documentType === 'dni' ? 8 : 11}
+                        required
                       />
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
                     </div>
                   </div>
-                  <Button className="w-full h-12 text-lg font-semibold mt-4" onClick={findCustomer} disabled={loading || !documentNumber}>
-                    {loading ? <Loader2 className="animate-spin" /> : 'Continuar'}
+                  <Button 
+                    className="w-full h-14 text-lg font-bold mt-4 shadow-lg shadow-primary/20 hover:shadow-primary/40 active:scale-[0.98] transition-all rounded-2xl" 
+                    onClick={findCustomer} 
+                    disabled={loading || !documentNumber}
+                  >
+                    {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+                    {loading ? 'Buscando...' : 'Comenzar mi Pedido'}
+                    {!loading && <ArrowRight className="ml-2 w-5 h-5" />}
                   </Button>
                 </CardContent>
               </Card>
