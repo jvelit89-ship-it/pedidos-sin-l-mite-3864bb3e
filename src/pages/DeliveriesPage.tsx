@@ -354,13 +354,22 @@ export default function DeliveriesPage() {
     
     await handleStatusUpdate(orderToConfirm.id, 'delivered');
     
-    // If we have location, update the order with it
+    // Explicitly update location if we have it
     if (deliveryLocation) {
-      await updateOrderStatus(orderToConfirm.id, 'delivered', {
-        delivery_latitude: deliveryLocation.lat,
-        delivery_longitude: deliveryLocation.lng
-      } as any);
+      const { error: locError } = await supabase
+        .from('orders')
+        .update({
+          delivery_latitude: deliveryLocation.lat,
+          delivery_longitude: deliveryLocation.lng,
+          delivery_pin_verified_at: new Date().toISOString()
+        })
+        .eq('id', orderToConfirm.id);
+
+      if (locError) {
+        console.error('Error saving delivery location:', locError);
+      }
     }
+
     
     setOrderToConfirm(null);
     setDeliveryLocation(null);
