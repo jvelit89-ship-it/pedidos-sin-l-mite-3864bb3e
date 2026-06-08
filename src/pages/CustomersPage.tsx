@@ -529,6 +529,13 @@ export default function CustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate DNI/RUC
+    const docId = formData.document_id?.trim() || '';
+    if (docId.length !== 8 && docId.length !== 11) {
+      toast.error('DNI debe tener 8 dígitos y RUC 11 dígitos');
+      return;
+    }
+
     // Validate phone number (9 digits for Peru)
     if (formData.phone && formData.phone.length !== 9) {
       toast.error(settings.language === 'es' ? 'El teléfono debe tener 9 dígitos' : 'Phone must have 9 digits');

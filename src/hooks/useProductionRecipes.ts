@@ -192,7 +192,7 @@ export function useProductionWaste() {
 
 export function useAdvancedProduction() {
   const { getRecipesForProduct, recipes } = useProductionRecipes();
-  const { user, isAdmin: isUserAdmin } = useAuth();
+  const { user, isAdmin: isUserAdmin, isSuperAdmin } = useAuth();
 
   const produceWithRecipe = useCallback(async (
     outputProductId: string,
@@ -212,8 +212,8 @@ export function useAdvancedProduction() {
       return false;
     }
 
-    // If operario, use pending production flow
-    if (!isUserAdmin) {
+    // If not superadmin, use pending production flow (Admins and Operarios)
+    if (!isSuperAdmin) {
       const { data: { session } } = await supabase.auth.getSession();
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
       const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
