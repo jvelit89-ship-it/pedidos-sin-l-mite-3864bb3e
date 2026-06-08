@@ -75,7 +75,7 @@ export default function InventoryPage() {
   const { recipes } = useProductionRecipes();
   const { submitForApproval, checkDuplicate, pendingCount, submitting: pendingSubmitting, refetch: refetchPending } = usePendingProduction();
   const { formatCurrency, settings, t } = useSettings();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const { data: salesReportData, loading: loadingSalesReport, fetchSalesReport } = useSalesReports();
   const [searchTerm, setSearchTerm] = useState('');
   const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'final' | 'raw_material'>('all');
@@ -236,11 +236,11 @@ export default function InventoryPage() {
     
     let success = false;
     
-    if (isAdmin) {
-      // Admins can register directly
+    if (isSuperAdmin) {
+      // Only SuperAdmins can register directly
       success = await addProduction(selectedProductId, productionQuantity, productionNotes);
-    } else if (isOperario) {
-      // Operarios must submit for approval
+    } else if (isAdmin || isOperario) {
+      // Admins and Operarios must submit for approval
       success = await submitForApproval(selectedProductId, productionQuantity, productionNotes);
     }
     
@@ -329,8 +329,8 @@ export default function InventoryPage() {
   };
 
   const isOperario = user?.role === 'operario';
-  const canViewHistory = isAdmin || isOperario;
-  const canRegisterProduction = isAdmin || isOperario;
+  const canViewHistory = isAdmin || isSuperAdmin || isOperario;
+  const canRegisterProduction = isAdmin || isSuperAdmin || isOperario;
 
   // Filter products for direct production - only final products, exclude those with recipes
   const directProductionProducts = useMemo(() => {

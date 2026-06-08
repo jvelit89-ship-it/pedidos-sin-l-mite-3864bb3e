@@ -23,7 +23,7 @@ export function PendingProductionPanel() {
     deletePending 
   } = usePendingProduction();
   const { products, refetch: refetchProducts } = useProducts();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
@@ -41,8 +41,8 @@ export function PendingProductionPanel() {
   const isOperario = user?.role === 'operario';
 
   const visibleItems = pendingItems.filter((p: any) => {
-    if (isAdmin) {
-      // Admins see everything that is pending or requested for correction
+    if (isAdmin || isSuperAdmin) {
+      // Admins and SuperAdmins see everything that is pending or requested for correction
       return p.status === 'pending' || p.status === 'correction_requested';
     } else if (isOperario) {
       // Operarios see their own items that are pending or need correction
@@ -170,7 +170,7 @@ export function PendingProductionPanel() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className={`h-5 w-5 ${visibleItems.some((i: any) => i.status === 'pending') ? 'text-amber-500' : 'text-blue-500'}`} />
-            {isAdmin ? 'Control de Producción' : 'Mis Solicitudes de Producción'}
+            {(isAdmin || isSuperAdmin) ? 'Control de Producción' : 'Mis Solicitudes de Producción'}
             <Badge variant="secondary" className="ml-2">{visibleItems.length}</Badge>
           </CardTitle>
         </CardHeader>
@@ -195,7 +195,7 @@ export function PendingProductionPanel() {
                   )}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {isAdmin ? (
+                  {(isAdmin || isSuperAdmin) ? (
                     <>Solicitado por: <span className="font-medium">{item.requested_by_name || 'Operario'}</span></>
                   ) : (
                     <span className="capitalize">{item.status === 'pending' ? 'Pendiente' : 'Corregir'}</span>
@@ -216,7 +216,7 @@ export function PendingProductionPanel() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {isAdmin && (
+                {(isAdmin || isSuperAdmin) && (
                   <>
                     <Button
                       size="sm"
