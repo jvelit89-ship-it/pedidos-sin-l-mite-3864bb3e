@@ -234,14 +234,11 @@ export function useProductionHistory(productId?: string) {
       .maybeSingle();
 
     const role = roleData?.role || 'vendedor';
-    const isAdmin = role === 'admin' || role === 'superadmin';
+    const isSuperAdmin = role === 'superadmin';
 
-    // If operario, use pending production flow
-    if (role === 'operario') {
-      // Import and use pending production logic
-      // We can't use the hook here easily, so we'll do the insert directly
-      // Or we can just rely on the UI calling the right function.
-      // But for safety, let's implement it here too.
+    // Everyone except SuperAdmin must use the pending production flow
+    if (!isSuperAdmin) {
+      console.log(`[Production] User role ${role} detected, sending to pending approval`);
       
       const { data: profile } = await supabase
         .from('profiles')
@@ -256,7 +253,7 @@ export function useProductionHistory(productId?: string) {
           quantity,
           notes: notes || null,
           requested_by: user.id,
-          requested_by_name: profile?.name || 'Operario',
+          requested_by_name: profile?.name || 'Usuario',
           company_id: companyId,
           status: 'pending',
         });
@@ -266,8 +263,7 @@ export function useProductionHistory(productId?: string) {
         return false;
       }
 
-
-      toast.success('Producción enviada para aprobación del administrador');
+      toast.success('Producción enviada para aprobación');
       return true;
     }
 
