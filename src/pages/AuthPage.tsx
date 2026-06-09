@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useSupabaseAuth } from '@/hooks/useAuth';
 import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,8 +20,7 @@ const authSchema = z.object({
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, isAuthenticated, loading: authLoading } = useSupabaseAuth();
-  const { user } = useAuth();
+  const { login: signIn, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [loading, setLoading] = useState(false);
   
   // Check if returning from impersonation

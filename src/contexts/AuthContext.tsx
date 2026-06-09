@@ -9,7 +9,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ data: any; error: any }>;
   logout: () => void;
   canAccessRoute: (path: string) => boolean;
   isAdmin: boolean;
@@ -46,19 +46,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = useCallback(async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
+      
       // Fetch profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        return;
+      }
+
       // Fetch role
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .maybeSingle();
+
+      if (roleError) {
+        console.error('Error fetching role:', roleError);
+        // Continue anyway, we'll default to vendedor
+      }
 
       if (profileData) {
         const role = (roleData?.role as UserRole) || 'vendedor';
@@ -103,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         // Profile doesn't exist yet - create one
+        console.log('Profile not found, creating new profile for:', userId);
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
           const { error: insertError } = await supabase
@@ -113,29 +126,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: userData.user.email,
             });
           
-          if (!insertError) {
-            // Set default role
-            await supabase
-              .from('user_roles')
-              .insert({
-                user_id: userId,
-                role: 'vendedor',
-              });
-
-            setUser({
-              id: userId,
-              email: userData.user.email || '',
-              name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario',
-              role: 'vendedor',
-              companyId: null,
-              repartidorId: null,
-              vendedorId: null,
-            });
+          if (insertError) {
+            console.error('Error inserting profile:', insertError);
+            return;
           }
+
+          // Set default role
+          const { error: roleInsertError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: userId,
+              role: 'vendedor',
+            });
+
+          if (roleInsertError) {
+            console.error('Error inserting role:', roleInsertError);
+          }
+
+          setUser({
+            id: userId,
+            email: userData.user.email || '',
+            name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario',
+            role: 'vendedor',
+            companyId: null,
+            repartidorId: null,
+            vendedorId: null,
+            operarioId: null,
+          });
         }
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Unexpected error in fetchUserProfile:', error);
     }
   }, []);
 
@@ -182,18 +203,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchUserProfile]);
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-
-    if (error) {
-      console.error('Login error:', error.message);
-      return false;
-    }
-
-    return !!data.session;
+    return { data, error };
   }, []);
 
   const logout = useCallback(async () => {

@@ -39,6 +39,7 @@ export const handleError = async (error: any, options: ErrorOptions = {}) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // We use the 'logs' table as found in the database
+        // The trigger trg_set_log_company_id will handle company_id automatically
         await supabase.from('logs').insert({
           action: 'ERROR',
           entity: context,
