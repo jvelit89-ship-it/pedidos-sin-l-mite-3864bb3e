@@ -97,10 +97,12 @@ export function InvoiceRequestsPanel() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Get signed URL (private bucket, 1 year expiry)
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('invoices')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+      if (signedError || !signedData) throw signedError || new Error('Signed URL error');
+      const publicUrl = signedData.signedUrl;
 
       // Update invoice request with file URL
       const { error: updateError } = await supabase
