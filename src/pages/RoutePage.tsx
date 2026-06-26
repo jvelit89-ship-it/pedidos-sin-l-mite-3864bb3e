@@ -100,6 +100,10 @@ export default function RoutePage() {
   const { t, formatCurrency } = useSettings();
   const { orders, loading, updateOrderStatus } = useOrders();
   const [optimizedDeliveries, setOptimizedDeliveries] = useState<DeliveryOrder[]>([]);
+  const [orderToConfirm, setOrderToConfirm] = useState<DeliveryOrder | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Filter to only ready and in-delivery orders for repartidores
   const deliveries = orders.filter(o => {
