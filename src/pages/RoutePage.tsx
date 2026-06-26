@@ -309,7 +309,7 @@ export default function RoutePage() {
                     {order.status === 'delivery' && (
                       <Button
                         size="sm"
-                        onClick={() => handleStatusUpdate(order.id, 'delivered')}
+                        onClick={() => requestDelivery(order)}
                         className="gap-1 bg-status-delivered hover:bg-status-delivered/90"
                       >
                         <CheckCircle2 className="w-4 h-4" />
@@ -323,6 +323,70 @@ export default function RoutePage() {
           </Card>
         </>
       )}
+
+      <Dialog
+        open={!!orderToConfirm}
+        onOpenChange={(open) => {
+          if (!open && !isVerifying) {
+            setOrderToConfirm(null);
+            setPinInput('');
+            setPinError(false);
+          }
+        }}
+      >
+        <DialogContent
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5" /> Confirmar entrega
+            </DialogTitle>
+            <DialogDescription>
+              Solicita al cliente <strong>{orderToConfirm?.customer_name}</strong> su código PIN de entrega para confirmar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="route-pin" className={pinError ? 'text-destructive' : ''}>
+              Código PIN del cliente
+            </Label>
+            <Input
+              id="route-pin"
+              inputMode="numeric"
+              autoFocus
+              maxLength={6}
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value.replace(/\D/g, ''));
+                setPinError(false);
+              }}
+              onFocus={(e) => e.target.select()}
+              className={`text-center text-2xl tracking-[0.5em] font-bold h-14 ${pinError ? 'border-destructive ring-destructive' : ''}`}
+              placeholder="••••"
+            />
+            {pinError && (
+              <p className="text-sm text-destructive">PIN inválido. Verifica el código con el cliente.</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOrderToConfirm(null);
+                setPinInput('');
+                setPinError(false);
+              }}
+              disabled={isVerifying}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDelivery} disabled={isVerifying || !pinInput}>
+              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
