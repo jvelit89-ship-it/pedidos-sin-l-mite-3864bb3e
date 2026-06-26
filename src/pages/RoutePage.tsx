@@ -127,6 +127,74 @@ export default function RoutePage() {
     toast.success(newStatus === 'delivered' ? '¡Entrega completada!' : 'En camino');
   };
 
+  const requestDelivery = (order: DeliveryOrder) => {
+    setPinInput('');
+    setPinError(false);
+    setOrderToConfirm(order);
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!orderToConfirm) return;
+    if (pinInput.length !== 4 && pinInput.length !== 6) {
+      setPinError(true);
+      toast.error('Ingresa el código PIN del cliente');
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      const { data: isPinValid, error: pinErr } = await supabase.rpc('verify_order_pin', {
+        p_order_id: orderToConfirm.id,
+        p_pin: pinInput,
+      });
+      if (pinErr) throw pinErr;
+      if (!isPinValid) {
+        setPinError(true);
+        toast.error('PIN incorrecto', { description: 'El código ingresado no es válido para este pedido.' });
+        return;
+      }
+
+      // Capture delivery location if available
+      let locData: { lat: number; lng: number } | null = null;
+      if ('geolocation' in navigator) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000, enableHighAccuracy: true });
+          });
+          locData = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        } catch (e) {
+          console.log('No se pudo obtener ubicación');
+        }
+      }
+
+      await handleStatusUpdate(orderToConfirm.id, 'delivered');
+
+      if (locData) {
+        await supabase
+          .from('orders')
+          .update({
+            delivery_latitude: locData.lat,
+            delivery_longitude: locData.lng,
+            delivery_pin_verified_at: new Date().toISOString(),
+          })
+          .eq('id', orderToConfirm.id);
+      } else {
+        await supabase
+          .from('orders')
+          .update({ delivery_pin_verified_at: new Date().toISOString() })
+          .eq('id', orderToConfirm.id);
+      }
+
+      setOrderToConfirm(null);
+      setPinInput('');
+      setPinError(false);
+    } catch (err) {
+      console.error('Error verifying PIN:', err);
+      toast.error('Error al verificar el PIN');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const openNavigation = (order: DeliveryOrder) => {
     if (order.customer_latitude && order.customer_longitude) {
       window.open(
