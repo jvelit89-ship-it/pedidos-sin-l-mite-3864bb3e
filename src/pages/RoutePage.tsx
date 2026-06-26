@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useOrders } from '@/hooks/useOrders';
 import { MapView } from '@/components/MapView';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   Route, 
@@ -15,7 +19,8 @@ import {
   Truck, 
   RefreshCw,
   ExternalLink,
-  Loader2
+  Loader2,
+  KeyRound
 } from 'lucide-react';
 
 interface DeliveryOrder {
@@ -95,6 +100,10 @@ export default function RoutePage() {
   const { t, formatCurrency } = useSettings();
   const { orders, loading, updateOrderStatus } = useOrders();
   const [optimizedDeliveries, setOptimizedDeliveries] = useState<DeliveryOrder[]>([]);
+  const [orderToConfirm, setOrderToConfirm] = useState<DeliveryOrder | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Filter to only ready and in-delivery orders for repartidores
   const deliveries = orders.filter(o => {
@@ -116,6 +125,68 @@ export default function RoutePage() {
   const handleStatusUpdate = async (orderId: string, newStatus: 'delivery' | 'delivered') => {
     await updateOrderStatus(orderId, newStatus);
     toast.success(newStatus === 'delivered' ? '¡Entrega completada!' : 'En camino');
+  };
+
+  const requestDelivery = (order: DeliveryOrder) => {
+    setPinInput('');
+    setPinError(false);
+    setOrderToConfirm(order);
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!orderToConfirm) return;
+    if (pinInput.length !== 4 && pinInput.length !== 6) {
+      setPinError(true);
+      toast.error('Ingresa el código PIN del cliente');
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      const { data: isPinValid, error: pinErr } = await supabase.rpc('verify_order_pin', {
+        p_order_id: orderToConfirm.id,
+        p_pin: pinInput,
+      });
+      if (pinErr) throw pinErr;
+      if (!isPinValid) {
+        setPinError(true);
+        toast.error('PIN incorrecto', { description: 'El código ingresado no es válido para este pedido.' });
+        return;
+      }
+
+      // Capture delivery location if available
+      let locData: { lat: number; lng: number } | null = null;
+      if ('geolocation' in navigator) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000, enableHighAccuracy: true });
+          });
+          locData = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        } catch (e) {
+          console.log('No se pudo obtener ubicación');
+        }
+      }
+
+      await handleStatusUpdate(orderToConfirm.id, 'delivered');
+
+      if (locData) {
+        await supabase
+          .from('orders')
+          .update({
+            delivery_latitude: locData.lat,
+            delivery_longitude: locData.lng,
+          })
+          .eq('id', orderToConfirm.id);
+      }
+
+      setOrderToConfirm(null);
+      setPinInput('');
+      setPinError(false);
+    } catch (err) {
+      console.error('Error verifying PIN:', err);
+      toast.error('Error al verificar el PIN');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const openNavigation = (order: DeliveryOrder) => {
@@ -238,7 +309,7 @@ export default function RoutePage() {
                     {order.status === 'delivery' && (
                       <Button
                         size="sm"
-                        onClick={() => handleStatusUpdate(order.id, 'delivered')}
+                        onClick={() => requestDelivery(order)}
                         className="gap-1 bg-status-delivered hover:bg-status-delivered/90"
                       >
                         <CheckCircle2 className="w-4 h-4" />
@@ -252,6 +323,70 @@ export default function RoutePage() {
           </Card>
         </>
       )}
+
+      <Dialog
+        open={!!orderToConfirm}
+        onOpenChange={(open) => {
+          if (!open && !isVerifying) {
+            setOrderToConfirm(null);
+            setPinInput('');
+            setPinError(false);
+          }
+        }}
+      >
+        <DialogContent
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5" /> Confirmar entrega
+            </DialogTitle>
+            <DialogDescription>
+              Solicita al cliente <strong>{orderToConfirm?.customer_name}</strong> su código PIN de entrega para confirmar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="route-pin" className={pinError ? 'text-destructive' : ''}>
+              Código PIN del cliente
+            </Label>
+            <Input
+              id="route-pin"
+              inputMode="numeric"
+              autoFocus
+              maxLength={6}
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value.replace(/\D/g, ''));
+                setPinError(false);
+              }}
+              onFocus={(e) => e.target.select()}
+              className={`text-center text-2xl tracking-[0.5em] font-bold h-14 ${pinError ? 'border-destructive ring-destructive' : ''}`}
+              placeholder="••••"
+            />
+            {pinError && (
+              <p className="text-sm text-destructive">PIN inválido. Verifica el código con el cliente.</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOrderToConfirm(null);
+                setPinInput('');
+                setPinError(false);
+              }}
+              disabled={isVerifying}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDelivery} disabled={isVerifying || !pinInput}>
+              {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
