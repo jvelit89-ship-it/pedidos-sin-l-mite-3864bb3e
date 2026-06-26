@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useOrders } from '@/hooks/useOrders';
 import { MapView } from '@/components/MapView';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   Route, 
@@ -15,7 +19,8 @@ import {
   Truck, 
   RefreshCw,
   ExternalLink,
-  Loader2
+  Loader2,
+  KeyRound
 } from 'lucide-react';
 
 interface DeliveryOrder {
