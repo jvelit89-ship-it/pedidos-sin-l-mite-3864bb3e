@@ -174,13 +174,7 @@ export default function RoutePage() {
           .update({
             delivery_latitude: locData.lat,
             delivery_longitude: locData.lng,
-            delivery_pin_verified_at: new Date().toISOString(),
           })
-          .eq('id', orderToConfirm.id);
-      } else {
-        await supabase
-          .from('orders')
-          .update({ delivery_pin_verified_at: new Date().toISOString() })
           .eq('id', orderToConfirm.id);
       }
 
