@@ -671,12 +671,15 @@ export default function CustomersPage() {
     return vendedor?.name || null;
   };
 
+  const getTier = (id: string): ActivityTier => activityMap[id]?.tier ?? classifyActivity(0);
+
   const filtered = customers.filter((c: Customer) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
       (c.phone?.includes(searchTerm) ?? false);
     const matchesType = customerTypeFilter === 'all' || c.customer_type === customerTypeFilter;
-    return matchesSearch && matchesType;
+    const matchesActivity = activityFilter === 'all' || getTier(c.id) === activityFilter;
+    return matchesSearch && matchesType && matchesActivity;
   });
 
   const customerTypeCounts = {
@@ -684,6 +687,12 @@ export default function CustomersPage() {
     minorista: customers.filter((c: Customer) => c.customer_type === 'minorista').length,
     mayorista: customers.filter((c: Customer) => c.customer_type === 'mayorista').length,
     distribuidor: customers.filter((c: Customer) => c.customer_type === 'distribuidor').length,
+  };
+
+  const activityCounts = {
+    green: customers.filter((c: Customer) => getTier(c.id) === 'green').length,
+    yellow: customers.filter((c: Customer) => getTier(c.id) === 'yellow').length,
+    red: customers.filter((c: Customer) => getTier(c.id) === 'red').length,
   };
 
   return (
