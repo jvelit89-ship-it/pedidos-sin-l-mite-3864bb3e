@@ -628,7 +628,7 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setFormData({
       name: customer.name,
-      document_id: customer.document_id || '',
+      document_id: customer.document_id && !customer.document_id.startsWith('MISSING-') ? customer.document_id : '',
       business_name: customer.business_name || '',
       phone: customer.phone || '',
       address: customer.address || '',
