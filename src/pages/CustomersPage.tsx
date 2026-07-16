@@ -1183,6 +1183,58 @@ export default function CustomersPage() {
               </span>
             </Button>
           </div>
+
+          {/* Activity Color Filters (últimos 90 días de pedidos entregados) */}
+          <div className="flex flex-wrap gap-2 pt-1 border-t">
+            <span className="text-xs text-muted-foreground self-center mr-1">Actividad:</span>
+            <Button
+              variant={activityFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('all')}
+              className="gap-1.5"
+            >
+              Todos
+            </Button>
+            <Button
+              variant={activityFilter === 'green' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('green')}
+              className="gap-1.5"
+              title="10+ pedidos entregados en 90 días"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              Alto
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {activityCounts.green}
+              </span>
+            </Button>
+            <Button
+              variant={activityFilter === 'yellow' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('yellow')}
+              className="gap-1.5"
+              title="3-9 pedidos entregados en 90 días"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+              Medio
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {activityCounts.yellow}
+              </span>
+            </Button>
+            <Button
+              variant={activityFilter === 'red' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('red')}
+              className="gap-1.5"
+              title="0-2 pedidos entregados en 90 días"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              Bajo / Inactivo
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {activityCounts.red}
+              </span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
