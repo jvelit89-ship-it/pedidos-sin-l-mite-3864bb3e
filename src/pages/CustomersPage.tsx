@@ -1322,10 +1322,16 @@ export default function CustomersPage() {
                       </div>
                       <div className="mt-1 space-y-1 text-sm text-muted-foreground">
                         <div className="flex flex-wrap gap-x-3 gap-y-1">
-                          {c.document_id && (
+                          {c.document_id && !c.document_id.startsWith('MISSING-') && (
                             <div className="flex items-center gap-1.5">
                               <CreditCard className="w-3.5 h-3.5" />
                               {c.document_id}
+                            </div>
+                          )}
+                          {c.document_id?.startsWith('MISSING-') && (
+                            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400" title="Cliente antiguo sin DNI/RUC registrado. Edítalo para completar el documento.">
+                              <CreditCard className="w-3.5 h-3.5" />
+                              Sin DNI/RUC
                             </div>
                           )}
                           {c.phone && (
