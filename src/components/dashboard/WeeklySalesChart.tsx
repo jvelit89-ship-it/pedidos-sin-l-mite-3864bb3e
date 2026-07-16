@@ -66,7 +66,7 @@ export function WeeklySalesChart() {
         const { data, error } = await supabase
           .from('orders')
           .select('id, delivered_at, created_at, vendedor_name, status, company_id, order_items(product_id, product_name, quantity, unit_price, total)')
-          .eq('company_id', user.company_id)
+          .eq('company_id', user.companyId)
           .eq('status', 'delivered')
           .gte('delivered_at', from.toISOString())
           .lte('delivered_at', to.toISOString());
