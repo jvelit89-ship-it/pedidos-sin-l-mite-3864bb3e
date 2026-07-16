@@ -23,6 +23,7 @@ import { DistributorCreditsManager } from '@/components/DistributorCreditsManage
 import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { PrepaidPackagesManager } from '@/components/PrepaidPackagesManager';
 import { SecureImage } from '@/components/SecureImage';
+import { useCustomerActivity, classifyActivity, ActivityTier } from '@/hooks/useCustomerActivity';
 
 
 interface Customer {
@@ -55,6 +56,8 @@ export default function CustomersPage() {
   const { searchAddress, reverseGeocode } = useGeocoding();
   const [searchTerm, setSearchTerm] = useState('');
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | ActivityTier>('all');
+  const { activity: activityMap } = useCustomerActivity();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isTopCustomersOpen, setIsTopCustomersOpen] = useState(false);
@@ -668,12 +671,15 @@ export default function CustomersPage() {
     return vendedor?.name || null;
   };
 
+  const getTier = (id: string): ActivityTier => activityMap[id]?.tier ?? classifyActivity(0);
+
   const filtered = customers.filter((c: Customer) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
       (c.phone?.includes(searchTerm) ?? false);
     const matchesType = customerTypeFilter === 'all' || c.customer_type === customerTypeFilter;
-    return matchesSearch && matchesType;
+    const matchesActivity = activityFilter === 'all' || getTier(c.id) === activityFilter;
+    return matchesSearch && matchesType && matchesActivity;
   });
 
   const customerTypeCounts = {
@@ -681,6 +687,12 @@ export default function CustomersPage() {
     minorista: customers.filter((c: Customer) => c.customer_type === 'minorista').length,
     mayorista: customers.filter((c: Customer) => c.customer_type === 'mayorista').length,
     distribuidor: customers.filter((c: Customer) => c.customer_type === 'distribuidor').length,
+  };
+
+  const activityCounts = {
+    green: customers.filter((c: Customer) => getTier(c.id) === 'green').length,
+    yellow: customers.filter((c: Customer) => getTier(c.id) === 'yellow').length,
+    red: customers.filter((c: Customer) => getTier(c.id) === 'red').length,
   };
 
   return (
@@ -1171,6 +1183,58 @@ export default function CustomersPage() {
               </span>
             </Button>
           </div>
+
+          {/* Activity Color Filters (últimos 90 días de pedidos entregados) */}
+          <div className="flex flex-wrap gap-2 pt-1 border-t">
+            <span className="text-xs text-muted-foreground self-center mr-1">Actividad:</span>
+            <Button
+              variant={activityFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('all')}
+              className="gap-1.5"
+            >
+              Todos
+            </Button>
+            <Button
+              variant={activityFilter === 'green' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('green')}
+              className="gap-1.5"
+              title="10+ pedidos entregados en 90 días"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              Alto
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {activityCounts.green}
+              </span>
+            </Button>
+            <Button
+              variant={activityFilter === 'yellow' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('yellow')}
+              className="gap-1.5"
+              title="3-9 pedidos entregados en 90 días"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+              Medio
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {activityCounts.yellow}
+              </span>
+            </Button>
+            <Button
+              variant={activityFilter === 'red' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivityFilter('red')}
+              className="gap-1.5"
+              title="0-2 pedidos entregados en 90 días"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              Bajo / Inactivo
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-background/20">
+                {activityCounts.red}
+              </span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -1218,6 +1282,19 @@ export default function CustomersPage() {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {(() => {
+                          const info = activityMap[c.id];
+                          const tier = info?.tier ?? 'red';
+                          const count = info?.count ?? 0;
+                          const dotColor = tier === 'green' ? 'bg-green-500' : tier === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
+                          const label = tier === 'green' ? 'Cliente activo alto' : tier === 'yellow' ? 'Cliente activo medio' : 'Cliente bajo/inactivo';
+                          return (
+                            <span
+                              className={`w-2.5 h-2.5 rounded-full ${dotColor} flex-shrink-0`}
+                              title={`${label} — ${count} pedidos (90d)`}
+                            />
+                          );
+                        })()}
                         <p className="font-semibold truncate">{c.name}</p>
                         {c.customer_type === 'mayorista' && (
                           <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
