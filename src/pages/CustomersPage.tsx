@@ -24,6 +24,7 @@ import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { PrepaidPackagesManager } from '@/components/PrepaidPackagesManager';
 import { SecureImage } from '@/components/SecureImage';
 import { useCustomerActivity, classifyActivity, ActivityTier } from '@/hooks/useCustomerActivity';
+import { useProducts } from '@/hooks/useProducts';
 
 
 interface Customer {
@@ -57,7 +58,11 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | ActivityTier>('all');
+  const [vendedorFilter, setVendedorFilter] = useState<string>('all');
+  const [productFilter, setProductFilter] = useState<string>('all');
+  const [customersByProduct, setCustomersByProduct] = useState<Record<string, Set<string>>>({});
   const { activity: activityMap } = useCustomerActivity();
+  const { products } = useProducts();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isTopCustomersOpen, setIsTopCustomersOpen] = useState(false);
@@ -673,13 +678,40 @@ export default function CustomersPage() {
 
   const getTier = (id: string): ActivityTier => activityMap[id]?.tier ?? classifyActivity(0);
 
+  // Load customer→products purchase map once (for product filter)
+  useEffect(() => {
+    if (!user?.companyId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('product_id, orders!inner(customer_id, company_id)')
+        .eq('orders.company_id', user.companyId);
+      if (error || cancelled || !data) return;
+      const map: Record<string, Set<string>> = {};
+      for (const row of data as any[]) {
+        const pid = row.product_id;
+        const cid = row.orders?.customer_id;
+        if (!pid || !cid) continue;
+        if (!map[pid]) map[pid] = new Set();
+        map[pid].add(cid);
+      }
+      setCustomersByProduct(map);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.companyId]);
+
   const filtered = customers.filter((c: Customer) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
       (c.phone?.includes(searchTerm) ?? false);
     const matchesType = customerTypeFilter === 'all' || c.customer_type === customerTypeFilter;
     const matchesActivity = activityFilter === 'all' || getTier(c.id) === activityFilter;
-    return matchesSearch && matchesType && matchesActivity;
+    const matchesVendedor = vendedorFilter === 'all' ||
+      (vendedorFilter === 'none' ? !c.vendedor_id : c.vendedor_id === vendedorFilter);
+    const matchesProduct = productFilter === 'all' ||
+      (customersByProduct[productFilter]?.has(c.id) ?? false);
+    return matchesSearch && matchesType && matchesActivity && matchesVendedor && matchesProduct;
   });
 
   const customerTypeCounts = {
@@ -1234,6 +1266,62 @@ export default function CustomersPage() {
                 {activityCounts.red}
               </span>
             </Button>
+          </div>
+
+          {/* Vendedor & Product filters */}
+          <div className="flex flex-wrap gap-3 pt-2 border-t items-center">
+            <div className="flex items-center gap-1.5 min-w-[200px]">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Vendedor" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">Todos los vendedores ({customers.length})</SelectItem>
+                  <SelectItem value="none">
+                    Sin vendedor asignado ({customers.filter((c: Customer) => !c.vendedor_id).length})
+                  </SelectItem>
+                  {vendedores.filter(v => v.active).map(v => {
+                    const count = customers.filter((c: Customer) => c.vendedor_id === v.id).length;
+                    return (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name} ({count})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-[220px]">
+              <Package className="w-3.5 h-3.5 text-muted-foreground" />
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Producto comprado" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">Todos los productos</SelectItem>
+                  {products.map(p => {
+                    const count = customersByProduct[p.id]?.size ?? 0;
+                    return (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} ({count})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {(vendedorFilter !== 'all' || productFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setVendedorFilter('all'); setProductFilter('all'); }}
+                className="gap-1 text-xs"
+              >
+                <X className="w-3 h-3" />
+                Limpiar
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
