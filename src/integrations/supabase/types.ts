@@ -501,6 +501,65 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_location_attempts: {
+        Row: {
+          blocked: boolean
+          company_id: string | null
+          created_at: string
+          customer_lat: number | null
+          customer_lng: number | null
+          customer_name: string | null
+          distance_m: number | null
+          driver_lat: number | null
+          driver_lng: number | null
+          id: string
+          order_id: string
+          reason: string | null
+          repartidor_id: string | null
+          repartidor_name: string | null
+        }
+        Insert: {
+          blocked?: boolean
+          company_id?: string | null
+          created_at?: string
+          customer_lat?: number | null
+          customer_lng?: number | null
+          customer_name?: string | null
+          distance_m?: number | null
+          driver_lat?: number | null
+          driver_lng?: number | null
+          id?: string
+          order_id: string
+          reason?: string | null
+          repartidor_id?: string | null
+          repartidor_name?: string | null
+        }
+        Update: {
+          blocked?: boolean
+          company_id?: string | null
+          created_at?: string
+          customer_lat?: number | null
+          customer_lng?: number | null
+          customer_name?: string | null
+          distance_m?: number | null
+          driver_lat?: number | null
+          driver_lng?: number | null
+          id?: string
+          order_id?: string
+          reason?: string | null
+          repartidor_id?: string | null
+          repartidor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_location_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distributor_credit_usage: {
         Row: {
           company_id: string
@@ -941,6 +1000,7 @@ export type Database = {
           delivered_at: string | null
           delivery_address: string | null
           delivery_date: string | null
+          delivery_distance_m: number | null
           delivery_latitude: number | null
           delivery_longitude: number | null
           delivery_photo_url: string | null
@@ -970,6 +1030,7 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string | null
           delivery_date?: string | null
+          delivery_distance_m?: number | null
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
@@ -999,6 +1060,7 @@ export type Database = {
           delivered_at?: string | null
           delivery_address?: string | null
           delivery_date?: string | null
+          delivery_distance_m?: number | null
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           delivery_photo_url?: string | null
