@@ -56,6 +56,8 @@ export default function CustomersPage() {
   const { searchAddress, reverseGeocode } = useGeocoding();
   const [searchTerm, setSearchTerm] = useState('');
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | ActivityTier>('all');
+  const { activity: activityMap } = useCustomerActivity();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isTopCustomersOpen, setIsTopCustomersOpen] = useState(false);
