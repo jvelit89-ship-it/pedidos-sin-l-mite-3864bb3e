@@ -40,6 +40,7 @@ import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPane
 import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { DeliveryGeostatistics } from '@/components/dashboard/DeliveryGeostatistics';
+import { SuspiciousDeliveriesPanel } from '@/components/dashboard/SuspiciousDeliveriesPanel';
 
 
 export default function DashboardPage() {
@@ -240,8 +241,12 @@ export default function DashboardPage() {
           {/* Delivery Statistics & Map */}
           <DeliveryGeostatistics orders={orders} />
 
+          {/* Suspicious Deliveries (blocked by geofence) */}
+          <SuspiciousDeliveriesPanel />
+
           {/* Stuck Deliveries Panel */}
           <StuckDeliveriesPanel />
+
 
 
           {/* Invoice Requests Panel */}
