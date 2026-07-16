@@ -24,6 +24,7 @@ import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { PrepaidPackagesManager } from '@/components/PrepaidPackagesManager';
 import { SecureImage } from '@/components/SecureImage';
 import { useCustomerActivity, classifyActivity, ActivityTier } from '@/hooks/useCustomerActivity';
+import { useProducts } from '@/hooks/useProducts';
 
 
 interface Customer {
