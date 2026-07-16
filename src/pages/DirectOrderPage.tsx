@@ -180,6 +180,16 @@ export default function DirectOrderPage() {
     });
   };
 
+  const setProductQty = (id: string, value: number) => {
+    setSelectedProducts(prev => {
+      const next = Math.max(0, Math.floor(Number(value) || 0));
+      const newItems = { ...prev };
+      if (next === 0) delete newItems[id];
+      else newItems[id] = next;
+      return newItems;
+    });
+  };
+
   const getProductPrice = (productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
     if (!product) return 0;
