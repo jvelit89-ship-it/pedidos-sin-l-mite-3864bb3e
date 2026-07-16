@@ -57,7 +57,7 @@ export function WeeklySalesChart() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user?.company_id) return;
+      if (!user?.companyId) return;
       setLoading(true);
       try {
         const from = new Date(startDate); from.setHours(0, 0, 0, 0);
@@ -95,7 +95,7 @@ export function WeeklySalesChart() {
       }
     };
     fetchData();
-  }, [user?.company_id, startDate, endDate]);
+  }, [user?.companyId, startDate, endDate]);
 
   const vendedores = useMemo(
     () => Array.from(new Set(rows.map(r => r.vendedor_name).filter(Boolean))) as string[],
