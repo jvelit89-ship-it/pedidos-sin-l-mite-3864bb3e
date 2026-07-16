@@ -180,6 +180,16 @@ export default function DirectOrderPage() {
     });
   };
 
+  const setProductQty = (id: string, value: number) => {
+    setSelectedProducts(prev => {
+      const next = Math.max(0, Math.floor(Number(value) || 0));
+      const newItems = { ...prev };
+      if (next === 0) delete newItems[id];
+      else newItems[id] = next;
+      return newItems;
+    });
+  };
+
   const getProductPrice = (productId: string, quantity: number) => {
     const product = products.find(p => p.id === productId);
     if (!product) return 0;
@@ -619,7 +629,16 @@ export default function DirectOrderPage() {
                                   >
                                     -
                                   </Button>
-                                  <span className="w-4 sm:w-6 text-center font-black text-sm sm:text-base text-slate-700">{selectedProducts[p.id] || 0}</span>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    value={selectedProducts[p.id] ?? 0}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => setProductQty(p.id, parseInt(e.target.value, 10))}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-10 sm:w-14 text-center font-black text-sm sm:text-base text-slate-700 bg-transparent border-0 outline-none focus:ring-2 focus:ring-primary/40 rounded-md [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
