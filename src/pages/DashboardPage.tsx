@@ -40,6 +40,7 @@ import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPane
 import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { DeliveryGeostatistics } from '@/components/dashboard/DeliveryGeostatistics';
+import { SuspiciousDeliveriesPanel } from '@/components/dashboard/SuspiciousDeliveriesPanel';
 
 
 export default function DashboardPage() {
