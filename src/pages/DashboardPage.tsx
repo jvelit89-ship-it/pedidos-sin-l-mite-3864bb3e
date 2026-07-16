@@ -239,6 +239,9 @@ export default function DashboardPage() {
             <AllRepartidoresLoad loads={allRepartidoresLoad} />
           </div>
 
+          {/* Weekly Sales Chart */}
+          <WeeklySalesChart />
+
           {/* Delivery Statistics & Map */}
           <DeliveryGeostatistics orders={orders} />
 
