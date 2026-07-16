@@ -1267,6 +1267,62 @@ export default function CustomersPage() {
               </span>
             </Button>
           </div>
+
+          {/* Vendedor & Product filters */}
+          <div className="flex flex-wrap gap-3 pt-2 border-t items-center">
+            <div className="flex items-center gap-1.5 min-w-[200px]">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Vendedor" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">Todos los vendedores ({customers.length})</SelectItem>
+                  <SelectItem value="none">
+                    Sin vendedor asignado ({customers.filter((c: Customer) => !c.vendedor_id).length})
+                  </SelectItem>
+                  {vendedores.filter(v => v.active).map(v => {
+                    const count = customers.filter((c: Customer) => c.vendedor_id === v.id).length;
+                    return (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name} ({count})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-[220px]">
+              <Package className="w-3.5 h-3.5 text-muted-foreground" />
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Producto comprado" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">Todos los productos</SelectItem>
+                  {products.map(p => {
+                    const count = customersByProduct[p.id]?.size ?? 0;
+                    return (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} ({count})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {(vendedorFilter !== 'all' || productFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setVendedorFilter('all'); setProductFilter('all'); }}
+                className="gap-1 text-xs"
+              >
+                <X className="w-3 h-3" />
+                Limpiar
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
