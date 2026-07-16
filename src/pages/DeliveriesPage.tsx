@@ -318,77 +318,65 @@ export default function DeliveriesPage() {
 
   const handleConfirmDelivery = async () => {
     if (!orderToConfirm) return;
-    
+
     setIsVerifyingLocation(true);
     try {
-      // Verify PIN using RPC (securely)
-      const { data: isPinValid, error: pinError } = await supabase.rpc('verify_order_pin', {
+      // 1) Verify PIN
+      const { data: isPinValid, error: pinErr } = await supabase.rpc('verify_order_pin', {
         p_order_id: orderToConfirm.id,
-        p_pin: pinInput
+        p_pin: pinInput,
       });
-
-      if (pinError) throw pinError;
-
+      if (pinErr) throw pinErr;
       if (!isPinValid) {
         setPinError(true);
-        toast.error('PIN incorrecto', {
-          description: 'El código ingresado no es válido para este pedido.'
+        toast.error('PIN incorrecto', { description: 'El código ingresado no es válido para este pedido.' });
+        return;
+      }
+
+      // 2) Validate GPS proximity to customer (blocks if > 500m or no GPS)
+      const { validateDeliveryLocation } = await import('@/lib/deliveryGeoValidation');
+      const validation = await validateDeliveryLocation({
+        orderId: orderToConfirm.id,
+        companyId: orderToConfirm.company_id,
+        repartidorId: orderToConfirm.repartidor_id ?? repartidorId,
+        repartidorName: orderToConfirm.repartidor_name ?? user?.name,
+        customerName: orderToConfirm.customer_name,
+        customerLat: orderToConfirm.customer_latitude,
+        customerLng: orderToConfirm.customer_longitude,
+      });
+
+      if (!validation.ok) {
+        toast.error('Entrega bloqueada por ubicación', {
+          description: validation.reason,
+          duration: 8000,
         });
         return;
       }
-    } catch (err) {
-      console.error('Error verifying PIN:', err);
-      toast.error('Error al verificar el PIN');
-      return;
-    } finally {
-      setIsVerifyingLocation(false);
-    }
 
+      // 3) Mark delivered
+      await handleStatusUpdate(orderToConfirm.id, 'delivered');
 
-    // Prepare location data
-    let locData = deliveryLocation;
-    
-    // If we don't have location yet, try one last time (quick check)
-    if (!locData && "geolocation" in navigator) {
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
-        });
-        locData = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude
-        };
-      } catch (e) {
-        console.log("Final location attempt failed");
-      }
-    }
-
-
-    
-    await handleStatusUpdate(orderToConfirm.id, 'delivered');
-    
-    // Explicitly update location if we have it
-    if (locData) {
-      const { error: locError } = await supabase
+      // 4) Save location + distance
+      await supabase
         .from('orders')
         .update({
-          delivery_latitude: locData.lat,
-          delivery_longitude: locData.lng,
-          delivery_pin_verified_at: new Date().toISOString()
+          delivery_latitude: validation.driver.lat,
+          delivery_longitude: validation.driver.lng,
+          delivery_distance_m: validation.distance,
+          delivery_pin_verified_at: new Date().toISOString(),
         })
         .eq('id', orderToConfirm.id);
 
-      if (locError) {
-        console.error('Error saving delivery location:', locError);
-      }
+      setOrderToConfirm(null);
+      setDeliveryLocation(null);
+      setPinInput('');
+      setPinError(false);
+    } catch (err: any) {
+      console.error('Error confirming delivery:', err);
+      toast.error(err?.message || 'Error al confirmar la entrega');
+    } finally {
+      setIsVerifyingLocation(false);
     }
-
-
-    
-    setOrderToConfirm(null);
-    setDeliveryLocation(null);
-    setPinInput('');
-    setPinError(false);
   };
 
   const activeDeliveries = deliveries.filter(d => d.status !== 'delivered');
