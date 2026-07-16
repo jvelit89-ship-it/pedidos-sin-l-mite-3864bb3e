@@ -1282,6 +1282,19 @@ export default function CustomersPage() {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {(() => {
+                          const info = activityMap[c.id];
+                          const tier = info?.tier ?? 'red';
+                          const count = info?.count ?? 0;
+                          const dotColor = tier === 'green' ? 'bg-green-500' : tier === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
+                          const label = tier === 'green' ? 'Cliente activo alto' : tier === 'yellow' ? 'Cliente activo medio' : 'Cliente bajo/inactivo';
+                          return (
+                            <span
+                              className={`w-2.5 h-2.5 rounded-full ${dotColor} flex-shrink-0`}
+                              title={`${label} — ${count} pedidos (90d)`}
+                            />
+                          );
+                        })()}
                         <p className="font-semibold truncate">{c.name}</p>
                         {c.customer_type === 'mayorista' && (
                           <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
