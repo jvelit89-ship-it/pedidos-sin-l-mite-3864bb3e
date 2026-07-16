@@ -58,7 +58,11 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'minorista' | 'mayorista' | 'distribuidor'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | ActivityTier>('all');
+  const [vendedorFilter, setVendedorFilter] = useState<string>('all');
+  const [productFilter, setProductFilter] = useState<string>('all');
+  const [customersByProduct, setCustomersByProduct] = useState<Record<string, Set<string>>>({});
   const { activity: activityMap } = useCustomerActivity();
+  const { products } = useProducts();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isTopCustomersOpen, setIsTopCustomersOpen] = useState(false);
