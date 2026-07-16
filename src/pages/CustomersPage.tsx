@@ -678,13 +678,40 @@ export default function CustomersPage() {
 
   const getTier = (id: string): ActivityTier => activityMap[id]?.tier ?? classifyActivity(0);
 
+  // Load customer→products purchase map once (for product filter)
+  useEffect(() => {
+    if (!user?.companyId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('product_id, orders!inner(customer_id, company_id)')
+        .eq('orders.company_id', user.companyId);
+      if (error || cancelled || !data) return;
+      const map: Record<string, Set<string>> = {};
+      for (const row of data as any[]) {
+        const pid = row.product_id;
+        const cid = row.orders?.customer_id;
+        if (!pid || !cid) continue;
+        if (!map[pid]) map[pid] = new Set();
+        map[pid].add(cid);
+      }
+      setCustomersByProduct(map);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.companyId]);
+
   const filtered = customers.filter((c: Customer) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
       (c.phone?.includes(searchTerm) ?? false);
     const matchesType = customerTypeFilter === 'all' || c.customer_type === customerTypeFilter;
     const matchesActivity = activityFilter === 'all' || getTier(c.id) === activityFilter;
-    return matchesSearch && matchesType && matchesActivity;
+    const matchesVendedor = vendedorFilter === 'all' ||
+      (vendedorFilter === 'none' ? !c.vendedor_id : c.vendedor_id === vendedorFilter);
+    const matchesProduct = productFilter === 'all' ||
+      (customersByProduct[productFilter]?.has(c.id) ?? false);
+    return matchesSearch && matchesType && matchesActivity && matchesVendedor && matchesProduct;
   });
 
   const customerTypeCounts = {
