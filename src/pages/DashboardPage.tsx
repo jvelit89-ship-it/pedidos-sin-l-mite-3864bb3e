@@ -240,8 +240,12 @@ export default function DashboardPage() {
           {/* Delivery Statistics & Map */}
           <DeliveryGeostatistics orders={orders} />
 
+          {/* Suspicious Deliveries (blocked by geofence) */}
+          <SuspiciousDeliveriesPanel />
+
           {/* Stuck Deliveries Panel */}
           <StuckDeliveriesPanel />
+
 
 
           {/* Invoice Requests Panel */}
