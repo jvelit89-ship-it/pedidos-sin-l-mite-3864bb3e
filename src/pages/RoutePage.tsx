@@ -153,37 +153,40 @@ export default function RoutePage() {
         return;
       }
 
-      // Capture delivery location if available
-      let locData: { lat: number; lng: number } | null = null;
-      if ('geolocation' in navigator) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000, enableHighAccuracy: true });
-          });
-          locData = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        } catch (e) {
-          console.log('No se pudo obtener ubicación');
-        }
+      // Validate proximity (blocks if > 500m or no GPS)
+      const { validateDeliveryLocation } = await import('@/lib/deliveryGeoValidation');
+      const validation = await validateDeliveryLocation({
+        orderId: orderToConfirm.id,
+        customerName: orderToConfirm.customer_name,
+        customerLat: orderToConfirm.customer_latitude,
+        customerLng: orderToConfirm.customer_longitude,
+      });
+
+      if (!validation.ok) {
+        toast.error('Entrega bloqueada por ubicación', {
+          description: validation.reason,
+          duration: 8000,
+        });
+        return;
       }
 
       await handleStatusUpdate(orderToConfirm.id, 'delivered');
 
-      if (locData) {
-        await supabase
-          .from('orders')
-          .update({
-            delivery_latitude: locData.lat,
-            delivery_longitude: locData.lng,
-          })
-          .eq('id', orderToConfirm.id);
-      }
+      await supabase
+        .from('orders')
+        .update({
+          delivery_latitude: validation.driver.lat,
+          delivery_longitude: validation.driver.lng,
+          delivery_distance_m: validation.distance,
+        })
+        .eq('id', orderToConfirm.id);
 
       setOrderToConfirm(null);
       setPinInput('');
       setPinError(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error verifying PIN:', err);
-      toast.error('Error al verificar el PIN');
+      toast.error(err?.message || 'Error al verificar el PIN');
     } finally {
       setIsVerifying(false);
     }
