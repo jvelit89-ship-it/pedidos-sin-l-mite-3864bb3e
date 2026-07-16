@@ -23,6 +23,7 @@ import { DistributorCreditsManager } from '@/components/DistributorCreditsManage
 import { CustomerPricingManager } from '@/components/CustomerPricingManager';
 import { PrepaidPackagesManager } from '@/components/PrepaidPackagesManager';
 import { SecureImage } from '@/components/SecureImage';
+import { useCustomerActivity, classifyActivity, ActivityTier } from '@/hooks/useCustomerActivity';
 
 
 interface Customer {
