@@ -41,6 +41,7 @@ import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPane
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { DeliveryGeostatistics } from '@/components/dashboard/DeliveryGeostatistics';
 import { SuspiciousDeliveriesPanel } from '@/components/dashboard/SuspiciousDeliveriesPanel';
+import { WeeklySalesChart } from '@/components/dashboard/WeeklySalesChart';
 
 
 export default function DashboardPage() {
