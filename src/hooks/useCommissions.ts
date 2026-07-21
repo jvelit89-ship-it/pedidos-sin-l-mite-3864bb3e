@@ -306,6 +306,38 @@ export function useVendorCommissions(year: number, month: number) {
           });
         });
 
+        // Prepaid packages sold by this vendedor: commission paid upfront on full total_units
+        const vendedorPackages = (prepaidPackages || []).filter((p: any) => p.vendedor_id === vendedor.id);
+        vendedorPackages.forEach((pkg: any) => {
+          const commissionPerUnit = productCommissions.get(pkg.product_id) || 0;
+          const qty = Number(pkg.total_units || 0);
+          const totalCommission = qty * commissionPerUnit;
+          const pkgDate = new Date(pkg.created_at);
+          const isPeriod1 = pkgDate >= period1Start && pkgDate <= period1End;
+
+          if (isPeriod1) {
+            period1Units += qty;
+            period1Commission += totalCommission;
+          } else {
+            period2Units += qty;
+            period2Commission += totalCommission;
+          }
+
+          details.push({
+            order_id: pkg.id,
+            order_date: pkg.created_at,
+            customer_name: `${pkg.customers?.name || 'Cliente'} (Prepago)`,
+            product_name: pkg.products?.name || 'Producto',
+            quantity: qty,
+            commissionable_quantity: qty,
+            commission_per_unit: commissionPerUnit,
+            total_commission: totalCommission,
+            unit_price: Number(pkg.unit_price || 0),
+            sale_total: qty * Number(pkg.unit_price || 0),
+          });
+        });
+
+
         return {
           vendedor_id: vendedor.id,
           vendedor_name: vendedor.name,
