@@ -208,6 +208,17 @@ export function usePendingProduction() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Validar stock de materia prima antes de aprobar
+      const { checkRecipeStock } = await import('./useProducts');
+      const stockCheck = await checkRecipeStock(pending.product_id, pending.quantity, pending.company_id);
+      if (!stockCheck.ok) {
+        const detalle = stockCheck.missing
+          .map((m) => `${m.name} (requiere ${m.required}, disponible ${m.available})`)
+          .join('; ');
+        toast.error(`No se puede aprobar. Materia prima insuficiente: ${detalle}`, { duration: 8000 });
+        return false;
+      }
+
       // Add to production_history
       const { data: productionData, error: historyError } = await supabase
         .from('production_history')
