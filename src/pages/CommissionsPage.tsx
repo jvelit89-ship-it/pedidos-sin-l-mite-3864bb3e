@@ -1215,6 +1215,32 @@ export default function CommissionsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </DialogHeader>
+          {(() => {
+            const details = selectedPerson?.details || [];
+            const counts = new Map<string, number>();
+            details.forEach((d: any) => {
+              const day = (d.order_date || d.produced_at || '').slice(0, 10);
+              const key = `${day}|${d.customer_name || ''}|${d.product_name || ''}|${d.quantity}|${d.commission_per_unit}`;
+              counts.set(key, (counts.get(key) || 0) + 1);
+            });
+            const duplicateKeys = new Set<string>();
+            counts.forEach((c, k) => { if (c > 1) duplicateKeys.add(k); });
+            const rowKey = (d: any) => {
+              const day = (d.order_date || d.produced_at || '').slice(0, 10);
+              return `${day}|${d.customer_name || ''}|${d.product_name || ''}|${d.quantity}|${d.commission_per_unit}`;
+            };
+            (selectedPerson as any) && ((selectedPerson as any).__dupKeys = duplicateKeys);
+            (selectedPerson as any) && ((selectedPerson as any).__rowKey = rowKey);
+            if (duplicateKeys.size === 0) return null;
+            return (
+              <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-xs text-amber-900 dark:text-amber-200">
+                  <strong>Posibles comisiones duplicadas detectadas ({duplicateKeys.size}).</strong> Se resaltan las filas repetidas (mismo cliente, producto, cantidad y fecha). Revisa y elimina las duplicadas con el botón de la papelera.
+                </div>
+              </div>
+            );
+          })()}
           <ScrollArea className="max-h-[60vh]">
             <Table>
               <TableHeader>
