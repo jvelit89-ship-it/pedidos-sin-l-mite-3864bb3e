@@ -248,13 +248,20 @@ export function useVendorCommissions(year: number, month: number) {
           (order.order_items || []).forEach((item: any) => {
             const commissionPerUnit = productCommissions.get(item.product_id) || 0;
             const basePrice = productPrices.get(item.product_id) || 0;
+
+            // Subtract quantity already commissioned via prepaid package sale
+            const prepaidQty = prepaidCoverage.get(`${order.id}::${item.product_id}`) || 0;
+            const effectiveQty = Math.max(0, (item.quantity || 0) - prepaidQty);
+            const effectiveTotal = Math.max(0, (item.total || 0) - prepaidQty * (item.unit_price || 0));
+
             const commissionedQuantity = calculateCommissionableQuantity(
-              item.quantity,
-              item.total || 0,
+              effectiveQty,
+              effectiveTotal,
               item.unit_price || 0,
               basePrice,
               item.product_name || ''
             );
+
             
             const totalCommission = commissionedQuantity * commissionPerUnit;
 
