@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
- import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2, FileDown, Truck } from 'lucide-react';
+ import { DollarSign, TrendingUp, Calendar, Users, Package, ChevronLeft, ChevronRight, Eye, CalendarDays, Wrench, Trash2, Loader2, FileDown, Truck, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -1215,6 +1215,32 @@ export default function CommissionsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </DialogHeader>
+          {(() => {
+            const details = selectedPerson?.details || [];
+            const counts = new Map<string, number>();
+            details.forEach((d: any) => {
+              const day = (d.order_date || d.produced_at || '').slice(0, 10);
+              const key = `${day}|${d.customer_name || ''}|${d.product_name || ''}|${d.quantity}|${d.commission_per_unit}`;
+              counts.set(key, (counts.get(key) || 0) + 1);
+            });
+            const duplicateKeys = new Set<string>();
+            counts.forEach((c, k) => { if (c > 1) duplicateKeys.add(k); });
+            const rowKey = (d: any) => {
+              const day = (d.order_date || d.produced_at || '').slice(0, 10);
+              return `${day}|${d.customer_name || ''}|${d.product_name || ''}|${d.quantity}|${d.commission_per_unit}`;
+            };
+            (selectedPerson as any) && ((selectedPerson as any).__dupKeys = duplicateKeys);
+            (selectedPerson as any) && ((selectedPerson as any).__rowKey = rowKey);
+            if (duplicateKeys.size === 0) return null;
+            return (
+              <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-xs text-amber-900 dark:text-amber-200">
+                  <strong>Posibles comisiones duplicadas detectadas ({duplicateKeys.size}).</strong> Se resaltan las filas repetidas (mismo cliente, producto, cantidad y fecha). Revisa y elimina las duplicadas con el botón de la papelera.
+                </div>
+              </div>
+            );
+          })()}
           <ScrollArea className="max-h-[60vh]">
             <Table>
               <TableHeader>
@@ -1230,9 +1256,14 @@ export default function CommissionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {selectedPerson?.details.map((d, i) => (
-                  <TableRow key={i}>
+                {selectedPerson?.details.map((d, i) => {
+                  const dupKeys: Set<string> = (selectedPerson as any).__dupKeys || new Set();
+                  const rowKeyFn: (d: any) => string = (selectedPerson as any).__rowKey || (() => '');
+                  const isDup = dupKeys.has(rowKeyFn(d));
+                  return (
+                  <TableRow key={i} className={isDup ? 'bg-amber-50 dark:bg-amber-950/30' : ''}>
                     <TableCell className="text-sm">
+                      {isDup && <AlertTriangle className="inline h-3.5 w-3.5 text-amber-600 mr-1" />}
                       {format(new Date(d.order_date || d.produced_at), 'dd/MM', { locale: es })}
                     </TableCell>
                     <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
@@ -1264,7 +1295,8 @@ export default function CommissionsPage() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {(!selectedPerson?.details || selectedPerson.details.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
