@@ -560,8 +560,12 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         total_commission: period1Commission + period2Commission,
         pending_units: pendingUnits,
         pending_commission: pendingCommission,
-        details: details.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
-        pending_details: pendingDetails.sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+        details: details
+          .filter(d => (d.commissionable_quantity ?? d.quantity) > 0 && d.total_commission > 0)
+          .sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
+        pending_details: pendingDetails
+          .filter(d => (d.commissionable_quantity ?? d.quantity) > 0 && d.total_commission > 0)
+          .sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()),
       };
     } finally {
       setLoading(false);
