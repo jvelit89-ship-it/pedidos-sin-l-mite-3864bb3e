@@ -52,6 +52,39 @@ async function getUserCompanyId(): Promise<string | null> {
   return profile?.company_id || null;
 }
 
+/**
+ * Verifica que exista suficiente stock de materia prima para producir `quantity`
+ * unidades de `productId` según sus recetas activas. Devuelve la lista de faltantes.
+ */
+export async function checkRecipeStock(
+  productId: string,
+  quantity: number,
+  companyId: string
+): Promise<{ ok: boolean; missing: { name: string; required: number; available: number }[] }> {
+  const { data: recipes, error } = await supabase
+    .from('production_recipes')
+    .select('quantity_ratio, input_product_id, products:input_product_id(name, stock)')
+    .eq('output_product_id', productId)
+    .eq('company_id', companyId)
+    .eq('is_active', true);
+
+  if (error || !recipes) return { ok: true, missing: [] };
+
+  const missing: { name: string; required: number; available: number }[] = [];
+  for (const r of recipes as any[]) {
+    const required = Number(r.quantity_ratio) * quantity;
+    const available = Number(r.products?.stock ?? 0);
+    if (available < required) {
+      missing.push({
+        name: r.products?.name ?? 'Material',
+        required,
+        available,
+      });
+    }
+  }
+  return { ok: missing.length === 0, missing };
+}
+
 export function useProducts() {
   const { user } = useAuth();
   const { data: products, loading, error, refetch } = useRealtimeQuery<Product>('products', {
