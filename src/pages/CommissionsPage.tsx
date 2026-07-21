@@ -1256,9 +1256,14 @@ export default function CommissionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {selectedPerson?.details.map((d, i) => (
-                  <TableRow key={i}>
+                {selectedPerson?.details.map((d, i) => {
+                  const dupKeys: Set<string> = (selectedPerson as any).__dupKeys || new Set();
+                  const rowKeyFn: (d: any) => string = (selectedPerson as any).__rowKey || (() => '');
+                  const isDup = dupKeys.has(rowKeyFn(d));
+                  return (
+                  <TableRow key={i} className={isDup ? 'bg-amber-50 dark:bg-amber-950/30' : ''}>
                     <TableCell className="text-sm">
+                      {isDup && <AlertTriangle className="inline h-3.5 w-3.5 text-amber-600 mr-1" />}
                       {format(new Date(d.order_date || d.produced_at), 'dd/MM', { locale: es })}
                     </TableCell>
                     <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
