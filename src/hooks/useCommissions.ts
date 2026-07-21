@@ -416,6 +416,31 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         (products || []).map(p => [p.id, p.price || 0])
       );
 
+      // Prepaid packages sold by this vendedor in the period (commission upfront)
+      const { data: prepaidPackages } = await (supabase as any)
+        .from('customer_prepaid_packages')
+        .select('id, product_id, total_units, unit_price, created_at, customers(name), products(name)')
+        .eq('company_id', companyId)
+        .eq('vendedor_id', vendedorId)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      // Prepaid usages to exclude from order-based commission (avoid double-paying)
+      const { data: prepaidUsages } = await (supabase as any)
+        .from('prepaid_package_usages')
+        .select('order_id, quantity_used, customer_prepaid_packages!inner(product_id)')
+        .eq('company_id', companyId)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      const prepaidCoverage = new Map<string, number>();
+      (prepaidUsages || []).forEach((u: any) => {
+        const pid = u.customer_prepaid_packages?.product_id;
+        if (!pid) return;
+        const key = `${u.order_id}::${pid}`;
+        prepaidCoverage.set(key, (prepaidCoverage.get(key) || 0) + Number(u.quantity_used || 0));
+      });
+
       let period1Units = 0;
       let period1Commission = 0;
       let period2Units = 0;
@@ -433,13 +458,19 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
           const basePrice = productPrices.get(item.product_id) || 0;
+
+          const prepaidQty = prepaidCoverage.get(`${order.id}::${item.product_id}`) || 0;
+          const effectiveQty = Math.max(0, (item.quantity || 0) - prepaidQty);
+          const effectiveTotal = Math.max(0, (item.total || 0) - prepaidQty * (item.unit_price || 0));
+
           const commissionedQuantity = calculateCommissionableQuantity(
-            item.quantity,
-            item.total || 0,
+            effectiveQty,
+            effectiveTotal,
             item.unit_price || 0,
             basePrice,
             item.product_name || ''
           );
+
           
           const totalCommission = commissionedQuantity * commissionPerUnit;
 
