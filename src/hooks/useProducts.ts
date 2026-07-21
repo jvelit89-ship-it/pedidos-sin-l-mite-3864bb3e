@@ -250,6 +250,16 @@ export function useProductionHistory(productId?: string) {
       return false;
     }
 
+    // Validar stock de materia prima ANTES de continuar
+    const stockCheck = await checkRecipeStock(productId, quantity, companyId);
+    if (!stockCheck.ok) {
+      const detalle = stockCheck.missing
+        .map(m => `${m.name} (requiere ${m.required}, disponible ${m.available})`)
+        .join('; ');
+      toast.error(`Materia prima insuficiente: ${detalle}`, { duration: 8000 });
+      return false;
+    }
+
     // Get current user and role
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
