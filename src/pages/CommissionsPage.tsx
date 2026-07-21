@@ -321,7 +321,7 @@ export default function CommissionsPage() {
               <td>${d.customer_name || 'Producción'}</td>
               <td>${d.product_name}</td>
               <td class="text-right">${d.quantity}</td>
-              <td class="text-right">${d.commissionable_quantity || d.quantity}</td>
+              <td class="text-right">${(d.commissionable_quantity ?? d.quantity)}</td>
               <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
               <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
             </tr>`).join('')}
@@ -384,7 +384,7 @@ export default function CommissionsPage() {
         <td>${d.customer_name || 'Producción'}</td>
         <td>${d.product_name}</td>
         <td class="text-right">${d.quantity}</td>
-        <td class="text-right">${d.commissionable_quantity || d.quantity}</td>
+        <td class="text-right">${(d.commissionable_quantity ?? d.quantity)}</td>
         <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
         <td class="text-right" style="font-weight:bold">${formatCurrency(d.total_commission)}</td>
       </tr>`).join('');
@@ -400,7 +400,7 @@ export default function CommissionsPage() {
         <td>${d.customer_name || 'Producción'}</td>
         <td>${d.product_name}</td>
         <td class="text-right">${d.quantity}</td>
-        <td class="text-right">${d.commissionable_quantity || d.quantity}</td>
+        <td class="text-right">${(d.commissionable_quantity ?? d.quantity)}</td>
         <td class="text-right">${formatCurrency(d.unit_price || 0)}</td>
         <td class="text-right" style="font-weight:bold">${formatCurrency(d.sale_total || 0)}</td>
         <td class="text-right">${formatCurrency(d.commission_per_unit)}</td>
@@ -687,7 +687,7 @@ export default function CommissionsPage() {
                                 <TableCell className="text-sm font-medium">{d.customer_name}</TableCell>
                                 <TableCell className="text-sm">{d.product_name}</TableCell>
                                 <TableCell className="text-right">{d.quantity}</TableCell>
-                                <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                                <TableCell className="text-right">{(d.commissionable_quantity ?? d.quantity)}</TableCell>
                                 <TableCell className="text-right font-medium text-green-600">
                                   {formatCurrency(d.total_commission)}
                                 </TableCell>
@@ -727,7 +727,7 @@ export default function CommissionsPage() {
                                 <TableCell className="text-sm font-medium">{d.customer_name}</TableCell>
                                 <TableCell className="text-sm">{d.product_name}</TableCell>
                                 <TableCell className="text-right">{d.quantity}</TableCell>
-                                <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                                <TableCell className="text-right">{(d.commissionable_quantity ?? d.quantity)}</TableCell>
                                 <TableCell className="text-right font-medium text-amber-600">
                                   {formatCurrency(d.total_commission)}
                                 </TableCell>
@@ -770,7 +770,7 @@ export default function CommissionsPage() {
                             <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
                             <TableCell className="text-sm">{d.product_name}</TableCell>
                             <TableCell className="text-right">{d.quantity}</TableCell>
-                            <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                            <TableCell className="text-right">{(d.commissionable_quantity ?? d.quantity)}</TableCell>
                             <TableCell className="text-right font-medium text-green-600">
                               {formatCurrency(d.total_commission)}
                             </TableCell>
@@ -1238,7 +1238,7 @@ export default function CommissionsPage() {
                     <TableCell className="text-sm">{d.customer_name || 'Producción'}</TableCell>
                     <TableCell className="text-sm">{d.product_name}</TableCell>
                     <TableCell className="text-right">{d.quantity}</TableCell>
-                    <TableCell className="text-right">{d.commissionable_quantity || d.quantity}</TableCell>
+                    <TableCell className="text-right">{(d.commissionable_quantity ?? d.quantity)}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {formatCurrency(d.commission_per_unit)}
                     </TableCell>
