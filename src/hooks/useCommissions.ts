@@ -200,6 +200,34 @@ export function useVendorCommissions(year: number, month: number) {
         (products || []).map(p => [p.id, p.price || 0])
       );
 
+      // Get prepaid packages created in this period (commission paid upfront on sale)
+      const { data: prepaidPackages } = await (supabase as any)
+        .from('customer_prepaid_packages')
+        .select('id, vendedor_id, product_id, total_units, unit_price, created_at, customers(name), products(name)')
+        .eq('company_id', companyId)
+        .not('vendedor_id', 'is', null)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      // Get prepaid usages for orders in this period to EXCLUDE from order-based commission
+      // (avoid double-paying: commission was already granted when the package was sold)
+      const { data: prepaidUsages } = await (supabase as any)
+        .from('prepaid_package_usages')
+        .select('order_id, quantity_used, customer_prepaid_packages!inner(product_id)')
+        .eq('company_id', companyId)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      // Map: `${order_id}::${product_id}` -> total quantity covered by prepaid
+      const prepaidCoverage = new Map<string, number>();
+      (prepaidUsages || []).forEach((u: any) => {
+        const pid = u.customer_prepaid_packages?.product_id;
+        if (!pid) return;
+        const key = `${u.order_id}::${pid}`;
+        prepaidCoverage.set(key, (prepaidCoverage.get(key) || 0) + Number(u.quantity_used || 0));
+      });
+
+
       const commissions: VendedorCommissionSummary[] = vendedores.map(vendedor => {
         const vendedorOrders = orders?.filter(o => o.vendedor_id === vendedor.id) || [];
         
