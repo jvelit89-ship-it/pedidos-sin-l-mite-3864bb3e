@@ -200,6 +200,34 @@ export function useVendorCommissions(year: number, month: number) {
         (products || []).map(p => [p.id, p.price || 0])
       );
 
+      // Get prepaid packages created in this period (commission paid upfront on sale)
+      const { data: prepaidPackages } = await (supabase as any)
+        .from('customer_prepaid_packages')
+        .select('id, vendedor_id, product_id, total_units, unit_price, created_at, customers(name), products(name)')
+        .eq('company_id', companyId)
+        .not('vendedor_id', 'is', null)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      // Get prepaid usages for orders in this period to EXCLUDE from order-based commission
+      // (avoid double-paying: commission was already granted when the package was sold)
+      const { data: prepaidUsages } = await (supabase as any)
+        .from('prepaid_package_usages')
+        .select('order_id, quantity_used, customer_prepaid_packages!inner(product_id)')
+        .eq('company_id', companyId)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      // Map: `${order_id}::${product_id}` -> total quantity covered by prepaid
+      const prepaidCoverage = new Map<string, number>();
+      (prepaidUsages || []).forEach((u: any) => {
+        const pid = u.customer_prepaid_packages?.product_id;
+        if (!pid) return;
+        const key = `${u.order_id}::${pid}`;
+        prepaidCoverage.set(key, (prepaidCoverage.get(key) || 0) + Number(u.quantity_used || 0));
+      });
+
+
       const commissions: VendedorCommissionSummary[] = vendedores.map(vendedor => {
         const vendedorOrders = orders?.filter(o => o.vendedor_id === vendedor.id) || [];
         
@@ -220,13 +248,20 @@ export function useVendorCommissions(year: number, month: number) {
           (order.order_items || []).forEach((item: any) => {
             const commissionPerUnit = productCommissions.get(item.product_id) || 0;
             const basePrice = productPrices.get(item.product_id) || 0;
+
+            // Subtract quantity already commissioned via prepaid package sale
+            const prepaidQty = prepaidCoverage.get(`${order.id}::${item.product_id}`) || 0;
+            const effectiveQty = Math.max(0, (item.quantity || 0) - prepaidQty);
+            const effectiveTotal = Math.max(0, (item.total || 0) - prepaidQty * (item.unit_price || 0));
+
             const commissionedQuantity = calculateCommissionableQuantity(
-              item.quantity,
-              item.total || 0,
+              effectiveQty,
+              effectiveTotal,
               item.unit_price || 0,
               basePrice,
               item.product_name || ''
             );
+
             
             const totalCommission = commissionedQuantity * commissionPerUnit;
 
@@ -270,6 +305,38 @@ export function useVendorCommissions(year: number, month: number) {
             }
           });
         });
+
+        // Prepaid packages sold by this vendedor: commission paid upfront on full total_units
+        const vendedorPackages = (prepaidPackages || []).filter((p: any) => p.vendedor_id === vendedor.id);
+        vendedorPackages.forEach((pkg: any) => {
+          const commissionPerUnit = productCommissions.get(pkg.product_id) || 0;
+          const qty = Number(pkg.total_units || 0);
+          const totalCommission = qty * commissionPerUnit;
+          const pkgDate = new Date(pkg.created_at);
+          const isPeriod1 = pkgDate >= period1Start && pkgDate <= period1End;
+
+          if (isPeriod1) {
+            period1Units += qty;
+            period1Commission += totalCommission;
+          } else {
+            period2Units += qty;
+            period2Commission += totalCommission;
+          }
+
+          details.push({
+            order_id: pkg.id,
+            order_date: pkg.created_at,
+            customer_name: `${pkg.customers?.name || 'Cliente'} (Prepago)`,
+            product_name: pkg.products?.name || 'Producto',
+            quantity: qty,
+            commissionable_quantity: qty,
+            commission_per_unit: commissionPerUnit,
+            total_commission: totalCommission,
+            unit_price: Number(pkg.unit_price || 0),
+            sale_total: qty * Number(pkg.unit_price || 0),
+          });
+        });
+
 
         return {
           vendedor_id: vendedor.id,
@@ -349,6 +416,31 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         (products || []).map(p => [p.id, p.price || 0])
       );
 
+      // Prepaid packages sold by this vendedor in the period (commission upfront)
+      const { data: prepaidPackages } = await (supabase as any)
+        .from('customer_prepaid_packages')
+        .select('id, product_id, total_units, unit_price, created_at, customers(name), products(name)')
+        .eq('company_id', companyId)
+        .eq('vendedor_id', vendedorId)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      // Prepaid usages to exclude from order-based commission (avoid double-paying)
+      const { data: prepaidUsages } = await (supabase as any)
+        .from('prepaid_package_usages')
+        .select('order_id, quantity_used, customer_prepaid_packages!inner(product_id)')
+        .eq('company_id', companyId)
+        .gte('created_at', period1Start.toISOString())
+        .lte('created_at', period2End.toISOString());
+
+      const prepaidCoverage = new Map<string, number>();
+      (prepaidUsages || []).forEach((u: any) => {
+        const pid = u.customer_prepaid_packages?.product_id;
+        if (!pid) return;
+        const key = `${u.order_id}::${pid}`;
+        prepaidCoverage.set(key, (prepaidCoverage.get(key) || 0) + Number(u.quantity_used || 0));
+      });
+
       let period1Units = 0;
       let period1Commission = 0;
       let period2Units = 0;
@@ -366,13 +458,19 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
           const basePrice = productPrices.get(item.product_id) || 0;
+
+          const prepaidQty = prepaidCoverage.get(`${order.id}::${item.product_id}`) || 0;
+          const effectiveQty = Math.max(0, (item.quantity || 0) - prepaidQty);
+          const effectiveTotal = Math.max(0, (item.total || 0) - prepaidQty * (item.unit_price || 0));
+
           const commissionedQuantity = calculateCommissionableQuantity(
-            item.quantity,
-            item.total || 0,
+            effectiveQty,
+            effectiveTotal,
             item.unit_price || 0,
             basePrice,
             item.product_name || ''
           );
+
           
           const totalCommission = commissionedQuantity * commissionPerUnit;
 
@@ -416,6 +514,37 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
           }
         });
       });
+
+      // Add commissions for prepaid packages sold in the period
+      (prepaidPackages || []).forEach((pkg: any) => {
+        const commissionPerUnit = productCommissions.get(pkg.product_id) || 0;
+        const qty = Number(pkg.total_units || 0);
+        const totalCommission = qty * commissionPerUnit;
+        const pkgDate = new Date(pkg.created_at);
+        const isPeriod1 = pkgDate >= period1Start && pkgDate <= period1End;
+
+        if (isPeriod1) {
+          period1Units += qty;
+          period1Commission += totalCommission;
+        } else {
+          period2Units += qty;
+          period2Commission += totalCommission;
+        }
+
+        details.push({
+          order_id: pkg.id,
+          order_date: pkg.created_at,
+          customer_name: `${pkg.customers?.name || 'Cliente'} (Prepago)`,
+          product_name: pkg.products?.name || 'Producto',
+          quantity: qty,
+          commissionable_quantity: qty,
+          commission_per_unit: commissionPerUnit,
+          total_commission: totalCommission,
+          unit_price: Number(pkg.unit_price || 0),
+          sale_total: qty * Number(pkg.unit_price || 0),
+        });
+      });
+
 
       return {
         vendedor_id: vendedorId,
