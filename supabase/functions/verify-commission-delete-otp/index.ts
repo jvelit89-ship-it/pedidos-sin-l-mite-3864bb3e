@@ -179,7 +179,18 @@
          }
        }
  
-       console.log(`Deleted ${deletedCount} production records for operario ${target_name}`);
+        console.log(`Deleted ${deletedCount} production records for operario ${target_name}`);
+      } else if (commission_type === 'repartidor') {
+        // For repartidor commissions, we don't delete the order (it belongs to the sale).
+        // We only clear the repartidor_id / delivered flag so the commission stops counting.
+        for (const orderId of record_ids) {
+          const { error: updErr } = await serviceClient
+            .from('orders')
+            .update({ repartidor_id: null })
+            .eq('id', orderId);
+          if (!updErr) deletedCount++;
+        }
+        console.log(`Cleared repartidor from ${deletedCount} orders for ${target_name}`);
      }
  
      return new Response(
