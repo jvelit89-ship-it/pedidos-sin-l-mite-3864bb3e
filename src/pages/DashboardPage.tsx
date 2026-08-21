@@ -132,7 +132,7 @@ export default function DashboardPage() {
     { 
       title: 'Cancelados', 
       value: stats.cancelledOrders, 
-      icon: XCircle, 
+      icon: XCircle,
       color: 'text-[hsl(var(--status-cancelled))]',
       bgColor: 'bg-[hsl(var(--status-cancelled-bg))]' 
     },
@@ -247,7 +247,7 @@ export default function DashboardPage() {
           <CustomerFollowUpPanel />
 
           {/* Delivery Statistics & Map */}
-          <DeliveryGeostatistics orders={orders} />
+          <DeliveryGeostatistics />
 
           {/* Suspicious Deliveries (blocked by geofence) */}
           <SuspiciousDeliveriesPanel />
