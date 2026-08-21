@@ -2,6 +2,25 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const MAX_DELIVERY_RADIUS_M = 500;
 
+interface ValidatedDeliveryCache {
+  orderId: string;
+  driver: { lat: number; lng: number };
+  distance: number;
+  validatedAt: number;
+}
+
+let lastValidatedDelivery: ValidatedDeliveryCache | null = null;
+
+export function getRecentValidatedDeliveryLocation(
+  orderId: string,
+  maxAgeMs: number = 60_000,
+): ValidatedDeliveryCache | null {
+  if (!lastValidatedDelivery) return null;
+  if (lastValidatedDelivery.orderId !== orderId) return null;
+  if (Date.now() - lastValidatedDelivery.validatedAt > maxAgeMs) return null;
+  return lastValidatedDelivery;
+}
+
 export function haversineMeters(
   lat1: number,
   lng1: number,
@@ -54,6 +73,8 @@ export interface ValidationResult {
 /**
  * Validates delivery location is within MAX_DELIVERY_RADIUS_M of customer.
  * On failure, logs the attempt to delivery_location_attempts and returns ok=false.
+ * On success, keeps the validated GPS result briefly so the order update can
+ * persist status + coordinates atomically in the same database operation.
  */
 export async function validateDeliveryLocation(args: ValidateArgs): Promise<ValidationResult> {
   const driver = await getCurrentPositionStrict();
@@ -119,6 +140,13 @@ export async function validateDeliveryLocation(args: ValidateArgs): Promise<Vali
     });
     return { ok: false, distance, driver, reason };
   }
+
+  lastValidatedDelivery = {
+    orderId: args.orderId,
+    driver,
+    distance,
+    validatedAt: Date.now(),
+  };
 
   return { ok: true, distance, driver };
 }
