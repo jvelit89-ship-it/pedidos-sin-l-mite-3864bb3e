@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { SyncProvider } from '@/contexts/SyncContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { AppLayout } from '@/components/AppLayout';
+import { ProductionRecipeBootstrap } from '@/components/ProductionRecipeBootstrap';
 import { useEffect } from 'react';
 import { handleError } from '@/lib/error-handler';
 
@@ -95,7 +96,13 @@ const App = () => {
                   <Route path="/orders/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
                   <Route path="/deliveries" element={<ProtectedRoute><DeliveriesPage /></ProtectedRoute>} />
                   <Route path="/route" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
-                  <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
+                  <Route path="/inventory" element={
+                    <ProtectedRoute>
+                      <ProductionRecipeBootstrap>
+                        <InventoryPage />
+                      </ProductionRecipeBootstrap>
+                    </ProtectedRoute>
+                  } />
                   <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
                   <Route path="/purchases/new" element={<ProtectedRoute><NewPurchasePage /></ProtectedRoute>} />
                   <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
