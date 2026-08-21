@@ -13,7 +13,7 @@ BEGIN
     SELECT id, company_id
     FROM public.products
     WHERE
-      (sku = 'P001' AND name ILIKE '%8L%')
+      (sku = 'P001' AND name ILIKE '%Agua%' AND name ILIKE '%8L%')
       OR name ILIKE 'Agua Santa Maria 8L'
       OR name ILIKE 'Agua Santa María 8L'
   LOOP
