@@ -30,6 +30,49 @@ interface Customer {
   vendedor_id: string | null;
 }
 
+type CustomerDistrict =
+  | 'barranca'
+  | 'paramonga'
+  | 'pativilca'
+  | 'supe'
+  | 'supe-puerto'
+  | 'unknown';
+
+const DISTRICT_OPTIONS: Array<{
+  value: Exclude<CustomerDistrict, 'unknown'>;
+  label: string;
+  patterns: string[];
+}> = [
+  // Supe Puerto must be checked before Supe so both districts are not mixed.
+  { value: 'supe-puerto', label: 'Supe Puerto', patterns: ['supe puerto', 'puerto supe'] },
+  { value: 'paramonga', label: 'Paramonga', patterns: ['paramonga'] },
+  { value: 'pativilca', label: 'Pativilca', patterns: ['pativilca'] },
+  { value: 'supe', label: 'Supe', patterns: ['supe'] },
+  { value: 'barranca', label: 'Barranca', patterns: ['barranca'] },
+];
+
+function normalizeLocationText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getCustomerDistrict(customer: Pick<Customer, 'address'>): CustomerDistrict {
+  const address = normalizeLocationText(customer.address || '');
+  if (!address) return 'unknown';
+
+  for (const district of DISTRICT_OPTIONS) {
+    if (district.patterns.some((pattern) => address.includes(pattern))) {
+      return district.value;
+    }
+  }
+
+  return 'unknown';
+}
+
 function hasValidCoordinates(customer: Pick<Customer, 'latitude' | 'longitude'>) {
   const lat = Number(customer.latitude);
   const lng = Number(customer.longitude);
@@ -52,6 +95,7 @@ export default function CustomersMapPage() {
     lastUpdatedAt,
   } = useCustomerMapStats(user?.companyId);
 
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [volumeFilter, setVolumeFilter] = useState<string>('all');
   const [pendingFilter, setPendingFilter] = useState<string>('all');
@@ -59,11 +103,36 @@ export default function CustomersMapPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const isLoading = loadingCustomers || loadingStats;
-  const filtersActive = categoryFilter !== 'all' || volumeFilter !== 'all' || pendingFilter !== 'all';
+  const filtersActive =
+    districtFilter !== 'all' ||
+    categoryFilter !== 'all' ||
+    volumeFilter !== 'all' ||
+    pendingFilter !== 'all';
+
+  const districtCounts = useMemo(() => {
+    const counts: Record<CustomerDistrict, number> = {
+      barranca: 0,
+      paramonga: 0,
+      pativilca: 0,
+      supe: 0,
+      'supe-puerto': 0,
+      unknown: 0,
+    };
+
+    customers.forEach((customer) => {
+      if (!hasValidCoordinates(customer as Customer)) return;
+      counts[getCustomerDistrict(customer as Customer)] += 1;
+    });
+
+    return counts;
+  }, [customers]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
       if (!hasValidCoordinates(customer as Customer)) return false;
+
+      const district = getCustomerDistrict(customer as Customer);
+      if (districtFilter !== 'all' && district !== districtFilter) return false;
 
       // Older customer records may have null category. In the UI those records
       // have always behaved like Regular, so normalize them before filtering.
@@ -81,7 +150,7 @@ export default function CustomersMapPage() {
 
       return true;
     });
-  }, [customers, customerStats, categoryFilter, volumeFilter, pendingFilter]);
+  }, [customers, customerStats, districtFilter, categoryFilter, volumeFilter, pendingFilter]);
 
   const mapMarkers = useMemo(() => {
     return filteredCustomers.map((customer) => {
@@ -107,7 +176,7 @@ export default function CustomersMapPage() {
     [filteredCustomers, customerStats]
   );
 
-  const filterSignature = `${categoryFilter}-${volumeFilter}-${pendingFilter}`;
+  const filterSignature = `${districtFilter}-${categoryFilter}-${volumeFilter}-${pendingFilter}`;
 
   const handleMarkerClick = (customerId: string) => {
     const customer = customers.find((item) => item.id === customerId) as Customer | undefined;
@@ -122,6 +191,7 @@ export default function CustomersMapPage() {
   };
 
   const clearFilters = () => {
+    setDistrictFilter('all');
     setCategoryFilter('all');
     setVolumeFilter('all');
     setPendingFilter('all');
@@ -179,7 +249,24 @@ export default function CustomersMapPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Distrito</label>
+              <Select value={districtFilter} onValueChange={setDistrictFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {DISTRICT_OPTIONS.map((district) => (
+                    <SelectItem key={district.value} value={district.value}>
+                      {district.label} ({districtCounts[district.value]})
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="unknown">Sin identificar ({districtCounts.unknown})</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">Categoría</label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -230,6 +317,7 @@ export default function CustomersMapPage() {
               {pendingVisibleCount} con pendientes
             </span>
             <span>El volumen excluye pedidos cancelados.</span>
+            <span>El distrito se identifica desde la dirección registrada del cliente.</span>
           </div>
         </CardContent>
       </Card>
