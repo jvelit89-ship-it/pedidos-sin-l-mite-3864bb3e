@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Truck, CheckCircle2, User } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { format } from 'date-fns';
@@ -34,38 +34,98 @@ interface DeliveryGeostatisticsProps {
   orders: any[];
 }
 
+function MapViewportSync({ points }: { points: DeliveryPoint[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (points.length === 0) return;
+
+    const refreshViewport = () => {
+      map.invalidateSize();
+
+      if (points.length === 1) {
+        map.setView([points[0].lat, points[0].lng], 15, { animate: false });
+        return;
+      }
+
+      const bounds = L.latLngBounds(points.map((point) => [point.lat, point.lng] as [number, number]));
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, {
+          padding: [32, 32],
+          maxZoom: 15,
+          animate: false,
+        });
+      }
+    };
+
+    const frame = window.requestAnimationFrame(refreshViewport);
+    const timeout = window.setTimeout(refreshViewport, 250);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [map, points]);
+
+  return null;
+}
+
 export function DeliveryGeostatistics({ orders }: DeliveryGeostatisticsProps) {
+  const deliveredOrders = useMemo(
+    () => orders.filter((o) => o.status === 'delivered'),
+    [orders]
+  );
+
   const deliveryPoints = useMemo(() => {
-    return orders
-      .filter(o => o.status === 'delivered' && o.delivery_latitude && o.delivery_longitude)
-      .map(o => ({
+    return deliveredOrders
+      .filter((o) => {
+        const lat = Number(o.delivery_latitude);
+        const lng = Number(o.delivery_longitude);
+        return (
+          Number.isFinite(lat) &&
+          Number.isFinite(lng) &&
+          lat >= -90 && lat <= 90 &&
+          lng >= -180 && lng <= 180 &&
+          !(lat === 0 && lng === 0)
+        );
+      })
+      .map((o) => ({
         order_id: o.id,
         customer_name: o.customer_name,
         repartidor_name: o.repartidor_name || 'Desconocido',
-        lat: o.delivery_latitude,
-        lng: o.delivery_longitude,
+        lat: Number(o.delivery_latitude),
+        lng: Number(o.delivery_longitude),
         delivered_at: o.delivered_at,
         total: o.total
       })) as DeliveryPoint[];
-  }, [orders]);
+  }, [deliveredOrders]);
 
   const center: [number, number] = deliveryPoints.length > 0 
     ? [deliveryPoints[0].lat, deliveryPoints[0].lng] 
     : [-12.046374, -77.042793]; // Default to Lima
+
+  const totalDelivered = deliveredOrders.length;
+  const totalGeolocated = deliveryPoints.length;
+  const geolocationCoverage = totalDelivered > 0
+    ? Math.round((totalGeolocated / totalDelivered) * 100)
+    : 0;
 
   if (deliveryPoints.length === 0) {
     return (
       <Card>
         <CardContent className="p-6 text-center text-muted-foreground">
           <MapPin className="w-12 h-12 mx-auto mb-2 opacity-20" />
-          <p>No hay datos geolocalizados de entregas hoy.</p>
+          <p>No hay datos geolocalizados de entregas.</p>
+          {totalDelivered > 0 && (
+            <p className="text-xs mt-2">
+              Hay {totalDelivered} entrega(s) completada(s), pero ninguna tiene coordenadas GPS guardadas.
+            </p>
+          )}
         </CardContent>
       </Card>
     );
   }
 
-  // Stats calculation
-  const totalDelivered = deliveryPoints.length;
   const uniqueRepartidores = new Set(deliveryPoints.map(p => p.repartidor_name)).size;
 
   return (
@@ -78,8 +138,8 @@ export function DeliveryGeostatistics({ orders }: DeliveryGeostatisticsProps) {
           </CardTitle>
           <div className="flex gap-4">
             <div className="flex flex-col items-end">
-              <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Entregas</span>
-              <span className="text-xl font-bold text-primary">{totalDelivered}</span>
+              <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Entregas GPS</span>
+              <span className="text-xl font-bold text-primary">{totalGeolocated}</span>
             </div>
             <div className="flex flex-col items-end border-l pl-4">
               <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Repartidores</span>
@@ -100,6 +160,7 @@ export function DeliveryGeostatistics({ orders }: DeliveryGeostatisticsProps) {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            <MapViewportSync points={deliveryPoints} />
             {deliveryPoints.map((point) => (
               <Marker key={point.order_id} position={[point.lat, point.lng]}>
                 <Popup className="custom-popup">
@@ -128,7 +189,7 @@ export function DeliveryGeostatistics({ orders }: DeliveryGeostatisticsProps) {
             <div className="space-y-1.5">
                {Array.from(new Set(deliveryPoints.map(p => p.repartidor_name))).map(name => {
                  const count = deliveryPoints.filter(p => p.repartidor_name === name).length;
-                 const percentage = Math.round((count / totalDelivered) * 100);
+                 const percentage = Math.round((count / totalGeolocated) * 100);
                  return (
                    <div key={name} className="flex items-center justify-between text-sm">
                      <span className="truncate flex-1 pr-2">{name}</span>
@@ -145,9 +206,11 @@ export function DeliveryGeostatistics({ orders }: DeliveryGeostatisticsProps) {
           </div>
           <div className="flex items-center justify-center p-4 bg-primary/5 rounded-xl border border-primary/10">
             <div className="text-center">
-              <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Precisión de Entrega</p>
-              <p className="text-2xl font-black text-primary">100%</p>
-              <p className="text-[10px] text-muted-foreground">Todos los puntos geolocalizados</p>
+              <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Cobertura GPS de Entregas</p>
+              <p className="text-2xl font-black text-primary">{geolocationCoverage}%</p>
+              <p className="text-[10px] text-muted-foreground">
+                {totalGeolocated} de {totalDelivered} entrega(s) con ubicación registrada
+              </p>
             </div>
           </div>
         </div>
