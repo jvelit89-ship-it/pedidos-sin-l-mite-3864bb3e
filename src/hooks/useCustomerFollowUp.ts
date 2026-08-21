@@ -67,6 +67,8 @@ export function useCustomerFollowUp() {
   useEffect(() => {
     if (!user?.companyId) {
       setItems([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
