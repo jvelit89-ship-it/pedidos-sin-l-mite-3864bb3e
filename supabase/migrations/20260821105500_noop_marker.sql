@@ -1,0 +1,1 @@
+-- Intentionally empty migration marker removed before merge if unnecessary.
