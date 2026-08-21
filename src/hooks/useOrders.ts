@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { handleError } from '@/lib/error-handler';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderStatus } from '@/types';
+import { getRecentValidatedDeliveryLocation } from '@/lib/deliveryGeoValidation';
 
 interface Order {
   id: string;
@@ -26,6 +27,10 @@ interface Order {
   updated_at: string;
   delivered_at: string | null;
   tracking_code: string | null;
+  delivery_latitude?: number | null;
+  delivery_longitude?: number | null;
+  delivery_distance_m?: number | null;
+  delivery_pin_verified_at?: string | null;
   
   customers?: {
     customer_type: string | null;
@@ -173,6 +178,20 @@ export function useOrders() {
     };
 
     if (status === 'delivered') {
+      // If this order has just passed the PIN + geofence validation, persist the
+      // validated GPS proof in the SAME update that marks it delivered. This
+      // prevents an order from becoming delivered while a later GPS write fails.
+      const validatedLocation = getRecentValidatedDeliveryLocation(id);
+      if (
+        validatedLocation &&
+        (updates.delivery_latitude == null || updates.delivery_longitude == null)
+      ) {
+        updates.delivery_latitude = validatedLocation.driver.lat;
+        updates.delivery_longitude = validatedLocation.driver.lng;
+        updates.delivery_distance_m = validatedLocation.distance;
+        updates.delivery_pin_verified_at = new Date(validatedLocation.validatedAt).toISOString();
+      }
+
       updates.delivered_at = new Date().toISOString();
     }
 
