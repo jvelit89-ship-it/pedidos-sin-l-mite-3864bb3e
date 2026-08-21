@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Truck, CheckCircle2, User } from 'lucide-react';
+import { MapPin, Truck, CheckCircle2, User, History, ExternalLink } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -10,7 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getTodayLimaDateKey } from '@/lib/limaTime';
 
-// Fix for default marker icons in Leaflet with Webpack/Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -25,10 +24,13 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 interface TodayDelivery {
   id: string;
+  tracking_code: string | null;
   customer_name: string;
   repartidor_name: string | null;
+  delivery_address: string | null;
   delivery_latitude: number | null;
   delivery_longitude: number | null;
+  delivery_distance_m: number | null;
   delivered_at: string;
   total: number;
 }
@@ -45,7 +47,6 @@ interface DeliveryPoint {
 
 function getTodayLimaUtcRange() {
   const limaDate = getTodayLimaDateKey();
-  // Peru uses UTC-05:00 year-round. Convert Lima calendar midnight to UTC.
   const start = new Date(`${limaDate}T00:00:00-05:00`);
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
@@ -54,6 +55,26 @@ function getTodayLimaUtcRange() {
     end: end.toISOString(),
     dateKey: limaDate,
   };
+}
+
+function hasValidDeliveryGps(delivery: Pick<TodayDelivery, 'delivery_latitude' | 'delivery_longitude'>) {
+  const lat = Number(delivery.delivery_latitude);
+  const lng = Number(delivery.delivery_longitude);
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180 &&
+    !(lat === 0 && lng === 0)
+  );
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('es-PE', {
+    style: 'currency',
+    currency: 'PEN',
+    minimumFractionDigits: 2,
+  }).format(Number(value) || 0);
 }
 
 function MapViewportSync({ points }: { points: DeliveryPoint[] }) {
@@ -99,6 +120,98 @@ function MapViewportSync({ points }: { points: DeliveryPoint[] }) {
   return null;
 }
 
+function DeliveryHistoryList({ deliveries }: { deliveries: TodayDelivery[] }) {
+  return (
+    <div className="border-t bg-background">
+      <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b">
+        <div>
+          <p className="font-semibold flex items-center gap-2">
+            <History className="w-4 h-4 text-primary" />
+            Historial de entregas de hoy
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Debe coincidir 1 a 1 con los pedidos marcados como Entregado hoy.
+          </p>
+        </div>
+        <span className="text-sm font-bold text-primary">{deliveries.length} pedido(s)</span>
+      </div>
+
+      {deliveries.length === 0 ? (
+        <div className="p-6 text-center text-sm text-muted-foreground">
+          Aún no hay pedidos entregados hoy.
+        </div>
+      ) : (
+        <div className="max-h-[360px] overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-background border-b z-10">
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="px-4 py-2 font-medium">Hora</th>
+                <th className="px-4 py-2 font-medium">Pedido</th>
+                <th className="px-4 py-2 font-medium">Cliente</th>
+                <th className="px-4 py-2 font-medium hidden md:table-cell">Repartidor</th>
+                <th className="px-4 py-2 font-medium text-right">Total</th>
+                <th className="px-4 py-2 font-medium text-center">GPS</th>
+                <th className="px-4 py-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {deliveries.map((delivery) => {
+                const hasGps = hasValidDeliveryGps(delivery);
+                const orderCode = delivery.tracking_code || delivery.id.slice(0, 8).toUpperCase();
+                return (
+                  <tr key={delivery.id} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-4 py-3 whitespace-nowrap font-medium">
+                      {format(new Date(delivery.delivered_at), 'HH:mm')}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{orderCode}</td>
+                    <td className="px-4 py-3 min-w-[160px]">
+                      <p className="font-medium">{delivery.customer_name}</p>
+                      {delivery.delivery_address && (
+                        <p className="text-[11px] text-muted-foreground truncate max-w-[260px]">
+                          {delivery.delivery_address}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {delivery.repartidor_name || 'Sin repartidor'}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap font-medium">
+                      {formatMoney(delivery.total)}
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      {hasGps ? (
+                        <span className="inline-flex items-center rounded-full bg-green-50 text-green-700 px-2 py-1 text-[11px] font-medium">
+                          ✓ GPS
+                          {delivery.delivery_distance_m != null
+                            ? ` · ${Math.round(Number(delivery.delivery_distance_m))} m`
+                            : ''}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-medium">
+                          Sin GPS
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => { window.location.href = `/orders/${delivery.id}`; }}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline whitespace-nowrap"
+                      >
+                        Ver <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DeliveryGeostatistics() {
   const { user } = useAuth();
   const companyId = user?.companyId ?? null;
@@ -114,15 +227,13 @@ export function DeliveryGeostatistics() {
 
     let query = supabase
       .from('orders')
-      .select('id, customer_name, repartidor_name, delivery_latitude, delivery_longitude, delivered_at, total')
+      .select('id, tracking_code, customer_name, repartidor_name, delivery_address, delivery_latitude, delivery_longitude, delivery_distance_m, delivered_at, total')
       .eq('status', 'delivered')
       .gte('delivered_at', start)
       .lt('delivered_at', end)
       .order('delivered_at', { ascending: false });
 
-    if (companyId) {
-      query = query.eq('company_id', companyId);
-    }
+    if (companyId) query = query.eq('company_id', companyId);
 
     const { data, error } = await query;
 
@@ -147,30 +258,18 @@ export function DeliveryGeostatistics() {
       table: 'orders',
     };
 
-    if (companyId) {
-      realtimeConfig.filter = `company_id=eq.${companyId}`;
-    }
+    if (companyId) realtimeConfig.filter = `company_id=eq.${companyId}`;
 
     const channel = supabase
       .channel(`dashboard-delivery-map-${companyId || 'all'}-${Date.now()}`)
-      .on('postgres_changes', realtimeConfig, () => {
-        fetchTodayDeliveries(true);
-      })
+      .on('postgres_changes', realtimeConfig, () => fetchTodayDeliveries(true))
       .subscribe();
 
-    // Realtime is the primary path. Polling is intentionally lightweight and
-    // only fetches today's delivered orders, so the map never stays stale if
-    // a realtime event is missed or the publication is temporarily unavailable.
-    const polling = window.setInterval(() => {
-      fetchTodayDeliveries(true);
-    }, 20_000);
+    const polling = window.setInterval(() => fetchTodayDeliveries(true), 20_000);
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') {
-        fetchTodayDeliveries(true);
-      }
+      if (document.visibilityState === 'visible') fetchTodayDeliveries(true);
     };
-
     const refreshOnFocus = () => fetchTodayDeliveries(true);
 
     document.addEventListener('visibilitychange', refreshWhenVisible);
@@ -186,18 +285,7 @@ export function DeliveryGeostatistics() {
 
   const deliveryPoints = useMemo(() => {
     return todayDeliveries
-      .filter((delivery) => {
-        const lat = Number(delivery.delivery_latitude);
-        const lng = Number(delivery.delivery_longitude);
-
-        return (
-          Number.isFinite(lat) &&
-          Number.isFinite(lng) &&
-          lat >= -90 && lat <= 90 &&
-          lng >= -180 && lng <= 180 &&
-          !(lat === 0 && lng === 0)
-        );
-      })
+      .filter(hasValidDeliveryGps)
       .map((delivery) => ({
         order_id: delivery.id,
         customer_name: delivery.customer_name,
@@ -211,7 +299,7 @@ export function DeliveryGeostatistics() {
 
   const center: [number, number] = deliveryPoints.length > 0
     ? [deliveryPoints[0].lat, deliveryPoints[0].lng]
-    : [-10.7525, -77.7599]; // Barranca, Peru
+    : [-10.7525, -77.7599];
 
   const totalDelivered = todayDeliveries.length;
   const totalGeolocated = deliveryPoints.length;
@@ -225,12 +313,10 @@ export function DeliveryGeostatistics() {
 
   const repartidorPerformance = useMemo(() => {
     const counts = new Map<string, number>();
-
     todayDeliveries.forEach((delivery) => {
       const name = delivery.repartidor_name || 'Desconocido';
       counts.set(name, (counts.get(name) || 0) + 1);
     });
-
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
   }, [todayDeliveries]);
 
@@ -249,35 +335,6 @@ export function DeliveryGeostatistics() {
         <CardContent className="p-6 text-center text-muted-foreground">
           <div className="animate-spin w-7 h-7 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
           <p>Actualizando entregas de hoy...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (deliveryPoints.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="border-b bg-muted/30">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Geolocalización de Entregas de Hoy
-            </CardTitle>
-            <span className="text-xl font-bold text-primary">{totalDelivered}</span>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 text-center text-muted-foreground">
-          <MapPin className="w-12 h-12 mx-auto mb-2 opacity-20" />
-          {totalDelivered === 0 ? (
-            <p>Aún no hay entregas completadas hoy.</p>
-          ) : (
-            <>
-              <p>Hay {totalDelivered} entrega(s) realizada(s) hoy, pero todavía no tienen coordenadas GPS guardadas.</p>
-              <p className="text-xs mt-2">Las nuevas entregas deben registrar el GPS al momento de confirmarlas.</p>
-            </>
-          )}
-          {refreshError && <p className="text-xs text-destructive mt-3">{refreshError}</p>}
-          {lastUpdatedText && <p className="text-[10px] mt-3">Actualizado: {lastUpdatedText}</p>}
         </CardContent>
       </Card>
     );
@@ -312,6 +369,7 @@ export function DeliveryGeostatistics() {
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="p-0">
         {refreshError && (
           <div className="px-4 py-2 text-xs text-destructive bg-destructive/5 border-b">
@@ -319,73 +377,88 @@ export function DeliveryGeostatistics() {
           </div>
         )}
 
-        <div className="h-[400px] w-full z-0">
-          <MapContainer
-            center={center}
-            zoom={13}
-            style={{ height: '100%', width: '100%' }}
-            scrollWheelZoom={false}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapViewportSync points={deliveryPoints} />
-            {deliveryPoints.map((point) => (
-              <Marker key={point.order_id} position={[point.lat, point.lng]}>
-                <Popup className="custom-popup">
-                  <div className="p-2 space-y-1">
-                    <p className="font-bold text-primary text-sm">{point.customer_name}</p>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Truck className="w-3 h-3" />
-                      <span>Repartidor: {point.repartidor_name}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <CheckCircle2 className="w-3 h-3 text-green-500" />
-                      <span>{format(new Date(point.delivered_at), "HH:mm 'hs' (d MMM)", { locale: es })}</span>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
-
-        <div className="p-4 bg-muted/10 grid grid-cols-1 md:grid-cols-2 gap-4 border-t">
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              <User className="w-3 h-3" /> Rendimiento por Repartidor Hoy
-            </p>
-            <div className="space-y-1.5">
-              {repartidorPerformance.map(([name, count]) => {
-                const percentage = totalDelivered > 0
-                  ? Math.round((count / totalDelivered) * 100)
-                  : 0;
-
-                return (
-                  <div key={name} className="flex items-center justify-between text-sm">
-                    <span className="truncate flex-1 pr-2">{name}</span>
-                    <div className="flex items-center gap-3">
-                      <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${percentage}%` }} />
+        {deliveryPoints.length > 0 ? (
+          <div className="h-[400px] w-full z-0">
+            <MapContainer
+              center={center}
+              zoom={13}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={false}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapViewportSync points={deliveryPoints} />
+              {deliveryPoints.map((point) => (
+                <Marker key={point.order_id} position={[point.lat, point.lng]}>
+                  <Popup className="custom-popup">
+                    <div className="p-2 space-y-1">
+                      <p className="font-bold text-primary text-sm">{point.customer_name}</p>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Truck className="w-3 h-3" />
+                        <span>Repartidor: {point.repartidor_name}</span>
                       </div>
-                      <span className="font-bold w-6 text-right">{count}</span>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CheckCircle2 className="w-3 h-3 text-green-500" />
+                        <span>{format(new Date(point.delivered_at), "HH:mm 'hs' (d MMM)", { locale: es })}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
           </div>
-          <div className="flex items-center justify-center p-4 bg-primary/5 rounded-xl border border-primary/10">
-            <div className="text-center">
-              <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Cobertura GPS de Hoy</p>
-              <p className="text-2xl font-black text-primary">{geolocationCoverage}%</p>
-              <p className="text-[10px] text-muted-foreground">
-                {totalGeolocated} de {totalDelivered} entrega(s) de hoy con ubicación registrada
+        ) : (
+          <div className="h-[240px] flex flex-col items-center justify-center text-center text-muted-foreground px-6">
+            <MapPin className="w-12 h-12 mb-3 opacity-20" />
+            {totalDelivered === 0 ? (
+              <p>Aún no hay entregas completadas hoy.</p>
+            ) : (
+              <>
+                <p>Hay {totalDelivered} entrega(s) realizada(s) hoy, pero ninguna tiene GPS guardado.</p>
+                <p className="text-xs mt-2">Revisa el historial inferior para identificar los pedidos afectados.</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {totalDelivered > 0 && (
+          <div className="p-4 bg-muted/10 grid grid-cols-1 md:grid-cols-2 gap-4 border-t">
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <User className="w-3 h-3" /> Rendimiento por Repartidor Hoy
               </p>
+              <div className="space-y-1.5">
+                {repartidorPerformance.map(([name, count]) => {
+                  const percentage = Math.round((count / totalDelivered) * 100);
+                  return (
+                    <div key={name} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1 pr-2">{name}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${percentage}%` }} />
+                        </div>
+                        <span className="font-bold w-6 text-right">{count}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex items-center justify-center p-4 bg-primary/5 rounded-xl border border-primary/10">
+              <div className="text-center">
+                <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Cobertura GPS de Hoy</p>
+                <p className="text-2xl font-black text-primary">{geolocationCoverage}%</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {totalGeolocated} de {totalDelivered} entrega(s) de hoy con ubicación registrada
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        <DeliveryHistoryList deliveries={todayDeliveries} />
       </CardContent>
     </Card>
   );
