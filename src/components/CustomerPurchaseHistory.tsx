@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ShoppingBag, TrendingUp, Calendar, Package, DollarSign, BarChart3, Wallet, RefreshCw } from 'lucide-react';
+import { Loader2, ShoppingBag, TrendingUp, Calendar, Package, DollarSign, BarChart3, Wallet, RefreshCw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useDistributorCredits, useCreditUsage } from '@/hooks/useDistributorCredits';
+import { downloadXlsx } from '@/lib/xlsx';
+import { toast } from 'sonner';
 
 interface OrderItem {
   id: string;
@@ -195,6 +199,8 @@ export function CustomerPurchaseHistory({ customerId, customerName, customerType
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<CustomerStats | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   
   const isDistribuidor = customerType === 'distribuidor';
 
@@ -274,6 +280,60 @@ export function CustomerPurchaseHistory({ customerId, customerName, customerType
     return `${symbol} ${value.toFixed(2)}`;
   };
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const orderDate = new Date(order.created_at);
+      if (dateFrom) {
+        const from = new Date(`${dateFrom}T00:00:00`);
+        if (orderDate < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(`${dateTo}T23:59:59.999`);
+        if (orderDate > to) return false;
+      }
+      return true;
+    });
+  }, [orders, dateFrom, dateTo]);
+
+  const handleDownloadPurchases = () => {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      toast.error('La fecha inicial no puede ser posterior a la fecha final');
+      return;
+    }
+
+    const purchaseOrders = filteredOrders.filter((order) => order.status !== 'cancelled');
+    const rows = purchaseOrders.flatMap((order) =>
+      (order.order_items || []).map((item) => [
+        format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
+        item.product_name,
+        Number(item.quantity || 0),
+        Number(item.unit_price || 0),
+        Number(item.total || 0),
+      ])
+    );
+
+    if (rows.length === 0) {
+      toast.error('No hay compras en el rango de fechas seleccionado');
+      return;
+    }
+
+    const safeName = customerName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+
+    const rangeSuffix = `${dateFrom || 'inicio'}_${dateTo || 'hoy'}`;
+    downloadXlsx(
+      `compras_${safeName || 'cliente'}_${rangeSuffix}.xlsx`,
+      ['Fecha', 'Producto', 'Cantidad', 'Precio', 'Total'],
+      rows,
+      'Compras'
+    );
+    toast.success('Historial de compras descargado en Excel');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -285,68 +345,90 @@ export function CustomerPurchaseHistory({ customerId, customerName, customerType
   // For distributors, show credit-based stats
   if (isDistribuidor) {
     return (
-      <Tabs defaultValue="stats" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="stats" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Estadísticas
-          </TabsTrigger>
-          <TabsTrigger value="orders" className="gap-2">
-            <ShoppingBag className="w-4 h-4" />
-            Entregas ({orders.length})
-          </TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground mb-1">Desde</p>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground mb-1">Hasta</p>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+            <Button type="button" className="gap-2" onClick={handleDownloadPurchases}>
+              <Download className="w-4 h-4" />
+              Descargar compras
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            El Excel incluye fecha, producto, cantidad, precio y total. Los pedidos cancelados no se exportan.
+          </p>
+        </div>
 
-        <TabsContent value="stats" className="mt-4">
-          <DistributorStats customerId={customerId} />
-        </TabsContent>
+        <Tabs defaultValue="stats" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="stats" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Estadísticas
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="gap-2">
+              <ShoppingBag className="w-4 h-4" />
+              Entregas ({filteredOrders.length})
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="orders" className="mt-4">
-          <ScrollArea className="h-[300px]">
-            {orders.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Sin entregas registradas</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {orders.map((order) => (
-                  <Card key={order.id} className="overflow-hidden">
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm">
-                            {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+          <TabsContent value="stats" className="mt-4">
+            <DistributorStats customerId={customerId} />
+          </TabsContent>
+
+          <TabsContent value="orders" className="mt-4">
+            <ScrollArea className="h-[300px]">
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Sin entregas en el rango seleccionado</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredOrders.map((order) => (
+                    <Card key={order.id} className="overflow-hidden">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">
+                              {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+                            </span>
+                          </div>
+                          <Badge className={statusColors[order.status] || statusColors.pending}>
+                            {statusLabels[order.status] || order.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-sm space-y-1">
+                          {(order.order_items || []).slice(0, 3).map((item: OrderItem) => (
+                            <div key={item.id} className="flex justify-between text-muted-foreground">
+                              <span className="truncate max-w-[60%]">{item.product_name}</span>
+                              <span>x{item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-2 pt-2 border-t">
+                          <span className="text-xs text-muted-foreground">
+                            Entrega de créditos prepagados
                           </span>
                         </div>
-                        <Badge className={statusColors[order.status] || statusColors.pending}>
-                          {statusLabels[order.status] || order.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="text-sm space-y-1">
-                        {(order.order_items || []).slice(0, 3).map((item: OrderItem) => (
-                          <div key={item.id} className="flex justify-between text-muted-foreground">
-                            <span className="truncate max-w-[60%]">{item.product_name}</span>
-                            <span>x{item.quantity}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-2 pt-2 border-t">
-                        <span className="text-xs text-muted-foreground">
-                          Entrega de créditos prepagados
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </div>
     );
   }
 
@@ -361,150 +443,179 @@ export function CustomerPurchaseHistory({ customerId, customerName, customerType
   }
 
   return (
-    <Tabs defaultValue="stats" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="stats" className="gap-2">
-          <BarChart3 className="w-4 h-4" />
-          Estadísticas
-        </TabsTrigger>
-        <TabsTrigger value="orders" className="gap-2">
-          <ShoppingBag className="w-4 h-4" />
-          Pedidos ({orders.length})
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-1">Desde</p>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-1">Hasta</p>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          </div>
+          <Button type="button" className="gap-2" onClick={handleDownloadPurchases}>
+            <Download className="w-4 h-4" />
+            Descargar compras
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          El Excel incluye fecha, producto, cantidad, precio y total. Los pedidos cancelados no se exportan.
+        </p>
+      </div>
 
-      <TabsContent value="stats" className="mt-4 space-y-4">
-        {stats && (
-          <>
-            {/* Key metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <ShoppingBag className="w-5 h-5 mx-auto mb-1 text-primary" />
-                  <p className="text-2xl font-bold">{stats.totalOrders}</p>
-                  <p className="text-xs text-muted-foreground">Total Pedidos</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <DollarSign className="w-5 h-5 mx-auto mb-1 text-green-600" />
-                  <p className="text-2xl font-bold">{formatCurrency(stats.totalSpent)}</p>
-                  <p className="text-xs text-muted-foreground">Total Comprado</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <TrendingUp className="w-5 h-5 mx-auto mb-1 text-blue-600" />
-                  <p className="text-2xl font-bold">{formatCurrency(stats.avgOrderValue)}</p>
-                  <p className="text-xs text-muted-foreground">Promedio/Pedido</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <Package className="w-5 h-5 mx-auto mb-1 text-purple-600" />
-                  <p className="text-2xl font-bold">{stats.totalUnits}</p>
-                  <p className="text-xs text-muted-foreground">Unidades Totales</p>
-                </CardContent>
-              </Card>
-            </div>
+      <Tabs defaultValue="stats" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="stats" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Estadísticas
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="gap-2">
+            <ShoppingBag className="w-4 h-4" />
+            Pedidos ({filteredOrders.length})
+          </TabsTrigger>
+        </TabsList>
 
-            {/* Frequency and last order */}
-            <Card>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Frecuencia de compra</span>
-                  <Badge variant="secondary">{stats.orderFrequency}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Promedio unidades/pedido</span>
-                  <span className="font-medium">{stats.avgUnitsPerOrder.toFixed(1)}</span>
-                </div>
-                {stats.lastOrderDate && (
+        <TabsContent value="stats" className="mt-4 space-y-4">
+          {stats && (
+            <>
+              {/* Key metrics */}
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <ShoppingBag className="w-5 h-5 mx-auto mb-1 text-primary" />
+                    <p className="text-2xl font-bold">{stats.totalOrders}</p>
+                    <p className="text-xs text-muted-foreground">Total Pedidos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <DollarSign className="w-5 h-5 mx-auto mb-1 text-green-600" />
+                    <p className="text-2xl font-bold">{formatCurrency(stats.totalSpent)}</p>
+                    <p className="text-xs text-muted-foreground">Total Comprado</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <TrendingUp className="w-5 h-5 mx-auto mb-1 text-blue-600" />
+                    <p className="text-2xl font-bold">{formatCurrency(stats.avgOrderValue)}</p>
+                    <p className="text-xs text-muted-foreground">Promedio/Pedido</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <Package className="w-5 h-5 mx-auto mb-1 text-purple-600" />
+                    <p className="text-2xl font-bold">{stats.totalUnits}</p>
+                    <p className="text-xs text-muted-foreground">Unidades Totales</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Frequency and last order */}
+              <Card>
+                <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Último pedido</span>
-                    <span className="font-medium">
-                      {format(new Date(stats.lastOrderDate), 'dd MMM yyyy', { locale: es })}
-                    </span>
+                    <span className="text-sm text-muted-foreground">Frecuencia de compra</span>
+                    <Badge variant="secondary">{stats.orderFrequency}</Badge>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Favorite products */}
-            {stats.favoriteProducts.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Productos Favoritos</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-2">
-                    {stats.favoriteProducts.map((product, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-sm truncate max-w-[70%]">
-                          {idx === 0 && '🥇 '}
-                          {idx === 1 && '🥈 '}
-                          {idx === 2 && '🥉 '}
-                          {product.name}
-                        </span>
-                        <Badge variant="outline">{product.quantity} uds</Badge>
-                      </div>
-                    ))}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Promedio unidades/pedido</span>
+                    <span className="font-medium">{stats.avgUnitsPerOrder.toFixed(1)}</span>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-      </TabsContent>
-
-      <TabsContent value="orders" className="mt-4">
-        <ScrollArea className="h-[300px]">
-          <div className="space-y-3">
-            {orders.map((order) => (
-              <Card key={order.id} className="overflow-hidden">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+                  {stats.lastOrderDate && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Último pedido</span>
+                      <span className="font-medium">
+                        {format(new Date(stats.lastOrderDate), 'dd MMM yyyy', { locale: es })}
                       </span>
                     </div>
-                    <Badge className={statusColors[order.status] || statusColors.pending}>
-                      {statusLabels[order.status] || order.status}
-                    </Badge>
-                  </div>
-                  
-                  {order.tracking_code && (
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Código: {order.tracking_code}
-                    </p>
                   )}
-
-                  <div className="text-sm space-y-1">
-                    {(order.order_items || []).slice(0, 3).map((item: OrderItem) => (
-                      <div key={item.id} className="flex justify-between text-muted-foreground">
-                        <span className="truncate max-w-[60%]">{item.product_name}</span>
-                        <span>x{item.quantity}</span>
-                      </div>
-                    ))}
-                    {(order.order_items || []).length > 3 && (
-                      <p className="text-xs text-muted-foreground italic">
-                        +{order.order_items.length - 3} productos más
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-2 pt-2 border-t flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total</span>
-                    <span className="font-bold text-primary">{formatCurrency(order.total)}</span>
-                  </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </ScrollArea>
-      </TabsContent>
-    </Tabs>
+
+              {/* Favorite products */}
+              {stats.favoriteProducts.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Productos Favoritos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2">
+                      {stats.favoriteProducts.map((product, idx) => (
+                        <div key={idx} className="flex justify-between items-center">
+                          <span className="text-sm truncate max-w-[70%]">
+                            {idx === 0 && '🥇 '}
+                            {idx === 1 && '🥈 '}
+                            {idx === 2 && '🥉 '}
+                            {product.name}
+                          </span>
+                          <Badge variant="outline">{product.quantity} uds</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="orders" className="mt-4">
+          <ScrollArea className="h-[300px]">
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No hay pedidos en el rango seleccionado</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredOrders.map((order) => (
+                  <Card key={order.id} className="overflow-hidden">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+                          </span>
+                        </div>
+                        <Badge className={statusColors[order.status] || statusColors.pending}>
+                          {statusLabels[order.status] || order.status}
+                        </Badge>
+                      </div>
+                      
+                      {order.tracking_code && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Código: {order.tracking_code}
+                        </p>
+                      )}
+
+                      <div className="text-sm space-y-1">
+                        {(order.order_items || []).slice(0, 3).map((item: OrderItem) => (
+                          <div key={item.id} className="flex justify-between text-muted-foreground">
+                            <span className="truncate max-w-[60%]">{item.product_name}</span>
+                            <span>x{item.quantity}</span>
+                          </div>
+                        ))}
+                        {(order.order_items || []).length > 3 && (
+                          <p className="text-xs text-muted-foreground italic">
+                            +{order.order_items.length - 3} productos más
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-2 pt-2 border-t flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Total</span>
+                        <span className="font-bold text-primary">{formatCurrency(order.total)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
