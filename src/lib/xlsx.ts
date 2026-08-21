@@ -223,7 +223,7 @@ export function downloadXlsx(
   ];
 
   const zip = createZip(entries);
-  const blob = new Blob([zip], {
+  const blob = new Blob([zip.buffer as ArrayBuffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = URL.createObjectURL(blob);
