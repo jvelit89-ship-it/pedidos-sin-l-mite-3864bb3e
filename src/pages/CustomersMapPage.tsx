@@ -1,16 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCustomers } from '@/hooks/useCustomers';
-import { useOrders } from '@/hooks/useOrders';
+import { getEmptyCustomerMapStat, useCustomerMapStats } from '@/hooks/useCustomerMapStats';
 import { MapView } from '@/components/MapView';
 import { CustomerPurchaseHistory } from '@/components/CustomerPurchaseHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Map, Filter, Loader2, Phone, MapPin, User, Store, Package, ExternalLink, ShoppingBag, Clock } from 'lucide-react';
+import { Map, Filter, Loader2, Phone, MapPin, User, Store, Package, ExternalLink, ShoppingBag, Clock, RotateCcw } from 'lucide-react';
 import { SecureImage } from '@/components/SecureImage';
 
 interface Customer {
@@ -22,92 +22,95 @@ interface Customer {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
-  category: 'regular' | 'premium' | 'vip';
-  customer_type: 'minorista' | 'mayorista';
+  category: 'regular' | 'premium' | 'vip' | null;
+  customer_type: 'minorista' | 'mayorista' | 'distribuidor';
   notes: string | null;
   company_id: string;
   facade_photo_url: string | null;
   vendedor_id: string | null;
 }
 
+function hasValidCoordinates(customer: Pick<Customer, 'latitude' | 'longitude'>) {
+  const lat = Number(customer.latitude);
+  const lng = Number(customer.longitude);
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180 &&
+    !(lat === 0 && lng === 0)
+  );
+}
+
 export default function CustomersMapPage() {
-  const { isAdmin } = useAuth();
-  const { t, settings, formatCurrency } = useSettings();
+  const { user, isAdmin } = useAuth();
+  const { t, formatCurrency } = useSettings();
   const { customers, loading: loadingCustomers } = useCustomers();
-  const { orders, loading: loadingOrders } = useOrders();
+  const {
+    stats: customerStats,
+    loading: loadingStats,
+    lastUpdatedAt,
+  } = useCustomerMapStats(user?.companyId);
+
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [volumeFilter, setVolumeFilter] = useState<string>('all');
   const [pendingFilter, setPendingFilter] = useState<string>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
-  const isLoading = loadingCustomers || loadingOrders;
+  const isLoading = loadingCustomers || loadingStats;
+  const filtersActive = categoryFilter !== 'all' || volumeFilter !== 'all' || pendingFilter !== 'all';
 
-  // Calculate order stats per customer
-  const customerStats = customers.reduce((acc, customer) => {
-    const customerOrders = orders.filter((o) => o.customer_id === customer.id);
-    const pendingOrders = customerOrders.filter((o) => 
-      o.status !== 'delivered' && o.status !== 'cancelled'
-    );
-    const totalSpent = customerOrders
-      .filter((o) => o.status === 'delivered')
-      .reduce((sum, o) => sum + o.total, 0);
-    
-    acc[customer.id] = {
-      totalOrders: customerOrders.length,
-      pendingOrdersCount: pendingOrders.length,
-      hasPendingOrders: pendingOrders.length > 0,
-      totalSpent,
-      lastOrderDate: customerOrders.length > 0 
-        ? new Date(customerOrders[0].created_at).toLocaleDateString('es-PE')
-        : null,
-    };
-    return acc;
-  }, {} as Record<string, { 
-    totalOrders: number; 
-    pendingOrdersCount: number; 
-    hasPendingOrders: boolean;
-    totalSpent: number;
-    lastOrderDate: string | null;
-  }>);
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((customer) => {
+      if (!hasValidCoordinates(customer as Customer)) return false;
 
-  // Filter customers
-  const filteredCustomers = customers.filter((c) => {
-    if (!c.latitude || !c.longitude) return false;
-    
-    if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
-    
-    const stats = customerStats[c.id] || { totalOrders: 0, hasPendingOrders: false };
-    
-    if (volumeFilter === 'high' && stats.totalOrders < 5) return false;
-    if (volumeFilter === 'medium' && (stats.totalOrders < 2 || stats.totalOrders >= 5)) return false;
-    if (volumeFilter === 'low' && stats.totalOrders >= 2) return false;
-    
-    if (pendingFilter === 'pending' && !stats.hasPendingOrders) return false;
-    if (pendingFilter === 'none' && stats.hasPendingOrders) return false;
-    
-    return true;
-  });
+      // Older customer records may have null category. In the UI those records
+      // have always behaved like Regular, so normalize them before filtering.
+      const normalizedCategory = customer.category || 'regular';
+      if (categoryFilter !== 'all' && normalizedCategory !== categoryFilter) return false;
 
-  const mapMarkers = filteredCustomers.map((c) => {
-    const stats = customerStats[c.id] || { totalOrders: 0, pendingOrdersCount: 0, hasPendingOrders: false };
-    return {
-      id: c.id,
-      lat: c.latitude!,
-      lng: c.longitude!,
-      label: c.name,
-      category: c.category,
-      hasPendingOrders: stats.hasPendingOrders,
-      pendingOrdersCount: stats.pendingOrdersCount,
-      phone: c.phone || undefined,
-      address: c.address || undefined,
-      totalOrders: stats.totalOrders,
-      customerType: c.customer_type,
-    };
-  });
+      const stats = customerStats[customer.id] || getEmptyCustomerMapStat();
+
+      if (volumeFilter === 'high' && stats.totalOrders < 5) return false;
+      if (volumeFilter === 'medium' && (stats.totalOrders < 2 || stats.totalOrders >= 5)) return false;
+      if (volumeFilter === 'low' && stats.totalOrders >= 2) return false;
+
+      if (pendingFilter === 'pending' && !stats.hasPendingOrders) return false;
+      if (pendingFilter === 'none' && stats.hasPendingOrders) return false;
+
+      return true;
+    });
+  }, [customers, customerStats, categoryFilter, volumeFilter, pendingFilter]);
+
+  const mapMarkers = useMemo(() => {
+    return filteredCustomers.map((customer) => {
+      const stats = customerStats[customer.id] || getEmptyCustomerMapStat();
+      return {
+        id: customer.id,
+        lat: Number(customer.latitude),
+        lng: Number(customer.longitude),
+        label: customer.name,
+        category: customer.category || 'regular',
+        hasPendingOrders: stats.hasPendingOrders,
+        pendingOrdersCount: stats.pendingOrdersCount,
+        phone: customer.phone || undefined,
+        address: customer.address || undefined,
+        totalOrders: stats.totalOrders,
+        customerType: customer.customer_type,
+      };
+    });
+  }, [filteredCustomers, customerStats]);
+
+  const pendingVisibleCount = useMemo(
+    () => filteredCustomers.filter((customer) => customerStats[customer.id]?.hasPendingOrders).length,
+    [filteredCustomers, customerStats]
+  );
+
+  const filterSignature = `${categoryFilter}-${volumeFilter}-${pendingFilter}`;
 
   const handleMarkerClick = (customerId: string) => {
-    const customer = customers.find((c) => c.id === customerId) as Customer | undefined;
+    const customer = customers.find((item) => item.id === customerId) as Customer | undefined;
     if (customer) {
       setSelectedCustomer(customer);
       setIsDetailDialogOpen(true);
@@ -117,6 +120,20 @@ export default function CustomersMapPage() {
   const openInGoogleMaps = (lat: number, lng: number) => {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
   };
+
+  const clearFilters = () => {
+    setCategoryFilter('all');
+    setVolumeFilter('all');
+    setPendingFilter('all');
+  };
+
+  const lastUpdatedText = lastUpdatedAt
+    ? lastUpdatedAt.toLocaleTimeString('es-PE', {
+        timeZone: 'America/Lima',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
 
   if (!isAdmin) {
     return (
@@ -130,14 +147,29 @@ export default function CustomersMapPage() {
     );
   }
 
-  const selectedStats = selectedCustomer ? customerStats[selectedCustomer.id] : null;
+  const selectedStats = selectedCustomer
+    ? customerStats[selectedCustomer.id] || getEmptyCustomerMapStat()
+    : null;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Map className="w-6 h-6" /> {t.customersMap}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Map className="w-6 h-6" /> {t.customersMap}
+          </h1>
+          {lastUpdatedText && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Pedidos del mapa actualizados: {lastUpdatedText}
+            </p>
+          )}
+        </div>
+        {filtersActive && (
+          <Button variant="outline" size="sm" className="gap-2" onClick={clearFilters}>
+            <RotateCcw className="w-4 h-4" />
+            Limpiar filtros
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -190,6 +222,15 @@ export default function CustomersMapPage() {
               </Select>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full bg-muted px-3 py-1">
+              {filteredCustomers.length} cliente(s) visibles
+            </span>
+            <span className="rounded-full bg-orange-50 text-orange-700 px-3 py-1">
+              {pendingVisibleCount} con pendientes
+            </span>
+            <span>El volumen excluye pedidos cancelados.</span>
+          </div>
         </CardContent>
       </Card>
 
@@ -199,23 +240,27 @@ export default function CustomersMapPage() {
         </div>
       ) : filteredCustomers.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Map className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-muted-foreground">No hay clientes con ubicación</p>
+          <CardContent className="py-12 text-center space-y-3">
+            <Map className="w-16 h-16 mx-auto text-muted-foreground/50" />
+            <p className="text-muted-foreground">No hay clientes que coincidan con los filtros seleccionados.</p>
+            {filtersActive && (
+              <Button variant="outline" onClick={clearFilters}>Limpiar filtros</Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground mb-2">
-              Mostrando {filteredCustomers.length} clientes • 
+              Mostrando {filteredCustomers.length} clientes •
               <span className="text-orange-600 ml-1">
-                {filteredCustomers.filter(c => customerStats[c.id]?.hasPendingOrders).length} con pedidos pendientes
+                {pendingVisibleCount} con pedidos pendientes
               </span>
             </p>
-            <MapView 
-              markers={mapMarkers} 
-              height="500px" 
+            <MapView
+              key={filterSignature}
+              markers={mapMarkers}
+              height="500px"
               onMarkerClick={handleMarkerClick}
             />
           </CardContent>
@@ -249,7 +294,7 @@ export default function CustomersMapPage() {
 
       {/* Customer Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent 
+        <DialogContent
           className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0"
           onInteractOutside={(e) => e.preventDefault()}
         >
@@ -283,8 +328,8 @@ export default function CustomersMapPage() {
                   )}
                   {selectedCustomer?.category && selectedCustomer.category !== 'regular' && (
                     <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      selectedCustomer.category === 'premium' 
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' 
+                      selectedCustomer.category === 'premium'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                         : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                     }`}>
                       {selectedCustomer.category}
@@ -306,7 +351,6 @@ export default function CustomersMapPage() {
               </TabsList>
 
               <TabsContent value="info" className="p-4 space-y-4">
-                {/* Stats Cards */}
                 {selectedStats && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Card className={selectedStats.hasPendingOrders ? 'border-orange-500' : ''}>
@@ -342,7 +386,6 @@ export default function CustomersMapPage() {
                   </div>
                 )}
 
-                {/* Contact Info */}
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     {selectedCustomer?.phone && (
@@ -367,11 +410,10 @@ export default function CustomersMapPage() {
                   </CardContent>
                 </Card>
 
-                {/* Actions */}
                 <div className="flex gap-3">
                   {selectedCustomer?.latitude && selectedCustomer?.longitude && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex-1 gap-2"
                       onClick={() => openInGoogleMaps(selectedCustomer.latitude!, selectedCustomer.longitude!)}
                     >
@@ -380,8 +422,8 @@ export default function CustomersMapPage() {
                     </Button>
                   )}
                   {selectedCustomer?.phone && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex-1 gap-2"
                       onClick={() => window.open(`https://wa.me/51${selectedCustomer.phone}`, '_blank')}
                     >
@@ -393,8 +435,8 @@ export default function CustomersMapPage() {
 
               <TabsContent value="history" className="p-4">
                 {selectedCustomer && (
-                  <CustomerPurchaseHistory 
-                    customerId={selectedCustomer.id} 
+                  <CustomerPurchaseHistory
+                    customerId={selectedCustomer.id}
                     customerName={selectedCustomer.name}
                     customerType={selectedCustomer.customer_type}
                   />
