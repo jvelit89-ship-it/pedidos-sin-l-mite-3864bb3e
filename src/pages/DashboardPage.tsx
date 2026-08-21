@@ -42,6 +42,7 @@ import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { DeliveryGeostatistics } from '@/components/dashboard/DeliveryGeostatistics';
 import { SuspiciousDeliveriesPanel } from '@/components/dashboard/SuspiciousDeliveriesPanel';
 import { WeeklySalesChart } from '@/components/dashboard/WeeklySalesChart';
+import { CustomerFollowUpPanel } from '@/components/dashboard/CustomerFollowUpPanel';
 
 
 export default function DashboardPage() {
@@ -138,7 +139,7 @@ export default function DashboardPage() {
     { 
       title: 'Entregados', 
       value: stats.deliveredOrders, 
-      icon: CheckCircle2, 
+      icon: CheckCircle2,
       color: 'text-[hsl(var(--status-delivered))]',
       bgColor: 'bg-[hsl(var(--status-delivered-bg))]' 
     },
@@ -241,6 +242,9 @@ export default function DashboardPage() {
 
           {/* Weekly Sales Chart */}
           <WeeklySalesChart />
+
+          {/* Customer purchase follow-up */}
+          <CustomerFollowUpPanel />
 
           {/* Delivery Statistics & Map */}
           <DeliveryGeostatistics orders={orders} />
