@@ -1,24 +1,26 @@
-# Diagnóstico: "Failed to fetch" al iniciar sesión
+# Diagnóstico: backend en pausa y reanudación bloqueada
 
-## Causa probable (confirmada)
+## 1) Motivo probable (con evidencia)
 
-La base de datos y el servicio de autenticación alojados están **en pausa**. Mientras están pausados, no responden a ninguna petición, y el navegador muestra exactamente el error "Failed to fetch" al intentar iniciar sesión.
+- **Tu plan actual es Free y la suscripción fue cancelada el 17 de agosto de 2026.** (Consulta de facturación: "Plan: Free — subscription canceled (since Aug 17, 2026)").
+- La base de datos alojada está **en pausa** y, según la documentación oficial, Lovable pausa proyectos por **inactividad** o por **saldo de créditos bajo**.
+- La reanudación automática está **deshabilitada** para este proyecto (respuesta de la plataforma: "resume ha sido deshabilitada"). Cuando la reanudación está deshabilitada, la causa habitual es **saldo de créditos insuficiente** o una restricción de la cuenta/plan — primero hay que resolver el saldo o el plan.
 
-## Evidencia
+## 2) Dónde actuar en la interfaz (ruta exacta)
 
-- Verificación del estado del backend: reporta que la base de datos alojada está **pausada** ("Database and auth calls will not work until the project is active again").
-- No hay errores en consola del navegador registrados: no es un fallo de código de la app.
-- La configuración de entorno del proyecto está presente y correcta (dirección del backend y clave pública configuradas); el cliente de autenticación apunta a esas variables sin valores faltantes.
-- El formulario de inicio de sesión y la lógica de sesión no presentan problemas: el fallo ocurre en la llamada de red saliente, antes de validar credenciales.
+- Al abrir el proyecto: aparece un **aviso en el chat con el botón "Wake up"** (Despertar) para reactivar el backend.
+- Alternativa: **Más → Cloud → Overview**: la tarjeta del proyecto en pausa muestra el botón **Wake up**.
+- Si el saldo de créditos es el problema: **Settings → Plans & Credits** para agregar créditos o ajustar el límite, y luego volver a "Wake up".
 
-## Lo que NO es
+## 3) Si no hay botón visible o no funciona
 
-- No es un problema de credenciales, usuarios ni contraseñas.
-- No es un problema de variables de entorno ni de archivos del proyecto.
-- No es el navegador ni la caché del usuario.
+- Revisa el saldo/límite en **Settings → Plans & Credits** (el bloqueo típico es por créditos agotados o plan cancelado).
+- Si aun así no puedes reactivar, contacta a **soporte de Lovable** indicando que el backend está pausado y la reanudación está deshabilitada en un plan Free con suscripción cancelada — es un bloqueo a nivel de plataforma/cuenta que solo ellos pueden liberar.
 
-## Siguiente paso recomendado (requiere tu aprobación, no lo he hecho)
+## 4) Riesgo para los datos mientras está pausado
 
-Reactivar la base de datos alojada desde la configuración del proyecto (Cloud). Tras reactivarla, volver a verificar el estado hasta que aparezca activa y probar el inicio de sesión en la app publicada.
+- **No hay riesgo de pérdida:** la documentación confirma que los datos (base de datos y archivos) **persisten seguros** mientras el proyecto está en pausa. Solo el acceso (lectura/escritura, login) queda inactivo.
+- El almacenamiento sigue generando un pequeño consumo de créditos, pero el cómputo está detenido.
+- **Advertencia:** no uses "More → Cloud → Overview → Advanced settings → Remove Cloud", porque esa acción es permanente y elimina la instancia y los datos.
 
-No he modificado código, datos, credenciales ni configuración.
+No he modificado código, datos, usuarios, variables ni despliegues.
