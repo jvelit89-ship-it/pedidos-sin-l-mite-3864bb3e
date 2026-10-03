@@ -43,6 +43,7 @@ const DeliveryGeostatistics = lazy(() => import('@/components/dashboard/Delivery
 const SuspiciousDeliveriesPanel = lazy(() => import('@/components/dashboard/SuspiciousDeliveriesPanel').then((m) => ({ default: m.SuspiciousDeliveriesPanel })));
 const WeeklySalesChart = lazy(() => import('@/components/dashboard/WeeklySalesChart').then((m) => ({ default: m.WeeklySalesChart })));
 const CustomerFollowUpPanel = lazy(() => import('@/components/dashboard/CustomerFollowUpPanel').then((m) => ({ default: m.CustomerFollowUpPanel })));
+const SuperadminVehicleTracker = lazy(() => import('@/components/dashboard/SuperadminVehicleTracker').then((m) => ({ default: m.SuperadminVehicleTracker })));
 
 const DashboardModuleFallback = () => (
   <Card>
@@ -90,6 +91,7 @@ export default function DashboardPage() {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isVendedor = user?.role === 'vendedor';
+  const isSuperadmin = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
 
   const stats = useMemo<DashboardStats>(() => {
     const today = getTodayBusinessDateKey();
@@ -227,6 +229,12 @@ export default function DashboardPage() {
           </motion.div>
         ))}
       </div>
+
+      {isSuperadmin && (
+        <Suspense fallback={<DashboardModuleFallback />}>
+          <SuperadminVehicleTracker />
+        </Suspense>
+      )}
 
       {/* Admin-only sections */}
       {isAdmin && (
