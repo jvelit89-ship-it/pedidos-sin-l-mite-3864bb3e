@@ -200,24 +200,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
     console.log('Order items created - stock deduction handled by database trigger');
 
     
-    // Generate the delivery PIN only on the server and deliver it directly
-    // to the customer. SMS/httpSMS is preferred; WhatsApp is fallback.
-    // The PIN is never returned to the browser.
-    const { data: pinDeliveryResult, error: pinDeliveryError } = await supabase.functions.invoke(
-      'issue-delivery-pin',
-      { body: { orderId: orderData.id } },
-    );
-
-    if (pinDeliveryError || !pinDeliveryResult?.success) {
-      console.error('Delivery PIN issue failed:', pinDeliveryError || pinDeliveryResult?.error);
-      toast.warning('Pedido creado, pero el PIN no pudo enviarse al cliente', {
-        description: pinDeliveryResult?.message || pinDeliveryResult?.error || pinDeliveryError?.message || 'Revisa la configuración de SMS/WhatsApp.',
-        duration: 7000,
-      });
-    } else {
-      const via = pinDeliveryResult.channel === 'sms' ? 'SMS' : 'WhatsApp';
-      toast.success(`Pedido creado y PIN enviado al cliente por ${via}`);
-    }
+    toast.success('Pedido creado');
 
     return orderData;
   }, []);
@@ -262,7 +245,6 @@ export function useOrders(options: UseOrdersOptions = {}) {
         updates.delivery_latitude = validatedLocation.driver.lat;
         updates.delivery_longitude = validatedLocation.driver.lng;
         updates.delivery_distance_m = validatedLocation.distance;
-        updates.delivery_pin_verified_at = new Date(validatedLocation.validatedAt).toISOString();
       }
 
       const hasValidGps =
@@ -274,10 +256,10 @@ export function useOrders(options: UseOrdersOptions = {}) {
 
       if (!hasValidGps) {
         const gpsError = new Error(
-          'GPS requerido: confirma la entrega desde Entregas o Ruta usando PIN y ubicación.'
+          'GPS requerido: confirma la entrega desde Entregas o Ruta dentro de la zona permitida.'
         );
         toast.error('No se puede marcar como entregado sin GPS', {
-          description: 'Abre Entregas o Ruta, valida el PIN del cliente y permite la ubicación.',
+          description: 'Abre Entregas o Ruta y permite la ubicación. Debes estar a máximo 200 m del cliente.',
         });
         throw gpsError;
       }
