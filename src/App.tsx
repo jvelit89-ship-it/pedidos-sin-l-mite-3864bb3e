@@ -80,7 +80,8 @@ const App = () => {
                   <Routes>
                   {/* Public routes - Customer Portal */}
                   <Route path="/track" element={<CustomerPortalPage />} />
-                  <Route path="/pedidos-online" element={<DirectOrderPage />} />
+                  <Route path="/pedidos" element={<DirectOrderPage />} />
+                  <Route path="/pedidos-online" element={<Navigate to="/pedidos" replace />} />
                   <Route path="/pedidos-directos/:companyId" element={<DirectOrderPage />} />
                   <Route path="/distribuidor" element={<DistributorPortalPage />} />
                   <Route path="/track/:trackingCode" element={<OrderTrackingPage />} />
