@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.public-online-order]
 verify_jwt = false
+
+[functions.issue-delivery-pin]
+verify_jwt = false
