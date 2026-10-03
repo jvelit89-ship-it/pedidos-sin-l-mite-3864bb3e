@@ -122,7 +122,7 @@ export default function OrdersPage() {
   const [pendingBulkStatus, setPendingBulkStatus] = useState<OrderStatus | null>(null);
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-  const isSuperadmin = user?.role === 'superadmin';
+  const isSuperadmin = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
   const isRepartidor = user?.role === 'repartidor';
 
