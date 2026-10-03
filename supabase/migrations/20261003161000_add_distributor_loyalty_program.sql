@@ -115,4 +115,78 @@ BEFORE UPDATE OF status ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.apply_online_order_loyalty_on_delivery();
 
+CREATE OR REPLACE FUNCTION public.apply_loyalty_redemption(
+  p_customer_id uuid,
+  p_order_id uuid,
+  p_points integer
+)
+RETURNS numeric
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  account_row public.customer_loyalty_accounts%ROWTYPE;
+  discount_amount numeric(12,2);
+  order_company uuid;
+  order_customer uuid;
+BEGIN
+  IF p_points NOT IN (50, 100) THEN
+    RAISE EXCEPTION 'INVALID_REWARD';
+  END IF;
+
+  discount_amount := CASE p_points
+    WHEN 50 THEN 5.00
+    WHEN 100 THEN 12.00
+  END;
+
+  SELECT company_id, customer_id
+    INTO order_company, order_customer
+  FROM public.orders
+  WHERE id = p_order_id
+  FOR UPDATE;
+
+  IF order_customer IS DISTINCT FROM p_customer_id THEN
+    RAISE EXCEPTION 'ORDER_CUSTOMER_MISMATCH';
+  END IF;
+
+  SELECT * INTO account_row
+  FROM public.customer_loyalty_accounts
+  WHERE customer_id = p_customer_id
+  FOR UPDATE;
+
+  IF account_row.customer_id IS NULL OR account_row.points_balance < p_points THEN
+    RAISE EXCEPTION 'INSUFFICIENT_POINTS';
+  END IF;
+
+  UPDATE public.customer_loyalty_accounts
+  SET points_balance = points_balance - p_points,
+      updated_at = now()
+  WHERE customer_id = p_customer_id;
+
+  UPDATE public.orders
+  SET loyalty_points_redeemed = p_points,
+      loyalty_discount_amount = discount_amount,
+      total = GREATEST(0, total - discount_amount),
+      updated_at = now()
+  WHERE id = p_order_id;
+
+  INSERT INTO public.customer_loyalty_transactions(
+    company_id, customer_id, order_id, transaction_type, points, description
+  )
+  VALUES (
+    order_company, p_customer_id, p_order_id, 'redeem', -p_points,
+    CASE p_points
+      WHEN 50 THEN 'Canje de 50 puntos por S/5 de descuento'
+      WHEN 100 THEN 'Canje de 100 puntos por S/12 de descuento'
+    END
+  );
+
+  RETURN discount_amount;
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.apply_loyalty_redemption(uuid, uuid, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_loyalty_redemption(uuid, uuid, integer) TO service_role;
+
 NOTIFY pgrst, 'reload schema';
