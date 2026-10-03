@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Archive, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { Archive, ChevronDown, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -53,6 +54,8 @@ export function DeletedOrdersArchivePanel() {
   const [searchTerm, setSearchTerm] = useState('');
   const [monthFilter, setMonthFilter] = useState('all');
   const [expanded, setExpanded] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [loadedOnce, setLoadedOnce] = useState(false);
 
   const fetchDeletedOrders = useCallback(async () => {
     setLoading(true);
@@ -83,11 +86,14 @@ export function DeletedOrdersArchivePanel() {
     }
 
     setLoading(false);
+    setLoadedOnce(true);
   }, [user?.companyId]);
 
   useEffect(() => {
-    fetchDeletedOrders();
-  }, [fetchDeletedOrders]);
+    if (archiveOpen && !loadedOnce) {
+      fetchDeletedOrders();
+    }
+  }, [archiveOpen, loadedOnce, fetchDeletedOrders]);
 
   const months = useMemo(() => {
     const monthSet = new Set(
@@ -123,27 +129,40 @@ export function DeletedOrdersArchivePanel() {
   const visibleLogs = expanded ? filteredLogs : filteredLogs.slice(0, 8);
 
   return (
-    <Card className="mt-4 border-dashed">
-      <CardHeader className="pb-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Archive className="h-4 w-4" />
-              Archivo de pedidos eliminados
-              <Badge variant="secondary">{logs.length}</Badge>
-            </CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Historial de auditoría de solo lectura. No afecta ventas, stock ni comisiones.
-            </p>
-          </div>
+    <Collapsible open={archiveOpen} onOpenChange={setArchiveOpen}>
+      <Card className="mt-6 border-dashed bg-muted/10">
+      <CardHeader className="py-3">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between gap-3 text-left rounded-lg hover:bg-muted/50 px-1 py-1 transition-colors"
+          >
+            <div>
+              <CardTitle className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Archive className="h-4 w-4" />
+                Archivo de pedidos eliminados
+                {loadedOnce && <Badge variant="secondary">{logs.length}</Badge>}
+              </CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground/80">
+                Historial de auditoría · oculto por defecto
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              {archiveOpen ? 'Ocultar' : 'Ver archivo'}
+              <ChevronDown className={`h-4 w-4 transition-transform ${archiveOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+        </CollapsibleTrigger>
+      </CardHeader>
+
+      <CollapsibleContent>
+      <CardContent className="space-y-4 pt-0">
+        <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={fetchDeletedOrders} disabled={loading} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
         </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -242,6 +261,8 @@ export function DeletedOrdersArchivePanel() {
           </>
         )}
       </CardContent>
+      </CollapsibleContent>
     </Card>
+    </Collapsible>
   );
 }
