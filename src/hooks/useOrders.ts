@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { OrderStatus } from '@/types';
 import { getRecentValidatedDeliveryLocation } from '@/lib/deliveryGeoValidation';
 
-interface Order {
+export interface Order {
   id: string;
   customer_id: string;
   customer_name: string;
@@ -38,7 +38,7 @@ interface Order {
   };
 }
 
-interface OrderItem {
+export interface OrderItem {
   id: string;
   order_id: string;
   product_id: string;
@@ -48,7 +48,7 @@ interface OrderItem {
   total: number;
 }
 
-interface OrderWithItems extends Order {
+export interface OrderWithItems extends Order {
   order_items?: OrderItem[];
 }
 
