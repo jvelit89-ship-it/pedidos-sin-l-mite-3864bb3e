@@ -75,56 +75,57 @@ export function DirectOrderLanding({
 
   return (
     <div className="bg-slate-50">
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#003E9E] via-[#075ECC] to-[#00A9E8] text-white">
+      <section className="relative overflow-hidden text-white bg-[#0069C7]">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-cyan-300/25 blur-3xl" />
-          <div className="absolute bottom-0 -left-20 w-72 h-72 rounded-full bg-blue-950/35 blur-3xl" />
-          <div className="absolute top-24 left-1/3 w-36 h-36 rounded-full border border-white/15 rotate-12" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(255,255,255,.95),rgba(255,255,255,.18)_20%,transparent_42%),linear-gradient(115deg,#0756b6_0%,#00a9e8_64%,#0ac3ef_100%)]" />
+          <div className="absolute -left-24 top-1/3 w-80 h-80 rounded-full border-[28px] border-cyan-100/20 blur-[1px]" />
+          <div className="absolute right-[8%] -top-24 w-80 h-80 rounded-full bg-white/25 blur-3xl" />
+          <div className="absolute -bottom-20 left-[44%] w-[520px] h-44 rounded-[50%] bg-cyan-100/30 blur-2xl" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/22 to-transparent" />
+          <div className="absolute top-4 left-[6%] w-3 h-3 rounded-full bg-white/65 shadow-[80px_130px_0_3px_rgba(255,255,255,.25),160px_65px_0_0_rgba(255,255,255,.5),1080px_120px_0_4px_rgba(255,255,255,.22)]" />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-8 relative z-10">
-          <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-6 lg:gap-10 items-center">
-            <div className="text-center lg:text-left">
-              <Badge className="bg-white/15 hover:bg-white/15 border border-white/20 text-white rounded-full px-4 py-2 backdrop-blur-md">
+        <div className="max-w-[1440px] mx-auto relative z-10 px-4 sm:px-6 lg:px-10 pt-7 sm:pt-10 lg:pt-12 pb-0">
+          <div className="grid lg:grid-cols-[.92fr_1.08fr] gap-6 lg:gap-8 items-center">
+            <div className="text-center lg:text-left pb-7 sm:pb-10 lg:pb-14">
+              <Badge className="bg-blue-950/35 hover:bg-blue-950/35 border border-white/25 text-white rounded-full px-4 py-2 backdrop-blur-md shadow-sm">
                 Portal oficial de pedidos
               </Badge>
 
-              <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[.95]">
-                Haz tu pedido
-                <span className="block text-cyan-200">online</span>
+              <h1 className="mt-5 text-[clamp(2.55rem,7vw,5.4rem)] font-black tracking-[-.055em] leading-[.88] drop-shadow-sm">
+                Pide aquí tu
+                <span className="block text-cyan-200 [text-shadow:0_3px_0_rgba(255,255,255,.25)]">abastecimiento</span>
               </h1>
 
-              <p className="mt-4 text-xl sm:text-2xl font-extrabold text-white/95">
-                Agua Santa María y EcoHielo
-                <span className="block text-base sm:text-lg font-semibold text-blue-100 mt-1">
-                  para distribuidores
-                </span>
-              </p>
+              <div className="mt-4 sm:mt-5 inline-flex flex-col rounded-[1.7rem] bg-blue-950/80 px-5 sm:px-8 py-3 sm:py-4 shadow-xl border border-white/10">
+                <span className="text-xl sm:text-2xl lg:text-3xl font-black">Agua Santa María y EcoHielo</span>
+                <span className="text-base sm:text-xl text-blue-100">para distribuidores</span>
+              </div>
 
-              <p className="mt-4 text-sm sm:text-base text-blue-50/95 max-w-xl mx-auto lg:mx-0">
+              <p className="mt-5 text-sm sm:text-base lg:text-lg text-white/95 max-w-2xl mx-auto lg:mx-0 font-medium">
                 Abastece tu negocio desde aquí con promociones por volumen, recompensas y una experiencia pensada para reposición.
               </p>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-3 mt-6">
                 <Benefit icon={Clock3} title="Entrega programada" value="aprox. 24 h" />
                 <Benefit icon={Store} title="Atención a" value="distribuidores" />
-                <Benefit icon={Percent} title="Promos" value="por volumen" />
+                <Benefit icon={Percent} title="Promociones" value="por volumen" />
                 <Benefit icon={Award} title="1 punto" value="cada S/5" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mt-5">
+              <div className="grid grid-cols-2 gap-3 mt-5 max-w-2xl mx-auto lg:mx-0">
                 <Button
                   size="lg"
-                  className="h-14 rounded-2xl bg-white text-blue-700 hover:bg-blue-50 font-black shadow-xl"
+                  className="h-14 sm:h-16 rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white hover:from-blue-800 hover:to-cyan-600 font-black shadow-[0_10px_28px_rgba(0,48,145,.34)] border border-white/40 text-base sm:text-lg"
                   onClick={onStartOrder}
                 >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                   Pedir ahora
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="h-14 rounded-2xl border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white font-black backdrop-blur"
+                  className="h-14 sm:h-16 rounded-2xl border-2 border-white/70 bg-white/12 text-white hover:bg-white/22 hover:text-white font-black backdrop-blur text-base sm:text-lg"
                   onClick={onViewCatalog}
                 >
                   Ver catálogo
@@ -133,20 +134,44 @@ export function DirectOrderLanding({
               </div>
             </div>
 
-            <div className="relative min-h-[300px] sm:min-h-[390px] lg:min-h-[460px] flex items-center justify-center">
-              <div className="absolute inset-x-6 bottom-8 h-32 bg-cyan-200/30 blur-3xl rounded-full" />
-              <div className="absolute inset-6 rounded-[3rem] bg-white/5 border border-white/10 backdrop-blur-[1px]" />
+            <div className="relative min-h-[330px] sm:min-h-[430px] lg:min-h-[560px] flex items-end justify-center">
+              <div className="absolute top-0 right-0 hidden sm:flex items-center justify-center rounded-[2rem] bg-white/88 backdrop-blur px-5 py-3 shadow-xl border border-white/70">
+                <img
+                  src="/logo-empresa.jpg"
+                  alt="Agua Santa María"
+                  className="h-14 lg:h-20 w-auto object-contain"
+                />
+              </div>
+
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-5 w-[88%] h-[68%] rounded-[42%] bg-white/14 blur-[1px] border border-white/10" />
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-3 w-[92%] h-20 rounded-[50%] bg-white/35 blur-xl" />
+
               <img
                 src={PORTAL_PRODUCTS_HERO}
                 alt="Agua Santa María y EcoHielo - portafolio para distribuidores"
-                className="relative z-10 w-full max-w-[720px] h-auto object-contain drop-shadow-[0_28px_42px_rgba(0,31,85,.35)] scale-[1.05] sm:scale-110"
+                className="relative z-10 w-full max-w-[860px] h-auto object-contain drop-shadow-[0_30px_34px_rgba(0,50,110,.32)] scale-[1.08] sm:scale-[1.12] lg:scale-[1.18] origin-bottom"
                 loading="eager"
                 fetchPriority="high"
               />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 rounded-full bg-blue-950/60 border border-white/20 px-4 py-2 text-xs sm:text-sm font-bold text-white backdrop-blur">
-                Todo tu portafolio en un solo pedido
+            </div>
+          </div>
+
+          <div className="relative z-20 -mx-4 sm:-mx-6 lg:-mx-10 mt-0 border-t border-white/35 bg-white/88 backdrop-blur-xl text-blue-950">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 grid grid-cols-3 gap-2 sm:gap-4 text-center">
+              <div className="flex items-center justify-center gap-2 font-bold text-[11px] sm:text-sm">
+                <Droplets className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 shrink-0" />
+                <span>Calidad garantizada</span>
               </div>
-            </div>          </div>
+              <div className="flex items-center justify-center gap-2 font-bold text-[11px] sm:text-sm border-x border-blue-200">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 shrink-0" />
+                <span>Agua alcalina</span>
+              </div>
+              <div className="flex items-center justify-center gap-2 font-bold text-[11px] sm:text-sm">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 shrink-0" />
+                <span>Hielo siempre fresco</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
