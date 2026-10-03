@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { useOrders } from '@/hooks/useOrders';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
@@ -65,8 +63,6 @@ export default function DeliveriesPage() {
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
 
   const isRepartidor = user?.role === 'repartidor';
   const repartidorId = user?.repartidorId;
@@ -320,8 +316,6 @@ export default function DeliveriesPage() {
 
   const requestDeliveryConfirmation = (order: any) => {
     setOrderToConfirm(order);
-    setPinInput('');
-    setPinError(false);
     setLocationError(null);
     setDeliveryLocation(null);
     void acquireDeliveryLocation();
@@ -332,19 +326,6 @@ export default function DeliveriesPage() {
 
     setIsVerifyingLocation(true);
     try {
-      // 1) Verify PIN
-      const { data: isPinValid, error: pinErr } = await supabase.rpc('verify_order_pin', {
-        p_order_id: orderToConfirm.id,
-        p_pin: pinInput,
-      });
-      if (pinErr) throw pinErr;
-      if (!isPinValid) {
-        setPinError(true);
-        toast.error('PIN incorrecto', { description: 'El código ingresado no es válido para este pedido.' });
-        return;
-      }
-
-      // 2) Validate GPS proximity to customer (blocks if > 500m or no GPS)
       const { validateDeliveryLocation } = await import('@/lib/deliveryGeoValidation');
       const validation = await validateDeliveryLocation({
         orderId: orderToConfirm.id,
@@ -364,19 +345,15 @@ export default function DeliveriesPage() {
         return;
       }
 
-      // 3) Persist delivered status + GPS proof + PIN verification atomically.
       await handleStatusUpdate(orderToConfirm.id, 'delivered', {
         delivery_latitude: validation.driver.lat,
         delivery_longitude: validation.driver.lng,
         delivery_distance_m: validation.distance,
-        delivery_pin_verified_at: new Date().toISOString(),
       });
 
       setOrderToConfirm(null);
       setDeliveryLocation(null);
       setLocationError(null);
-      setPinInput('');
-      setPinError(false);
     } catch (err: any) {
       console.error('Error confirming delivery:', err);
       toast.error(err?.message || 'Error al confirmar la entrega');
@@ -671,44 +648,14 @@ export default function DeliveriesPage() {
               Confirmar Entrega Física
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4 pt-2">
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-sm">
                 <p className="font-bold flex items-center gap-2 mb-1">
-                  <AlertTriangle className="w-4 h-4" /> 
-                  VERIFICACIÓN REQUERIDA:
+                  <Navigation className="w-4 h-4" />
+                  VERIFICACIÓN POR GPS
                 </p>
-                Solicita al cliente **{orderToConfirm?.customer_name}** el código de entrega de 4 dígitos.
+                Debes estar a un máximo de <strong>200 metros</strong> de la ubicación registrada del cliente para completar la entrega.
               </div>
 
-              {orderToConfirm && (
-                <div className="space-y-2">
-                  <Label htmlFor="pin" className={pinError ? "text-destructive" : ""}>
-                    Código PIN de Entrega
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="pin"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={4}
-                      placeholder="Ej. 1234"
-                      value={pinInput}
-                      onChange={(e) => {
-                        setPinInput(e.target.value.replace(/\D/g, ''));
-                        setPinError(false);
-                      }}
-                      className={`text-center text-2xl tracking-[1em] font-bold h-14 ${pinError ? "border-destructive ring-destructive" : ""}`}
-                    />
-                  </div>
-                  {pinError && (
-                    <p className="text-xs text-destructive font-medium">El código es incorrecto. Por favor, verifica con el cliente.</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    El cliente puede encontrar este código en su nota de venta o mensaje de confirmación.
-                  </p>
-                </div>
-              )}
-              
               <div className="space-y-3 pt-2">
                 <div className="flex items-center gap-3 text-sm">
                   <div className={`p-2 rounded-full ${deliveryLocation ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
@@ -717,13 +664,13 @@ export default function DeliveriesPage() {
                   <div className="flex-1">
                     <p className={`font-medium ${deliveryLocation ? 'text-green-700' : locationError ? 'text-destructive' : 'text-foreground'}`}>
                       {deliveryLocation
-                        ? 'Ubicación GPS registrada'
+                        ? 'Ubicación GPS obtenida'
                         : locationError
                           ? 'No se pudo obtener la ubicación'
                           : 'Obteniendo ubicación GPS...'}
                     </p>
                     <p className={`text-xs ${locationError ? 'text-destructive' : 'text-muted-foreground'}`}>
-                      {locationError || 'Tu posición actual quedará grabada como prueba de entrega.'}
+                      {locationError || 'El sistema comparará tu ubicación con la del cliente antes de marcar la entrega.'}
                     </p>
                     {locationError && (
                       <Button
@@ -747,12 +694,12 @@ export default function DeliveriesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
             <AlertDialogCancel className="w-full sm:flex-1 rounded-xl h-12 border-2">Aún no entrego</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleConfirmDelivery}
-              disabled={isVerifyingLocation || pinInput.length !== 4 || !deliveryLocation}
+              disabled={isVerifyingLocation || !deliveryLocation}
               className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 rounded-xl font-bold h-12 text-white"
             >
-              {isVerifyingLocation ? 'Verificando GPS...' : 'SÍ, ENTREGADO AHORA'}
+              {isVerifyingLocation ? 'Verificando distancia...' : 'SÍ, ENTREGADO AHORA'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
