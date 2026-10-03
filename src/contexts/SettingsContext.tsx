@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AppSettings, Language, Currency, Timezone, CURRENCY_CONFIG, TIMEZONE_CONFIG } from '@/types';
 // Settings context for language and currency preferences
 
@@ -237,18 +237,18 @@ const defaultSettings: AppSettings = {
 };
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    if (typeof window === 'undefined') return defaultSettings;
 
-  useEffect(() => {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (stored) {
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
-      } catch {
-        // ignore
-      }
+    if (!stored) return defaultSettings;
+
+    try {
+      return { ...defaultSettings, ...JSON.parse(stored) };
+    } catch {
+      return defaultSettings;
     }
-  }, []);
+  });
 
   const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
     setSettings((prev) => {
