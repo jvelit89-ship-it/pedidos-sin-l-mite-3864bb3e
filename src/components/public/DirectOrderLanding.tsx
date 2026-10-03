@@ -76,12 +76,12 @@ export function DirectOrderLanding({
 
   return (
     <div className="bg-slate-50">
-      <section className="relative overflow-hidden text-white bg-[#0069C7]">
+      <section className="relative overflow-hidden text-white bg-[#064D9B]">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(255,255,255,.95),rgba(255,255,255,.18)_20%,transparent_42%),linear-gradient(115deg,#0756b6_0%,#00a9e8_64%,#0ac3ef_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(255,255,255,.34),rgba(255,255,255,.08)_20%,transparent_42%),linear-gradient(115deg,#063B7D_0%,#0759B3_42%,#0A67C8_72%,#0E78D8_100%)]" />
           <div className="absolute -left-24 top-1/3 w-80 h-80 rounded-full border-[28px] border-cyan-100/20 blur-[1px]" />
           <div className="absolute right-[8%] -top-24 w-80 h-80 rounded-full bg-white/25 blur-3xl" />
-          <div className="absolute -bottom-20 left-[44%] w-[520px] h-44 rounded-[50%] bg-cyan-100/30 blur-2xl" />
+          <div className="absolute -bottom-20 left-[44%] w-[520px] h-44 rounded-[50%] bg-blue-200/20 blur-2xl" />
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/22 to-transparent" />
           <div className="absolute top-4 left-[6%] w-3 h-3 rounded-full bg-white/65 shadow-[80px_130px_0_3px_rgba(255,255,255,.25),160px_65px_0_0_rgba(255,255,255,.5),1080px_120px_0_4px_rgba(255,255,255,.22)]" />
         </div>
@@ -94,8 +94,8 @@ export function DirectOrderLanding({
               </Badge>
 
               <h1 className="mt-5 text-[clamp(2.55rem,7vw,5.4rem)] font-black tracking-[-.055em] leading-[.88] drop-shadow-sm">
-                Pide aquí tu
-                <span className="block text-cyan-200 [text-shadow:0_3px_0_rgba(255,255,255,.25)]">abastecimiento</span>
+                Abastece tu Negocio
+                <span className="block text-blue-100 [text-shadow:0_3px_0_rgba(255,255,255,.18)]">desde Aquí</span>
               </h1>
 
               <div className="mt-4 sm:mt-5 inline-flex flex-col rounded-[1.7rem] bg-blue-950/80 px-5 sm:px-8 py-3 sm:py-4 shadow-xl border border-white/10">
@@ -117,7 +117,7 @@ export function DirectOrderLanding({
               <div className="grid grid-cols-2 gap-3 mt-5 max-w-2xl mx-auto lg:mx-0">
                 <Button
                   size="lg"
-                  className="h-14 sm:h-16 rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white hover:from-blue-800 hover:to-cyan-600 font-black shadow-[0_10px_28px_rgba(0,48,145,.34)] border border-white/40 text-base sm:text-lg"
+                  className="h-14 sm:h-16 rounded-2xl bg-gradient-to-r from-blue-800 via-blue-700 to-blue-600 text-white hover:from-blue-900 hover:to-blue-700 font-black shadow-[0_10px_28px_rgba(0,48,145,.34)] border border-white/40 text-base sm:text-lg"
                   onClick={onStartOrder}
                 >
                   <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
@@ -160,7 +160,7 @@ export function DirectOrderLanding({
           <div className="relative z-20 -mx-4 sm:-mx-6 lg:-mx-10 mt-0 border-t border-white/35 bg-white/88 backdrop-blur-xl text-blue-950">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 grid grid-cols-3 gap-2 sm:gap-4 text-center">
               <div className="flex items-center justify-center gap-2 font-bold text-[11px] sm:text-sm">
-                <Droplets className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 shrink-0" />
+                <Droplets className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 shrink-0" />
                 <span>Calidad garantizada</span>
               </div>
               <div className="flex items-center justify-center gap-2 font-bold text-[11px] sm:text-sm border-x border-blue-200">
