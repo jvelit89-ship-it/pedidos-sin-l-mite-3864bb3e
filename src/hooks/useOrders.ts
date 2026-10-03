@@ -126,6 +126,11 @@ export function useOrders(options: UseOrdersOptions = {}) {
     filters.push({ column: 'repartidor_id', value: user.repartidorId });
   }
 
+  if (mode === 'dashboard' && user?.role === 'vendedor' && user.vendedorId) {
+    filters.push({ column: 'vendedor_id', value: user.vendedorId });
+  }
+
+
   const { data: orders, loading, error, refetch } = useRealtimeQuery<OrderWithItems>('orders', {
     select: '*, order_items(*), customers(customer_type, phone)',
     filter: filters.length > 0 ? filters : undefined,
