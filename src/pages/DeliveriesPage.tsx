@@ -50,7 +50,7 @@ const ADMIN_ALERT_THRESHOLD_MINUTES = 30; // Alert admin after 30 minutes withou
 export default function DeliveriesPage() {
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
-  const { orders, loading, updateOrderStatus, refetch } = useOrders();
+  const { orders, loading, updateOrderStatus, refetch } = useOrders({ mode: 'deliveries' });
   const { getRepartidorLoad, newOrdersCount } = useDashboardStats(orders);
   const [urgentAlerts, setUrgentAlerts] = useState<string[]>([]);
   const [adminAlertsSent, setAdminAlertsSent] = useState<Set<string>>(new Set());
