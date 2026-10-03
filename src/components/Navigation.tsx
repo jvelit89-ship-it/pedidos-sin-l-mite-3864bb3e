@@ -95,13 +95,13 @@ export function DesktopSidebar() {
 
   return (
     <aside className={`hidden md:flex flex-col w-64 h-screen bg-sidebar text-sidebar-foreground fixed left-0 top-0 ${isImpersonating ? 'pt-10' : ''}`}>
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center">
-          <Package className="w-5 h-5 text-sidebar-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="font-semibold text-sidebar-primary-foreground text-sm leading-tight">Sistema de Pedidos</h1>
-          <p className="text-xs text-sidebar-foreground/60">y Entregas en Tiempo Real</p>
+      <div className="px-4 py-4 border-b border-sidebar-border">
+        <div className="bg-white rounded-xl px-3 py-2 flex items-center justify-center shadow-sm">
+          <img
+            src="/logo-empresa.jpg"
+            alt="Santa María - Industrias Nacionales"
+            className="w-full max-w-[200px] h-auto object-contain"
+          />
         </div>
       </div>
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
