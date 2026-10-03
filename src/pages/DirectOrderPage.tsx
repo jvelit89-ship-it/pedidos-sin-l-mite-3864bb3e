@@ -37,6 +37,7 @@ import {
   Star
 } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
+import { DirectOrderLanding } from '@/components/public/DirectOrderLanding';
 
 interface Product {
   id: string;
@@ -311,6 +312,12 @@ export default function DirectOrderPage() {
     })
     .filter(Boolean) as any[];
 
+  const scrollToPortalSection = (id: string) => {
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
 
   const submitOrder = async () => {
     if (!customer || Object.keys(selectedProducts).length === 0) return;
@@ -394,55 +401,58 @@ export default function DirectOrderPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Top Header con Estilo Mejorado */}
-      <div className="bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-primary-foreground p-10 shadow-xl relative overflow-hidden">
-        {/* Elementos decorativos abstractos */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-black/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-32 bg-white/5 skew-y-6 pointer-events-none" />
-        
-        <div className="max-w-3xl mx-auto flex flex-col items-center gap-6 relative z-10">
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl shadow-2xl border border-white/20">
-            <div className="bg-white p-3 rounded-2xl shadow-inner">
-              <ShoppingCart className="w-10 h-10 text-primary" />
+      <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/95 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              setStep(1);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex items-center gap-3"
+          >
+            <img src="/logo-empresa.jpg" alt="Agua Santa María" className="h-10 sm:h-12 w-auto object-contain rounded-lg" />
+            <div className="hidden sm:block text-left">
+              <p className="font-black text-slate-900 leading-tight">Agua Santa María</p>
+              <p className="text-xs text-slate-500">Pedidos para distribuidores</p>
             </div>
-          </div>
-          <div className="text-center">
-            <h1 className="text-3xl font-black tracking-tight leading-tight text-white drop-shadow-sm">
-              Agua Santa María y Ecohielo
-            </h1>
-            <p className="text-blue-100 font-medium mt-2 text-lg opacity-90">
-              Portal de Pedidos para Distribuidores
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full text-xs">
-            <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 flex items-center justify-center gap-2">
-              <Clock3 className="w-4 h-4" />
-              Entrega programada aprox. 24 h
-            </div>
-            <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 flex items-center justify-center gap-2">
-              <Store className="w-4 h-4" />
-              Atención a distribuidores
-            </div>
-            <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 flex items-center justify-center gap-2">
-              <Gift className="w-4 h-4" />
-              Premios por fidelidad
-            </div>
-          </div>
-          <p className="text-blue-100/90 text-xs text-center max-w-sm">
-            Los consumidores finales son atendidos por nuestra red de distribuidores. Este portal está orientado a compras de reposición y abastecimiento.
-          </p>
+          </button>
+
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-white/20 border-white/30 text-white font-bold py-1.5 px-6 rounded-full backdrop-blur-sm uppercase tracking-widest text-[11px] shadow-lg">
-              {company.name}
+            <div className="relative w-11 h-11 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
+                  {cartItemCount}
+                </span>
+              )}
+            </div>
+            <Badge variant="outline" className="hidden sm:inline-flex rounded-full bg-blue-50 border-blue-200 text-blue-700">
+              Distribuidores
             </Badge>
           </div>
         </div>
-      </div>
+      </header>
+
+      {step === 1 && (
+        <DirectOrderLanding
+          products={products}
+          selectedProducts={selectedProducts}
+          featuredPromotions={featuredPromotions}
+          getProductPrice={getProductPrice}
+          onAdd={(productId) => handleProductQty(productId, 1)}
+          onStartOrder={() => scrollToPortalSection('identificacion')}
+          onViewCatalog={() => scrollToPortalSection('catalogo')}
+          onRepeatOrder={repeatLastOrder}
+          canRepeatOrder={Boolean(lastOrder?.order_items?.length)}
+          cartItemCount={cartItemCount}
+          totalAmount={totalAmount}
+        />
+      )}
 
       <div className="max-w-3xl mx-auto p-5 pb-24">
         {/* Progress Bar */}
-        {step < 6 && (
+        {step > 1 && step < 6 && (
           <div className="flex justify-between mb-8 overflow-x-auto py-2 px-1">
             {steps.map((s, i) => {
               const StepIcon = s.icon;
@@ -465,11 +475,18 @@ export default function DirectOrderPage() {
 
         <AnimatePresence mode="wait">
           {step === 1 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <motion.div id="identificacion" className="scroll-mt-24 pt-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               <Card className="border-none shadow-lg">
                 <CardHeader>
-                  <CardTitle>Bienvenido</CardTitle>
-                  <CardDescription>Ingresa tu documento para comenzar tu pedido</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <CardTitle>Comienza tu pedido</CardTitle>
+                      <CardDescription>Identifícate para aplicar tus precios, puntos y beneficios.</CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
@@ -512,7 +529,7 @@ export default function DirectOrderPage() {
                     disabled={loading || !documentNumber}
                   >
                     {loading ? <Loader2 className="animate-spin mr-2" /> : null}
-                    {loading ? 'Buscando...' : 'Comenzar mi Pedido'}
+                    {loading ? 'Buscando...' : 'Continuar con mi pedido'}
                     {!loading && <ArrowRight className="ml-2 w-5 h-5" />}
                   </Button>
                 </CardContent>
