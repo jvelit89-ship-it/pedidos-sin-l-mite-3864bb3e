@@ -16,6 +16,7 @@ import { RepartidorLoadSummary } from '@/components/dashboard/RepartidorLoadSumm
 import { TruckExtraLoadPanel } from '@/components/TruckExtraLoadPanel';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentPositionStrict } from '@/lib/deliveryGeoValidation';
 import { 
   Truck, 
   MapPin,
@@ -63,6 +64,7 @@ export default function DeliveriesPage() {
   const [orderToConfirm, setOrderToConfirm] = useState<any>(null);
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
@@ -298,27 +300,31 @@ export default function DeliveriesPage() {
     }
   };
 
+  const acquireDeliveryLocation = async () => {
+    setIsVerifyingLocation(true);
+    setLocationError(null);
+    setDeliveryLocation(null);
+
+    try {
+      const position = await getCurrentPositionStrict();
+      setDeliveryLocation(position);
+      return position;
+    } catch (error: any) {
+      const message = error?.message || 'No se pudo obtener la ubicación actual.';
+      setLocationError(message);
+      return null;
+    } finally {
+      setIsVerifyingLocation(false);
+    }
+  };
+
   const requestDeliveryConfirmation = (order: any) => {
     setOrderToConfirm(order);
-    
-    // Try to get current location to record it
-    if ("geolocation" in navigator) {
-      setIsVerifyingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setDeliveryLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setIsVerifyingLocation(false);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          setIsVerifyingLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 5000 }
-      );
-    }
+    setPinInput('');
+    setPinError(false);
+    setLocationError(null);
+    setDeliveryLocation(null);
+    void acquireDeliveryLocation();
   };
 
   const handleConfirmDelivery = async () => {
@@ -368,6 +374,7 @@ export default function DeliveriesPage() {
 
       setOrderToConfirm(null);
       setDeliveryLocation(null);
+      setLocationError(null);
       setPinInput('');
       setPinError(false);
     } catch (err: any) {
@@ -708,10 +715,31 @@ export default function DeliveriesPage() {
                     {isVerifyingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
                   </div>
                   <div className="flex-1">
-                    <p className={`font-medium ${deliveryLocation ? 'text-green-700' : 'text-foreground'}`}>
-                      {deliveryLocation ? 'Ubicación GPS registrada' : 'Obteniendo ubicación GPS...'}
+                    <p className={`font-medium ${deliveryLocation ? 'text-green-700' : locationError ? 'text-destructive' : 'text-foreground'}`}>
+                      {deliveryLocation
+                        ? 'Ubicación GPS registrada'
+                        : locationError
+                          ? 'No se pudo obtener la ubicación'
+                          : 'Obteniendo ubicación GPS...'}
                     </p>
-                    <p className="text-xs text-muted-foreground">Tu posición actual quedará grabada como prueba de entrega.</p>
+                    <p className={`text-xs ${locationError ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {locationError || 'Tu posición actual quedará grabada como prueba de entrega.'}
+                    </p>
+                    {locationError && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-8"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void acquireDeliveryLocation();
+                        }}
+                        disabled={isVerifyingLocation}
+                      >
+                        {isVerifyingLocation ? 'Reintentando...' : 'Reintentar ubicación'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -721,7 +749,7 @@ export default function DeliveriesPage() {
             <AlertDialogCancel className="w-full sm:flex-1 rounded-xl h-12 border-2">Aún no entrego</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmDelivery}
-              disabled={isVerifyingLocation}
+              disabled={isVerifyingLocation || pinInput.length !== 4 || !deliveryLocation}
               className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 rounded-xl font-bold h-12 text-white"
             >
               {isVerifyingLocation ? 'Verificando GPS...' : 'SÍ, ENTREGADO AHORA'}
