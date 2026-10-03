@@ -3,8 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const DEFAULT_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+const IS_VERCEL_PRODUCTION =
+  typeof window !== 'undefined' &&
+  window.location.hostname === 'crmpedidosonline.vercel.app';
+
+const SUPABASE_URL = IS_VERCEL_PRODUCTION
+  ? 'https://pedidos-api.169-58-90-214.sslip.io'
+  : DEFAULT_SUPABASE_URL;
+
+const SUPABASE_PUBLISHABLE_KEY = IS_VERCEL_PRODUCTION
+  ? 'sb_publishable_06YNTIZ_WFZlbNrvphgoHQ_g3Ijy55l'
+  : DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
