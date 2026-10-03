@@ -6,7 +6,7 @@ import { handleError } from '@/lib/error-handler';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderStatus } from '@/types';
 import { getRecentValidatedDeliveryLocation } from '@/lib/deliveryGeoValidation';
-import { getTodayBusinessDateKey } from '@/lib/limaTime';
+import { getBusinessDayUtcRange, getTodayBusinessDateKey } from '@/lib/limaTime';
 
 export interface Order {
   id: string;
@@ -69,17 +69,8 @@ const OPERATIONAL_STATUSES: OrderStatus[] = [
   'backorder',
 ];
 
-const getBusinessDayRange = (dateKey: string) => {
-  const startDate = new Date(`${dateKey}T00:00:00-05:00`);
-  const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-  return {
-    start: startDate.toISOString(),
-    end: endDate.toISOString(),
-  };
-};
-
 const getCompletedDayClauses = (dateKey: string) => {
-  const { start, end } = getBusinessDayRange(dateKey);
+  const { start, end } = getBusinessDayUtcRange(dateKey);
   return [
     `and(status.eq.delivered,delivered_at.gte.${start},delivered_at.lt.${end})`,
     `and(status.eq.cancelled,created_at.gte.${start},created_at.lt.${end})`,
@@ -104,12 +95,12 @@ export function useOrders(options: UseOrdersOptions = {}) {
   } else if (mode === 'deliveries') {
     const today = getTodayBusinessDateKey();
     orFilter = [
-      `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
+      'status.in.(ready,delivery)',
       ...getCompletedDayClauses(today),
     ].join(',');
   } else if (mode === 'dashboard' && options.dashboardDateFilter !== 'all') {
     const today = getTodayBusinessDateKey();
-    const { start: todayStart } = getBusinessDayRange(today);
+    const { start: todayStart } = getBusinessDayUtcRange(today);
     const thirtyDaysAgo = new Date(
       new Date(todayStart).getTime() - 29 * 24 * 60 * 60 * 1000
     ).toISOString();

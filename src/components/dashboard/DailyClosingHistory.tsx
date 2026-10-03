@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { OrderWithItems } from '@/hooks/useOrders';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Calendar, 
@@ -50,7 +49,7 @@ interface DistributorCredit {
   purchase_date: string;
 }
 
-import { getBusinessDateKey, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
+import { getBusinessDateKey, getBusinessDayUtcRange, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
 
 // Helper to check if a date is today (business day)
 const isTodayBusinessDay = (date: Date): boolean => {
@@ -70,13 +69,11 @@ export function DailyClosingHistory() {
   const [isRecalculating, setIsRecalculating] = useState(false);
 
   const getSelectedMonthRange = useCallback(() => {
-    const start = startOfMonth(selectedMonth);
-    const nextMonth = addMonths(start, 1);
-    const startKey = format(start, 'yyyy-MM-dd');
-    const endKey = format(nextMonth, 'yyyy-MM-dd');
+    const firstDayKey = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
+    const lastDayKey = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
     return {
-      start: new Date(`${startKey}T00:00:00-05:00`).toISOString(),
-      end: new Date(`${endKey}T00:00:00-05:00`).toISOString(),
+      start: getBusinessDayUtcRange(firstDayKey).start,
+      end: getBusinessDayUtcRange(lastDayKey).end,
     };
   }, [selectedMonth]);
 

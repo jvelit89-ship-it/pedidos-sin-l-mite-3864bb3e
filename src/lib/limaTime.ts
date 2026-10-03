@@ -77,6 +77,25 @@ export function getTodayBusinessDateKey(): string {
 }
 
 /**
+ * Exact UTC range for a business day.
+ * Business day D runs from 22:30 Lima on D-1 until 22:30 Lima on D.
+ */
+export function getBusinessDayUtcRange(dateKey: string): { start: string; end: string } {
+  const noonUtc = new Date(`${dateKey}T12:00:00Z`);
+  if (Number.isNaN(noonUtc.getTime())) {
+    throw new Error(`Invalid business date key: ${dateKey}`);
+  }
+
+  const previousDay = new Date(noonUtc.getTime() - 24 * 60 * 60 * 1000);
+  const previousDateKey = previousDay.toISOString().slice(0, 10);
+
+  return {
+    start: new Date(`${previousDateKey}T22:30:00-05:00`).toISOString(),
+    end: new Date(`${dateKey}T22:30:00-05:00`).toISOString(),
+  };
+}
+
+/**
  * Returns today's calendar date key in Lima timezone.
  */
 export function getTodayLimaDateKey(): string {
