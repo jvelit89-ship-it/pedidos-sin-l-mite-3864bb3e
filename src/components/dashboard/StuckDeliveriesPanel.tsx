@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useOrders } from '@/hooks/useOrders';
+import type { Order, OrderWithItems } from '@/hooks/useOrders';
 import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { 
@@ -17,8 +17,16 @@ import {
 
 const STUCK_THRESHOLD_MINUTES = 60; // Show after 1 hour in delivery
 
-export function StuckDeliveriesPanel() {
-  const { orders, updateOrderStatus } = useOrders();
+interface StuckDeliveriesPanelProps {
+  orders: OrderWithItems[];
+  updateOrderStatus: (
+    id: string,
+    status: Order['status'],
+    additionalUpdates?: Partial<Order>
+  ) => Promise<unknown>;
+}
+
+export function StuckDeliveriesPanel({ orders, updateOrderStatus }: StuckDeliveriesPanelProps) {
   const { formatCurrency } = useSettings();
 
   const stuckDeliveries = useMemo(() => {
