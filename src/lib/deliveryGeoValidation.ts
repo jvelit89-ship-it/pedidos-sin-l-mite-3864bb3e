@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export const MAX_DELIVERY_RADIUS_M = 500;
+export const MAX_DELIVERY_RADIUS_M = 200;
 
 interface ValidatedDeliveryCache {
   orderId: string;
