@@ -368,7 +368,7 @@ serve(async (req) => {
         total: Number(finalOrder?.total ?? total),
         loyaltyDiscount,
         pointsRemaining: Number(loyaltyAfter?.points_balance || 0),
-        projectedPoints: Math.max(0, Math.floor(Number(finalOrder?.total ?? total))),
+        projectedPoints: Math.max(0, Math.floor(Number(finalOrder?.total ?? total) / 5)),
       });
     }
 
