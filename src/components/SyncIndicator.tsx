@@ -1,31 +1,23 @@
 import { useSync } from '@/contexts/SyncContext';
 import { WifiOff, RefreshCw, Cloud, CloudOff } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export function OfflineBanner() {
   const { isOnline, isSyncing, pendingSyncCount } = useSync();
 
+  if (isOnline) return null;
+
   return (
-    <AnimatePresence>
-      {!isOnline && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          className="bg-amber-500 text-white overflow-hidden"
-        >
-          <div className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium">
-            <WifiOff className="w-4 h-4" />
-            <span>Sin conexión — Trabajando en modo offline</span>
-            {pendingSyncCount > 0 && (
-              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                {pendingSyncCount} pendientes
-              </span>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="bg-amber-500 text-white overflow-hidden">
+      <div className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium">
+        <WifiOff className="w-4 h-4" />
+        <span>Sin conexión — Trabajando en modo offline</span>
+        {pendingSyncCount > 0 && (
+          <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+            {pendingSyncCount} pendientes
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

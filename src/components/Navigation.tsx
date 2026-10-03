@@ -27,6 +27,30 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard, ShoppingCart, Truck, Package, Box, Users, UserCheck, Bike, Settings, Building2, Map, Route, FileText, Wrench, DollarSign, BookOpen, ShoppingBag,
 };
 
+const routePreloaders: Record<string, () => Promise<unknown>> = {
+  '/companies': () => import('@/pages/CompaniesPage'),
+  '/dashboard': () => import('@/pages/DashboardPage'),
+  '/orders': () => import('@/pages/OrdersPage'),
+  '/deliveries': () => import('@/pages/DeliveriesPage'),
+  '/route': () => import('@/pages/RoutePage'),
+  '/inventory': () => import('@/pages/InventoryPage'),
+  '/purchases': () => import('@/pages/PurchasesPage'),
+  '/suppliers': () => import('@/pages/SuppliersPage'),
+  '/customers': () => import('@/pages/CustomersPage'),
+  '/customers-map': () => import('@/pages/CustomersMapPage'),
+  '/commissions': () => import('@/pages/CommissionsPage'),
+  '/vendedores': () => import('@/pages/VendedoresPage'),
+  '/repartidores': () => import('@/pages/RepartidoresPage'),
+  '/operarios': () => import('@/pages/OperariosPage'),
+  '/logs': () => import('@/pages/AuditLogsPage'),
+  '/settings': () => import('@/pages/SettingsPage'),
+  '/manual': () => import('@/pages/ManualPage'),
+};
+
+const preloadRoute = (path: string) => {
+  void routePreloaders[path]?.();
+};
+
 export function BottomNavigation() {
   const location = useLocation();
   const { user } = useAuth();
@@ -41,7 +65,14 @@ export function BottomNavigation() {
           const Icon = iconMap[item.icon];
           const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
           return (
-            <NavLink key={item.path} to={item.path} className={cn('flex flex-col items-center justify-center flex-1 h-full transition-colors', isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onPointerEnter={() => preloadRoute(item.path)}
+              onFocus={() => preloadRoute(item.path)}
+              onTouchStart={() => preloadRoute(item.path)}
+              className={cn('flex flex-col items-center justify-center flex-1 h-full transition-colors', isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+            >
               <Icon className={cn('w-5 h-5 mb-1', isActive && 'scale-110')} />
               <span className="text-[10px] font-medium">{settings.language === 'en' ? item.labelEn : item.label}</span>
             </NavLink>
@@ -78,7 +109,13 @@ export function DesktopSidebar() {
           const Icon = iconMap[item.icon];
           const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
           return (
-            <NavLink key={item.path} to={item.path} className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all', isActive ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground')}>
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onPointerEnter={() => preloadRoute(item.path)}
+              onFocus={() => preloadRoute(item.path)}
+              className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all', isActive ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground')}
+            >
               <Icon className="w-5 h-5" />
               <span className="font-medium">{settings.language === 'en' ? item.labelEn : item.label}</span>
             </NavLink>

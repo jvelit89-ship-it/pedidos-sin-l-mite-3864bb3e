@@ -1,12 +1,22 @@
-import { ReactNode, useEffect } from 'react';
+import { lazy, ReactNode, Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
-import { DesktopSidebar, BottomNavigation } from '@/components/Navigation';
 import { OfflineBanner } from '@/components/SyncIndicator';
-import { ImpersonationBanner } from '@/components/ImpersonationBanner';
-import { RepartidorBlockOverlay } from '@/components/RepartidorBlockOverlay';
 import { AppFooter } from '@/components/AppFooter';
 import { Loader2 } from 'lucide-react';
+
+const DesktopSidebar = lazy(() =>
+  import('@/components/Navigation').then((module) => ({ default: module.DesktopSidebar }))
+);
+const BottomNavigation = lazy(() =>
+  import('@/components/Navigation').then((module) => ({ default: module.BottomNavigation }))
+);
+const ImpersonationBanner = lazy(() =>
+  import('@/components/ImpersonationBanner').then((module) => ({ default: module.ImpersonationBanner }))
+);
+const RepartidorBlockOverlay = lazy(() =>
+  import('@/components/RepartidorBlockOverlay').then((module) => ({ default: module.RepartidorBlockOverlay }))
+);
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -37,16 +47,28 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className={`min-h-screen bg-background ${isImpersonating ? 'pt-10' : ''}`}>
-      <ImpersonationBanner />
+      {isImpersonating && (
+        <Suspense fallback={null}>
+          <ImpersonationBanner />
+        </Suspense>
+      )}
       <OfflineBanner />
-      <RepartidorBlockOverlay />
-      <DesktopSidebar />
+      {user.role === 'repartidor' && (
+        <Suspense fallback={null}>
+          <RepartidorBlockOverlay />
+        </Suspense>
+      )}
+      <Suspense fallback={null}>
+        <DesktopSidebar />
+      </Suspense>
       <main className="md:ml-64 pb-safe md:pb-0">
         <div className="min-h-screen pb-8">
           {children}
         </div>
       </main>
-      <BottomNavigation />
+      <Suspense fallback={null}>
+        <BottomNavigation />
+      </Suspense>
       <AppFooter />
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types';
@@ -43,29 +43,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const loadedProfileUserIdRef = useRef<string | null>(null);
+  const profileRequestRef = useRef<{ userId: string; promise: Promise<void> } | null>(null);
 
   const fetchUserProfile = useCallback(async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
       
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // Profile and role are independent: fetch both in parallel to save one network round-trip.
+      const [
+        { data: profileData, error: profileError },
+        { data: roleData, error: roleError },
+      ] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle(),
+      ]);
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
         return;
       }
-
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
 
       if (roleError) {
         console.error('Error fetching role:', roleError);
@@ -113,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           vendedorId,
           operarioId,
         });
+        loadedProfileUserIdRef.current = userId;
       } else {
         // Profile doesn't exist yet - create one
         console.log('Profile not found, creating new profile for:', userId);
@@ -153,12 +159,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             vendedorId: null,
             operarioId: null,
           });
+          loadedProfileUserIdRef.current = userId;
         }
       }
     } catch (error) {
       console.error('Unexpected error in fetchUserProfile:', error);
     }
   }, []);
+
+  const ensureUserProfile = useCallback((userId: string): Promise<void> => {
+    if (loadedProfileUserIdRef.current === userId) {
+      return Promise.resolve();
+    }
+
+    if (profileRequestRef.current?.userId === userId) {
+      return profileRequestRef.current.promise;
+    }
+
+    const promise = fetchUserProfile(userId).finally(() => {
+      if (profileRequestRef.current?.userId === userId) {
+        profileRequestRef.current = null;
+      }
+    });
+
+    profileRequestRef.current = { userId, promise };
+    return promise;
+  }, [fetchUserProfile]);
 
   useEffect(() => {
     let mounted = true;
@@ -171,6 +197,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSupabaseUser(newSession?.user ?? null);
 
         if (event === 'SIGNED_OUT') {
+          loadedProfileUserIdRef.current = null;
+          profileRequestRef.current = null;
           setUser(null);
           setIsLoading(false);
           return;
@@ -180,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Defer supabase call to avoid deadlock inside the listener
           setTimeout(() => {
             if (!mounted) return;
-            fetchUserProfile(newSession.user.id).finally(() => {
+            ensureUserProfile(newSession.user.id).finally(() => {
               if (mounted) setIsLoading(false);
             });
           }, 0);
@@ -198,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSupabaseUser(existingSession?.user ?? null);
 
       if (existingSession?.user) {
-        fetchUserProfile(existingSession.user.id).finally(() => {
+        ensureUserProfile(existingSession.user.id).finally(() => {
           if (mounted) setIsLoading(false);
         });
       } else {
@@ -213,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [ensureUserProfile]);
 
 
   const login = useCallback(async (email: string, password: string) => {
@@ -226,6 +254,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+    loadedProfileUserIdRef.current = null;
+    profileRequestRef.current = null;
     setUser(null);
     setSession(null);
     setSupabaseUser(null);
