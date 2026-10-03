@@ -41,15 +41,16 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    if (!roleData || (roleData.role !== "admin" && roleData.role !== "superadmin")) {
+    if (!roleData || roleData.role !== "superadmin") {
       return new Response(
-        JSON.stringify({ error: "Solo Admin o Superadmin pueden marcar como entregado" }),
+        JSON.stringify({ error: "Solo el Superadmin puede cambiar el estado de un pedido" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const { otpCode, orderIds } = await req.json();
-    if (!otpCode || !Array.isArray(orderIds) || orderIds.length === 0) {
+    const { otpCode, orderIds, targetStatus } = await req.json();
+    const allowedStatuses = ["pending", "preparation", "ready", "delivery", "delivered", "cancelled", "backorder"];
+    if (!otpCode || !Array.isArray(orderIds) || orderIds.length === 0 || !allowedStatuses.includes(targetStatus)) {
       return new Response(JSON.stringify({ error: "Datos inválidos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,9 +87,19 @@ serve(async (req) => {
     }
 
     const nowIso = new Date().toISOString();
+    const updatePayload: Record<string, unknown> = {
+      status: targetStatus,
+      updated_at: nowIso,
+    };
+    if (targetStatus === "delivered") {
+      updatePayload.delivered_at = nowIso;
+    } else {
+      updatePayload.delivered_at = null;
+    }
+
     const { error: updateError } = await supabase
       .from("orders")
-      .update({ status: "delivered", delivered_at: nowIso, updated_at: nowIso })
+      .update(updatePayload)
       .in("id", orderIds);
 
     if (updateError) {
@@ -104,7 +115,7 @@ serve(async (req) => {
       .update({ used: true })
       .eq("id", otpData.id);
 
-    return new Response(JSON.stringify({ success: true, updated: orderIds.length }), {
+    return new Response(JSON.stringify({ success: true, updated: orderIds.length, status: targetStatus }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
