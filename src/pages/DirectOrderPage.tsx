@@ -290,7 +290,7 @@ export default function DirectOrderPage() {
 
   const selectedRewardDiscount = redeemPoints === 100 ? 12 : redeemPoints === 50 ? 5 : 0;
   const finalEstimatedTotal = Math.max(0, totalAmount - selectedRewardDiscount);
-  const projectedPoints = Math.floor(finalEstimatedTotal);
+  const projectedPoints = Math.floor(finalEstimatedTotal / 5);
   const featuredPromotions = pricingRules
     .filter((rule) => rule.is_online_exclusive)
     .slice(0, 3)
@@ -696,7 +696,7 @@ export default function DirectOrderPage() {
                     <div>
                       <h2 className="text-lg font-black text-slate-800">Abastece tu negocio</h2>
                       <p className="text-xs text-slate-500 mt-1">
-                        Precios por volumen, promociones online y puntos por cada pedido entregado.
+                        Precios por volumen, promociones online y puntos por cada S/5 pagados.
                       </p>
                     </div>
                     <Badge variant="outline" className="bg-white">{products.length} productos</Badge>
@@ -957,7 +957,7 @@ export default function DirectOrderPage() {
                       </Button>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      Los nuevos puntos se acreditan cuando el pedido sea entregado. Ganas 1 punto por cada S/1 pagado.
+                      Los nuevos puntos se acreditan cuando el pedido sea entregado. Ganas 1 punto por cada S/5 pagados.
                     </p>
                   </div>
 
