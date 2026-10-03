@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -56,9 +56,13 @@ interface Company {
   name: string;
 }
 
+const DEFAULT_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
+
 export default function DirectOrderPage() {
   const { companyId } = useParams<{ companyId: string }>();
+  const navigate = useNavigate();
   const { formatCurrency } = useSettings();
+  const resolvedCompanyId = companyId || DEFAULT_COMPANY_ID;
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -81,11 +85,17 @@ export default function DirectOrderPage() {
   const [selectedProducts, setSelectedProducts] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    if (companyId === DEFAULT_COMPANY_ID && window.location.pathname.startsWith('/pedidos-directos/')) {
+      navigate('/pedidos', { replace: true });
+    }
+  }, [companyId, navigate]);
+
+  useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke('public-online-order', {
-          body: { action: 'init', companyId: companyId || null }
+          body: { action: 'init', companyId: resolvedCompanyId }
         });
         if (error || !data || data.error) {
           console.error('Error fetching data:', error || data?.error);
@@ -104,7 +114,7 @@ export default function DirectOrderPage() {
 
     fetchData();
     document.title = "Pedidos Online | Agua Santa Maria y Ecohielo";
-  }, [companyId]);
+  }, [resolvedCompanyId]);
 
   const findCustomerByValue = async (val: string) => {
     if (!val) return;
@@ -113,7 +123,7 @@ export default function DirectOrderPage() {
 
     setLoading(true);
     try {
-      const currentCompanyId = companyId || company?.id;
+      const currentCompanyId = resolvedCompanyId || company?.id;
       if (!currentCompanyId) {
         toast.error('Empresa no configurada');
         return;
@@ -288,6 +298,7 @@ export default function DirectOrderPage() {
     return acc + getProductPrice(id, qty) * qty;
   }, 0);
 
+  const cartItemCount = Object.values(selectedProducts).reduce((sum, quantity) => sum + quantity, 0);
   const selectedRewardDiscount = redeemPoints === 100 ? 12 : redeemPoints === 50 ? 5 : 0;
   const finalEstimatedTotal = Math.max(0, totalAmount - selectedRewardDiscount);
   const projectedPoints = Math.floor(finalEstimatedTotal / 5);
@@ -306,7 +317,7 @@ export default function DirectOrderPage() {
     setLoading(true);
 
     try {
-      const currentCompanyId = companyId || company?.id;
+      const currentCompanyId = resolvedCompanyId || company?.id;
       if (!currentCompanyId) throw new Error('No se pudo determinar el ID de la empresa');
 
       const items = Object.entries(selectedProducts).map(([id, qty]) => ({
