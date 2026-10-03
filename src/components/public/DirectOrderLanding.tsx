@@ -8,6 +8,8 @@ import {
   Percent,
   Repeat2,
   ShoppingCart,
+  Minus,
+  Plus,
   Store,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -28,12 +30,15 @@ type Promo = {
   product?: Product;
 };
 
+const PORTAL_PRODUCTS_HERO = 'https://pedidos-api.169-58-90-214.sslip.io/storage/v1/object/public/product-images/portal-products-group.webp';
+
 interface DirectOrderLandingProps {
   products: Product[];
   selectedProducts: Record<string, number>;
   featuredPromotions: Promo[];
   getProductPrice: (productId: string, quantity: number) => number;
   onAdd: (productId: string) => void;
+  onRemove: (productId: string) => void;
   onStartOrder: () => void;
   onViewCatalog: () => void;
   onRepeatOrder: () => void;
@@ -58,6 +63,7 @@ export function DirectOrderLanding({
   featuredPromotions,
   getProductPrice,
   onAdd,
+  onRemove,
   onStartOrder,
   onViewCatalog,
   onRepeatOrder,
@@ -127,44 +133,20 @@ export function DirectOrderLanding({
               </div>
             </div>
 
-            <div className="relative min-h-[290px] sm:min-h-[365px] lg:min-h-[430px] flex items-end justify-center">
-              <div className="absolute inset-x-4 bottom-4 h-28 bg-white/20 blur-2xl rounded-full" />
-              <div className="relative w-full h-full flex items-end justify-center">
-                {storefrontProducts.map((product, index) => {
-                  const isIce = product.name.toLowerCase().includes('hielo');
-                  const sizes = [
-                    'h-56 sm:h-72 lg:h-[370px]',
-                    'h-48 sm:h-64 lg:h-[320px]',
-                    'h-40 sm:h-56 lg:h-[270px]',
-                    'h-36 sm:h-48 lg:h-[240px]',
-                    'h-52 sm:h-68 lg:h-[330px]',
-                  ];
-
-                  return (
-                    <div
-                      key={product.id}
-                      className={`relative -mx-2 sm:-mx-3 flex items-end justify-center ${index === 0 || isIce ? 'z-20' : 'z-10'}`}
-                      style={{ width: `${index === 0 || isIce ? 27 : 19}%` }}
-                    >
-                      {product.image_url ? (
-                        <img
-                          src={product.image_url}
-                          alt={product.name}
-                          className={`w-full object-contain drop-shadow-[0_18px_28px_rgba(0,30,80,.35)] ${sizes[index] || sizes[2]}`}
-                          loading={index < 2 ? 'eager' : 'lazy'}
-                        />
-                      ) : (
-                        <div className={`w-full ${sizes[index] || sizes[2]} rounded-[2rem] bg-white/20 border border-white/30 backdrop-blur flex flex-col items-center justify-center p-3`}>
-                          {isIce ? <Package className="w-12 h-12 text-white" /> : <Droplets className="w-12 h-12 text-white" />}
-                          <span className="mt-2 text-[10px] text-center font-bold line-clamp-2">{product.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            <div className="relative min-h-[300px] sm:min-h-[390px] lg:min-h-[460px] flex items-center justify-center">
+              <div className="absolute inset-x-6 bottom-8 h-32 bg-cyan-200/30 blur-3xl rounded-full" />
+              <div className="absolute inset-6 rounded-[3rem] bg-white/5 border border-white/10 backdrop-blur-[1px]" />
+              <img
+                src={PORTAL_PRODUCTS_HERO}
+                alt="Agua Santa María y EcoHielo - portafolio para distribuidores"
+                className="relative z-10 w-full max-w-[720px] h-auto object-contain drop-shadow-[0_28px_42px_rgba(0,31,85,.35)] scale-[1.05] sm:scale-110"
+                loading="eager"
+                fetchPriority="high"
+              />
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 rounded-full bg-blue-950/60 border border-white/20 px-4 py-2 text-xs sm:text-sm font-bold text-white backdrop-blur">
+                Todo tu portafolio en un solo pedido
               </div>
-            </div>
-          </div>
+            </div>          </div>
         </div>
       </section>
 
@@ -217,14 +199,29 @@ export function DirectOrderLanding({
                       <p className="text-xl font-black text-blue-700">S/ {Number(price).toFixed(2)}</p>
                       {quantity > 0 && <p className="text-[11px] text-emerald-600 font-bold">{quantity} agregado(s)</p>}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onAdd(product.id)}
-                      className="w-10 h-10 rounded-full bg-blue-600 text-white text-2xl leading-none flex items-center justify-center shadow-md active:scale-95"
-                      aria-label={`Agregar ${product.name}`}
-                    >
-                      +
-                    </button>
+                    <div className="flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 p-1">
+                      {quantity > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onRemove(product.id)}
+                            className="w-9 h-9 rounded-full bg-white border border-blue-200 text-blue-700 flex items-center justify-center shadow-sm active:scale-95"
+                            aria-label={`Quitar ${product.name}`}
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="min-w-7 text-center text-sm font-black text-blue-950">{quantity}</span>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onAdd(product.id)}
+                        className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md active:scale-95"
+                        aria-label={`Agregar ${product.name}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -275,16 +272,13 @@ export function DirectOrderLanding({
                 <Badge variant="outline" className="bg-white">EcoHielo 3 kg</Badge>
               </div>
             </div>
-            <div className="min-h-52 flex items-end justify-center gap-0 px-4 pt-4 bg-[radial-gradient(circle_at_center,_rgba(14,165,233,.15),transparent_65%)]">
-              {storefrontProducts.map((product) => (
-                <div key={product.id} className="-mx-2 w-1/5 h-52 flex items-end justify-center">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt="" className="max-h-full w-full object-contain drop-shadow-lg" loading="lazy" />
-                  ) : (
-                    <Package className="w-12 h-12 text-blue-300 mb-8" />
-                  )}
-                </div>
-              ))}
+            <div className="min-h-56 flex items-center justify-center px-4 py-4 bg-[radial-gradient(circle_at_center,_rgba(14,165,233,.15),transparent_65%)]">
+              <img
+                src={PORTAL_PRODUCTS_HERO}
+                alt="Portafolio Agua Santa María y EcoHielo"
+                className="w-full max-w-2xl h-auto object-contain"
+                loading="lazy"
+              />
             </div>
           </div>
         </div>
