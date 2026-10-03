@@ -88,8 +88,6 @@ export default function NewOrderPage() {
   const [useBackdatedOrder, setUseBackdatedOrder] = useState(false);
   const [backdatedDate, setBackdatedDate] = useState('');
   const [customerComboOpen, setCustomerComboOpen] = useState(false);
-  const [currentOrderPin, setCurrentOrderPin] = useState<string | null>(null);
-  const [currentCustomerPhone, setCurrentCustomerPhone] = useState<string | null>(null);
   const [receiptType, setReceiptType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
   const [documentType, setDocumentType] = useState<'dni' | 'ruc'>('dni');
   const [documentNumber, setDocumentNumber] = useState('');
@@ -495,11 +493,6 @@ export default function NewOrderPage() {
             .eq('id', selectedCustomerId);
         }
 
-        // Store PIN and phone for WhatsApp sharing
-        const orderPin = (orderData as any).delivery_pin;
-        setCurrentOrderPin(orderPin);
-        setCurrentCustomerPhone(customer.phone);
-        
         // Deduct prepaid balances for items that used a prepaid package
         for (const item of orderItems) {
           const pricing = getItemPricing(item.productId, item.quantity);
@@ -549,7 +542,6 @@ export default function NewOrderPage() {
           payment_method: 'Contado',
           document_type: requiresDocument ? documentType : undefined,
           receipt_type: receiptType,
-          delivery_pin: (orderData as any).delivery_pin, // Add the PIN to the sales note
         } as any);
 
         toast.success(isBackorder ? 'Pre-pedido creado' : 'Pedido creado', {
@@ -1114,10 +1106,7 @@ export default function NewOrderPage() {
       <SalesNotePrint 
         html={salesNoteHtml}
         noteNumber={noteNumber}
-        open={isDialogOpen}
-        customerPhone={currentCustomerPhone}
-        deliveryPin={currentOrderPin}
-        onClose={() => {
+        open={isDialogOpen}        onClose={() => {
           closeDialog();
           navigate('/orders');
         }}
