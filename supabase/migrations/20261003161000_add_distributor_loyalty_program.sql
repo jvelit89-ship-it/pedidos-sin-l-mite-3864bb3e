@@ -66,7 +66,7 @@ BEGIN
     WHERE customer_id = NEW.customer_id
     FOR UPDATE;
 
-    base_points := GREATEST(0, FLOOR(COALESCE(NEW.total, 0))::integer);
+    base_points := GREATEST(0, FLOOR(COALESCE(NEW.total, 0) / 5)::integer);
 
     IF NOT current_account.first_online_bonus_awarded THEN
       bonus_points := 20;
@@ -77,7 +77,7 @@ BEGIN
     )
     VALUES (
       NEW.company_id, NEW.customer_id, NEW.id, 'earn', base_points,
-      'Puntos por pedido online entregado'
+      'Puntos por pedido online entregado (1 punto por cada S/5 pagados)'
     )
     ON CONFLICT DO NOTHING;
 
