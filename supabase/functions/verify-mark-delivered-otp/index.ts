@@ -88,26 +88,15 @@ serve(async (req) => {
       }
     }
 
-    const nowIso = new Date().toISOString();
-    const updatePayload: Record<string, unknown> = {
-      status: targetStatus,
-      updated_at: nowIso,
-    };
-    if (targetStatus === "delivered") {
-      updatePayload.delivered_at = nowIso;
-    } else {
-      updatePayload.delivered_at = null;
-    }
-
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update(updatePayload)
-      .in("id", orderIds);
+    const { data: updatedCount, error: updateError } = await supabase.rpc(
+      "otp_superadmin_change_order_status",
+      { p_order_ids: orderIds, p_status: targetStatus },
+    );
 
     if (updateError) {
       console.error("Update orders error:", updateError);
-      return new Response(JSON.stringify({ error: "No se pudo actualizar pedidos" }), {
-        status: 500,
+      return new Response(JSON.stringify({ success: false, error: "No se pudo actualizar el estado del pedido", detail: updateError.message }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -117,7 +106,7 @@ serve(async (req) => {
       .update({ used: true })
       .eq("id", otpData.id);
 
-    return new Response(JSON.stringify({ success: true, updated: orderIds.length, status: targetStatus }), {
+    return new Response(JSON.stringify({ success: true, updated: updatedCount ?? orderIds.length, status: targetStatus }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
