@@ -269,14 +269,19 @@ export default function DeliveriesPage() {
     });
   }, [deliveries]);
 
-  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusUpdate = async (
+    orderId: string,
+    newStatus: OrderStatus,
+    additionalUpdates?: Parameters<typeof updateOrderStatus>[2],
+  ) => {
     // Skip backorder - not a valid delivery status
     if (newStatus === 'backorder') return;
     try {
       // Find the order being updated
       const order = orders.find(o => o.id === orderId);
       
-      await updateOrderStatus(orderId, newStatus);
+      const updated = await updateOrderStatus(orderId, newStatus, additionalUpdates);
+      if (!updated) throw new Error('No se pudo actualizar el pedido');
       
       if (newStatus === 'delivered' && order && order.vendedor_name) {
         toast.success(`¡Venta de ${order.vendedor_name} entregada!`, {
@@ -353,19 +358,13 @@ export default function DeliveriesPage() {
         return;
       }
 
-      // 3) Mark delivered
-      await handleStatusUpdate(orderToConfirm.id, 'delivered');
-
-      // 4) Save location + distance
-      await supabase
-        .from('orders')
-        .update({
-          delivery_latitude: validation.driver.lat,
-          delivery_longitude: validation.driver.lng,
-          delivery_distance_m: validation.distance,
-          delivery_pin_verified_at: new Date().toISOString(),
-        })
-        .eq('id', orderToConfirm.id);
+      // 3) Persist delivered status + GPS proof + PIN verification atomically.
+      await handleStatusUpdate(orderToConfirm.id, 'delivered', {
+        delivery_latitude: validation.driver.lat,
+        delivery_longitude: validation.driver.lng,
+        delivery_distance_m: validation.distance,
+        delivery_pin_verified_at: new Date().toISOString(),
+      });
 
       setOrderToConfirm(null);
       setDeliveryLocation(null);

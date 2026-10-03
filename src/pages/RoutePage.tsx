@@ -170,16 +170,18 @@ export default function RoutePage() {
         return;
       }
 
-      await handleStatusUpdate(orderToConfirm.id, 'delivered');
+      const updated = await updateOrderStatus(orderToConfirm.id, 'delivered', {
+        delivery_latitude: validation.driver.lat,
+        delivery_longitude: validation.driver.lng,
+        delivery_distance_m: validation.distance,
+        delivery_pin_verified_at: new Date().toISOString(),
+      });
 
-      await supabase
-        .from('orders')
-        .update({
-          delivery_latitude: validation.driver.lat,
-          delivery_longitude: validation.driver.lng,
-          delivery_distance_m: validation.distance,
-        })
-        .eq('id', orderToConfirm.id);
+      if (!updated) {
+        throw new Error('No se pudo guardar la entrega con GPS');
+      }
+
+      toast.success('¡Entrega completada con GPS!');
 
       setOrderToConfirm(null);
       setPinInput('');
