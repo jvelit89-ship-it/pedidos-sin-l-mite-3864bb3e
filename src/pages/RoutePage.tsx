@@ -3,13 +3,10 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useOrders } from '@/hooks/useOrders';
 import { MapView } from '@/components/MapView';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   Route, 
@@ -20,7 +17,6 @@ import {
   RefreshCw,
   ExternalLink,
   Loader2,
-  KeyRound
 } from 'lucide-react';
 
 interface DeliveryOrder {
@@ -101,8 +97,6 @@ export default function RoutePage() {
   const { orders, loading, updateOrderStatus } = useOrders({ mode: 'deliveries' });
   const [optimizedDeliveries, setOptimizedDeliveries] = useState<DeliveryOrder[]>([]);
   const [orderToConfirm, setOrderToConfirm] = useState<DeliveryOrder | null>(null);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
   // Filter to only ready and in-delivery orders for repartidores
@@ -128,32 +122,14 @@ export default function RoutePage() {
   };
 
   const requestDelivery = (order: DeliveryOrder) => {
-    setPinInput('');
-    setPinError(false);
     setOrderToConfirm(order);
   };
 
   const handleConfirmDelivery = async () => {
     if (!orderToConfirm) return;
-    if (pinInput.length !== 4 && pinInput.length !== 6) {
-      setPinError(true);
-      toast.error('Ingresa el código PIN del cliente');
-      return;
-    }
+
     setIsVerifying(true);
     try {
-      const { data: isPinValid, error: pinErr } = await supabase.rpc('verify_order_pin', {
-        p_order_id: orderToConfirm.id,
-        p_pin: pinInput,
-      });
-      if (pinErr) throw pinErr;
-      if (!isPinValid) {
-        setPinError(true);
-        toast.error('PIN incorrecto', { description: 'El código ingresado no es válido para este pedido.' });
-        return;
-      }
-
-      // Validate proximity (blocks if > 500m or no GPS)
       const { validateDeliveryLocation } = await import('@/lib/deliveryGeoValidation');
       const validation = await validateDeliveryLocation({
         orderId: orderToConfirm.id,
@@ -174,21 +150,18 @@ export default function RoutePage() {
         delivery_latitude: validation.driver.lat,
         delivery_longitude: validation.driver.lng,
         delivery_distance_m: validation.distance,
-        delivery_pin_verified_at: new Date().toISOString(),
       });
 
       if (!updated) {
         throw new Error('No se pudo guardar la entrega con GPS');
       }
 
-      toast.success('¡Entrega completada con GPS!');
+      toast.success('¡Entrega completada dentro de la zona permitida!');
 
       setOrderToConfirm(null);
-      setPinInput('');
-      setPinError(false);
     } catch (err: any) {
-      console.error('Error verifying PIN:', err);
-      toast.error(err?.message || 'Error al verificar el PIN');
+      console.error('Error confirming delivery:', err);
+      toast.error(err?.message || 'Error al verificar la ubicación');
     } finally {
       setIsVerifying(false);
     }
@@ -334,8 +307,6 @@ export default function RoutePage() {
         onOpenChange={(open) => {
           if (!open && !isVerifying) {
             setOrderToConfirm(null);
-            setPinInput('');
-            setPinError(false);
           }
         }}
       >
@@ -345,49 +316,26 @@ export default function RoutePage() {
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5" /> Confirmar entrega
+              <Navigation className="w-5 h-5" /> Confirmar entrega
             </DialogTitle>
             <DialogDescription>
-              Solicita al cliente <strong>{orderToConfirm?.customer_name}</strong> su código PIN de entrega para confirmar.
+              Para marcar como entregado debes estar a un máximo de <strong>200 metros</strong> de la ubicación registrada del cliente.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="route-pin" className={pinError ? 'text-destructive' : ''}>
-              Código PIN del cliente
-            </Label>
-            <Input
-              id="route-pin"
-              inputMode="numeric"
-              autoFocus
-              maxLength={6}
-              value={pinInput}
-              onChange={(e) => {
-                setPinInput(e.target.value.replace(/\D/g, ''));
-                setPinError(false);
-              }}
-              onFocus={(e) => e.target.select()}
-              className={`text-center text-2xl tracking-[0.5em] font-bold h-14 ${pinError ? 'border-destructive ring-destructive' : ''}`}
-              placeholder="••••"
-            />
-            {pinError && (
-              <p className="text-sm text-destructive">PIN inválido. Verifica el código con el cliente.</p>
-            )}
+          <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+            El sistema verificará tu GPS en este momento. Si estás fuera del radio permitido, la entrega será bloqueada.
           </div>
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                setOrderToConfirm(null);
-                setPinInput('');
-                setPinError(false);
-              }}
+              onClick={() => setOrderToConfirm(null)}
               disabled={isVerifying}
             >
               Cancelar
             </Button>
-            <Button onClick={handleConfirmDelivery} disabled={isVerifying || !pinInput}>
+            <Button onClick={handleConfirmDelivery} disabled={isVerifying}>
               {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Confirmar
+              Verificar GPS y entregar
             </Button>
           </DialogFooter>
         </DialogContent>
