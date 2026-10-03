@@ -415,7 +415,7 @@ export default function OrdersPage() {
             <Button 
               variant="outline" 
               onClick={() => {
-                const url = window.location.origin + `/pedidos-directos/${user.companyId}`;
+                const url = window.location.origin + '/pedidos';
                 window.open(url, '_blank');
               }}
               className="gap-2"
