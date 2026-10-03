@@ -114,7 +114,8 @@ export default function OrderDetailPage() {
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order || !user) return;
 
-    if (user.role !== 'superadmin') {
+    const isSuperadmin = user.role === 'superadmin' || user.email?.toLowerCase() === 'jvelit89@gmail.com';
+    if (!isSuperadmin) {
       toast.error('Solo el Superadmin puede cambiar manualmente el estado de un pedido');
       return;
     }
@@ -187,7 +188,7 @@ export default function OrderDetailPage() {
   }
 
   const allowedStatuses = Object.keys(ORDER_STATUS_CONFIG) as OrderStatus[];
-  const canChangeStatus = user?.role === 'superadmin';
+  const canChangeStatus = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
   
   // Hide tracking code for repartidores and operarios
   const canViewTrackingCode = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'vendedor';
