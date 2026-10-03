@@ -30,7 +30,7 @@ interface OverdueOrder {
 
 export function RepartidorBlockOverlay() {
   const { user } = useAuth();
-  const { orders, updateOrderStatus } = useOrders();
+  const { orders, updateOrderStatus } = useOrders({ mode: 'deliveries' });
   const { formatCurrency } = useSettings();
   const [markingId, setMarkingId] = useState<string | null>(null);
   const lastWarningRef = useRef<number>(0);

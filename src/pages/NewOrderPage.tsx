@@ -50,7 +50,7 @@ export default function NewOrderPage() {
   const { customers, loading: loadingCustomers } = useCustomers();
   const { products, loading: loadingProducts, updateProduct } = useProducts();
   const { vendedores, repartidores, loading: loadingTeam } = useTeam();
-  const { createOrder } = useOrders();
+  const { createOrder } = useOrders({ enabled: false });
   const { generateSalesNote, isGenerating, salesNoteHtml, noteNumber, isDialogOpen, closeDialog } = useSalesNote();
   const { rules: volumePricingRules, getApplicablePrice } = useVolumePricing();
   const { prices: customerPrices, getCustomerPrice } = useCustomerPricing();

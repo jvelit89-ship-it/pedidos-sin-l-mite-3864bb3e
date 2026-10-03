@@ -98,7 +98,7 @@ function optimizeRoute(orders: DeliveryOrder[]): DeliveryOrder[] {
 export default function RoutePage() {
   const { user } = useAuth();
   const { t, formatCurrency } = useSettings();
-  const { orders, loading, updateOrderStatus } = useOrders();
+  const { orders, loading, updateOrderStatus } = useOrders({ mode: 'deliveries' });
   const [optimizedDeliveries, setOptimizedDeliveries] = useState<DeliveryOrder[]>([]);
   const [orderToConfirm, setOrderToConfirm] = useState<DeliveryOrder | null>(null);
   const [pinInput, setPinInput] = useState('');

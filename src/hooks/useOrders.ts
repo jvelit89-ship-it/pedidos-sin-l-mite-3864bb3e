@@ -59,6 +59,7 @@ export interface UseOrdersOptions {
   mode?: OrdersQueryMode;
   historyDate?: string;
   dashboardDateFilter?: 'today' | 'week' | 'all' | string;
+  enabled?: boolean;
 }
 
 const OPERATIONAL_STATUSES: OrderStatus[] = [
@@ -130,6 +131,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
     filter: filters.length > 0 ? filters : undefined,
     or: orFilter,
     orderBy: { column: 'created_at', ascending: false },
+    enabled: options.enabled,
   });
 
   const getOrder = useCallback(async (id: string): Promise<OrderWithItems | null> => {

@@ -200,11 +200,26 @@ export function useRealtimeQuery<T>(table: SupabaseTable, options?: QueryOptions
   refetchRef.current = refetch;
 
   useEffect(() => {
+    if (options?.enabled === false) {
+      return;
+    }
+
     let retryCount = 0;
     const maxRetries = 3;
     let channel: RealtimeChannel | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
     let pollingInterval: ReturnType<typeof setInterval> | null = null;
+    let refetchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleRefetch = () => {
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
+      refetchTimeout = setTimeout(() => {
+        refetchRef.current();
+        refetchTimeout = null;
+      }, 120);
+    };
 
     const subscribe = () => {
       // Clean up existing channel
@@ -218,8 +233,8 @@ export function useRealtimeQuery<T>(table: SupabaseTable, options?: QueryOptions
           'postgres_changes',
           { event: '*', schema: 'public', table },
           () => {
-            console.log(`[Realtime] Change detected on ${table}, refreshing data...`);
-            refetchRef.current();
+            console.log(`[Realtime] Change detected on ${table}, scheduling refresh...`);
+            scheduleRefetch();
           }
         )
         .subscribe((status) => {
@@ -263,8 +278,11 @@ export function useRealtimeQuery<T>(table: SupabaseTable, options?: QueryOptions
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
     };
-  }, [table]);
+  }, [table, options?.enabled]);
 
   return { data, loading, error, refetch };
 }
