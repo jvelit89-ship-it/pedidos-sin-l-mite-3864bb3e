@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Badge } from '@/components/ui/badge';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { DeleteOrdersDialog } from '@/components/DeleteOrdersDialog';
+import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { BusinessDaySelector } from '@/components/BusinessDaySelector';
 import { DeletedOrdersArchivePanel } from '@/components/DeletedOrdersArchivePanel';
@@ -117,8 +118,11 @@ export default function OrdersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isStatusOtpOpen, setIsStatusOtpOpen] = useState(false);
+  const [pendingBulkStatus, setPendingBulkStatus] = useState<OrderStatus | null>(null);
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isSuperadmin = user?.role === 'superadmin';
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
   const isRepartidor = user?.role === 'repartidor';
 
@@ -224,43 +228,13 @@ export default function OrdersPage() {
   const handleBulkStatusChange = async (newStatus: OrderStatus) => {
     if (selectedOrders.length === 0) return;
 
-    // A delivery must be confirmed by the repartidor at the delivery point.
-    // Admin/bulk completion cannot prove the driver's real GPS position.
-    if (newStatus === 'delivered') {
-      toast.error('La entrega requiere GPS', {
-        description: 'Marca el pedido como entregado desde Entregas o Ruta. El repartidor debe estar a máximo 200 m del cliente.',
-        duration: 7000,
-      });
+    if (!isSuperadmin) {
+      toast.error('Solo el Superadmin puede cambiar el estado de los pedidos');
       return;
     }
 
-    setIsBulkUpdating(true);
-    try {
-      const updateData: { status: OrderStatus; updated_at: string; delivered_at?: string } = {
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      };
-      
-      if (newStatus === 'delivered') {
-        updateData.delivered_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .in('id', selectedOrders);
-
-      if (error) throw error;
-
-      toast.success(`${selectedOrders.length} pedido(s) actualizado(s) a "${ORDER_STATUS_CONFIG[newStatus].label}"`);
-      setSelectedOrders([]);
-      refetch();
-    } catch (error) {
-      console.error('Error bulk updating status:', error);
-      toast.error('Error al actualizar estados');
-    } finally {
-      setIsBulkUpdating(false);
-    }
+    setPendingBulkStatus(newStatus);
+    setIsStatusOtpOpen(true);
   };
 
   const handleBulkVendedorChange = async (vendedorId: string) => {
@@ -532,7 +506,8 @@ export default function OrdersPage() {
               
               {/* Bulk actions row */}
               <div className="flex flex-wrap gap-2">
-                {/* Bulk Status Change */}
+                {/* Bulk Status Change: only Superadmin and always with OTP */}
+                {isSuperadmin && (
                 <Select onValueChange={(value) => handleBulkStatusChange(value as OrderStatus)} disabled={isBulkUpdating}>
                   <SelectTrigger className="w-auto min-w-[160px]">
                     <Filter className="w-4 h-4 mr-2" />
@@ -546,6 +521,7 @@ export default function OrdersPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                )}
 
                 {/* Bulk Vendedor Change */}
                 <Select onValueChange={handleBulkVendedorChange} disabled={isBulkUpdating}>
@@ -798,6 +774,19 @@ export default function OrdersPage() {
           </div>
         )}
       </Tabs>
+
+      <MarkDeliveredOTPDialog
+        open={isStatusOtpOpen}
+        onOpenChange={setIsStatusOtpOpen}
+        orderIds={selectedOrders}
+        targetStatus={pendingBulkStatus || 'pending'}
+        targetStatusLabel={ORDER_STATUS_CONFIG[pendingBulkStatus || 'pending'].label}
+        onSuccess={() => {
+          setPendingBulkStatus(null);
+          setSelectedOrders([]);
+          refetch();
+        }}
+      />
 
       {/* Delete Dialog */}
         <DeleteOrdersDialog
