@@ -291,6 +291,15 @@ export default function DirectOrderPage() {
   const selectedRewardDiscount = redeemPoints === 100 ? 12 : redeemPoints === 50 ? 5 : 0;
   const finalEstimatedTotal = Math.max(0, totalAmount - selectedRewardDiscount);
   const projectedPoints = Math.floor(finalEstimatedTotal);
+  const featuredPromotions = pricingRules
+    .filter((rule) => rule.is_online_exclusive)
+    .slice(0, 3)
+    .map((rule) => {
+      const product = products.find((item) => item.id === rule.product_id);
+      return product ? { ...rule, product } : null;
+    })
+    .filter(Boolean) as any[];
+
 
   const submitOrder = async () => {
     if (!customer || Object.keys(selectedProducts).length === 0) return;
@@ -693,6 +702,30 @@ export default function DirectOrderPage() {
                     <Badge variant="outline" className="bg-white">{products.length} productos</Badge>
                   </div>
                 </div>
+                {featuredPromotions.length > 0 && (
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {featuredPromotions.map((promo: any) => (
+                      <button
+                        type="button"
+                        key={promo.id}
+                        onClick={() => {
+                          setProductQty(promo.product_id, Math.max(Number(promo.min_quantity || 1), selectedProducts[promo.product_id] || 0));
+                          toast.success('Promoción agregada al pedido');
+                        }}
+                        className="text-left rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge className="bg-emerald-600 hover:bg-emerald-600">PROMO ONLINE</Badge>
+                          <Percent className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <p className="font-bold text-slate-800 mt-3 line-clamp-2">{promo.product.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">Desde {promo.min_quantity} unidades</p>
+                        <p className="text-lg font-black text-emerald-700 mt-2">S/ {Number(promo.unit_price).toFixed(2)} c/u</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {products.map((p, i) => {
                   const qty = selectedProducts[p.id] || 0;
                   const currentPrice = getProductPrice(p.id, qty || 1);
