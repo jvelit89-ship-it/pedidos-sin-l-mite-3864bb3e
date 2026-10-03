@@ -46,7 +46,7 @@ import { CustomerFollowUpPanel } from '@/components/dashboard/CustomerFollowUpPa
 
 
 export default function DashboardPage() {
-  const { orders, loading } = useOrders();
+  const { orders, loading, refetch, updateOrderStatus } = useOrders();
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
   const [dateFilter, setDateFilter] = useState('today');
@@ -59,7 +59,7 @@ export default function DashboardPage() {
     allRepartidoresLoad,
     newOrdersCount,
     ALERT_THRESHOLD_MINUTES,
-  } = useDashboardStats();
+  } = useDashboardStats(orders);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -167,7 +167,7 @@ export default function DashboardPage() {
           <NewOrderBadge count={newOrdersCount} />
         </div>
         <div className="flex items-center gap-2">
-          <DailyClosing />
+          <DailyClosing orders={orders} refetchOrders={refetch} />
           <SyncIndicator />
         </div>
       </div>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
           <SuspiciousDeliveriesPanel />
 
           {/* Stuck Deliveries Panel */}
-          <StuckDeliveriesPanel />
+          <StuckDeliveriesPanel orders={orders} updateOrderStatus={updateOrderStatus} />
 
 
 
