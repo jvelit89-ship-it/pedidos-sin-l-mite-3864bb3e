@@ -183,14 +183,64 @@ serve(async (req) => {
       }
       const productMap = new Map(prods.map((p) => [p.id, p]));
 
+      // The server is authoritative for prices. Never trust unit_price sent by
+      // the public browser.
+      const [{ data: customerPrices }, { data: pricingRules }] = await Promise.all([
+        supabase
+          .from("customer_product_prices")
+          .select("product_id, unit_price")
+          .eq("customer_id", customerId)
+          .eq("is_active", true)
+          .in("product_id", productIds),
+        supabase
+          .from("volume_pricing_rules")
+          .select("product_id, min_quantity, unit_price, promotion_days, is_online_exclusive")
+          .eq("company_id", companyId)
+          .eq("is_active", true)
+          .in("product_id", productIds),
+      ]);
+
+      const customerPriceMap = new Map(
+        (customerPrices || []).map((price) => [price.product_id, Number(price.unit_price)]),
+      );
+      const activeRules = pricingRules || [];
+      const limaDay = new Date(Date.now() - 5 * 60 * 60 * 1000).getUTCDay();
+
       const safeItems = items.map((i) => {
         const p = productMap.get(i.product_id)!;
         const qty = Math.max(1, Math.floor(Number(i.quantity) || 0));
-        // Trust client unit_price only if not greater than base price; otherwise use base
-        const unit =
-          Number.isFinite(i.unit_price) && i.unit_price <= Number(p.price)
-            ? Number(i.unit_price)
-            : Number(p.price);
+        let unit = Number(p.price);
+
+        const customerPrice = customerPriceMap.get(i.product_id);
+        if (customerPrice !== undefined) {
+          unit = customerPrice;
+        } else {
+          const applicableRules = activeRules
+            .filter((rule) => {
+              if (rule.product_id !== i.product_id) return false;
+              const days = Array.isArray(rule.promotion_days) ? rule.promotion_days : [];
+              if (days.length > 0 && !days.includes(limaDay)) return false;
+              return qty >= Number(rule.min_quantity);
+            })
+            .sort((a, b) => {
+              const aHasDays = Array.isArray(a.promotion_days) && a.promotion_days.length > 0;
+              const bHasDays = Array.isArray(b.promotion_days) && b.promotion_days.length > 0;
+              if (aHasDays && !bHasDays) return -1;
+              if (!aHasDays && bHasDays) return 1;
+              if (a.is_online_exclusive && !b.is_online_exclusive) return -1;
+              if (!a.is_online_exclusive && b.is_online_exclusive) return 1;
+              return Number(b.min_quantity) - Number(a.min_quantity);
+            });
+
+          if (applicableRules.length > 0) {
+            unit = Number(applicableRules[0].unit_price);
+          }
+        }
+
+        if (!Number.isFinite(unit) || unit < 0) {
+          throw new Error("Precio inválido");
+        }
+
         return {
           product_id: p.id,
           product_name: p.name,
