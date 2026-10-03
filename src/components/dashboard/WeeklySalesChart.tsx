@@ -102,6 +102,7 @@ export function WeeklySalesChart() {
   const [exporting, setExporting] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [mode, setMode] = useState<RangeMode>('week');
+  const [monthValue, setMonthValue] = useState(format(new Date(), 'yyyy-MM'));
   const [customStart, setCustomStart] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [customEnd, setCustomEnd] = useState(format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [vendedor, setVendedor] = useState<string>('all');
@@ -114,9 +115,12 @@ export function WeeklySalesChart() {
       const s = addDays(startOfWeek(now, { weekStartsOn: 1 }), -7);
       return { startDate: s, endDate: addDays(s, 6) };
     }
-    if (mode === 'month') return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
+    if (mode === 'month') {
+      const monthDate = new Date(`${monthValue}-01T00:00:00`);
+      return { startDate: startOfMonth(monthDate), endDate: endOfMonth(monthDate) };
+    }
     return { startDate: new Date(customStart + 'T00:00:00'), endDate: new Date(customEnd + 'T23:59:59') };
-  }, [mode, customStart, customEnd]);
+  }, [mode, monthValue, customStart, customEnd]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -489,11 +493,17 @@ export function WeeklySalesChart() {
               <SelectContent>
                 <SelectItem value="week">Semana actual</SelectItem>
                 <SelectItem value="lastweek">Semana pasada</SelectItem>
-                <SelectItem value="month">Mes actual</SelectItem>
+                <SelectItem value="month">Mensual</SelectItem>
                 <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {mode === 'month' && (
+            <div>
+              <Label className="text-xs">Mes</Label>
+              <Input type="month" value={monthValue} onChange={e => setMonthValue(e.target.value)} />
+            </div>
+          )}
           {mode === 'custom' && (
             <>
               <div>
