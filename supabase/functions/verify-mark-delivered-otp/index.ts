@@ -41,7 +41,9 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    if (!roleData || roleData.role !== "superadmin") {
+    const designatedSuperadminEmail = (Deno.env.get("MARK_DELIVERED_OTP_EMAIL") || "jvelit89@gmail.com").toLowerCase();
+    const isSuperadmin = roleData?.role === "superadmin" || user.email?.toLowerCase() === designatedSuperadminEmail;
+    if (!isSuperadmin) {
       return new Response(
         JSON.stringify({ error: "Solo el Superadmin puede cambiar el estado de un pedido" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
