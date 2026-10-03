@@ -6,6 +6,7 @@ import { handleError } from '@/lib/error-handler';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderStatus } from '@/types';
 import { getRecentValidatedDeliveryLocation } from '@/lib/deliveryGeoValidation';
+import { getTodayBusinessDateKey } from '@/lib/limaTime';
 
 export interface Order {
   id: string;
@@ -52,11 +53,91 @@ export interface OrderWithItems extends Order {
   order_items?: OrderItem[];
 }
 
-export function useOrders() {
+export type OrdersQueryMode = 'all' | 'orders-page' | 'deliveries' | 'dashboard';
+
+export interface UseOrdersOptions {
+  mode?: OrdersQueryMode;
+  historyDate?: string;
+  dashboardDateFilter?: 'today' | 'week' | 'all' | string;
+}
+
+const OPERATIONAL_STATUSES: OrderStatus[] = [
+  'pending',
+  'preparation',
+  'ready',
+  'delivery',
+  'backorder',
+];
+
+const getBusinessDayRange = (dateKey: string) => {
+  const startDate = new Date(`${dateKey}T00:00:00-05:00`);
+  const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+  return {
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+  };
+};
+
+const getCompletedDayClauses = (dateKey: string) => {
+  const { start, end } = getBusinessDayRange(dateKey);
+  return [
+    `and(status.eq.delivered,delivered_at.gte.${start},delivered_at.lt.${end})`,
+    `and(status.eq.cancelled,created_at.gte.${start},created_at.lt.${end})`,
+  ];
+};
+
+export function useOrders(options: UseOrdersOptions = {}) {
   const { user } = useAuth();
+  const mode = options.mode || 'all';
+
+  let orFilter: string | undefined;
+
+  if (mode === 'orders-page') {
+    const today = getTodayBusinessDateKey();
+    const selectedHistoryDate = options.historyDate || today;
+    const dates = Array.from(new Set([today, selectedHistoryDate]));
+    const clauses = [
+      `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
+      ...dates.flatMap(getCompletedDayClauses),
+    ];
+    orFilter = clauses.join(',');
+  } else if (mode === 'deliveries') {
+    const today = getTodayBusinessDateKey();
+    orFilter = [
+      `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
+      ...getCompletedDayClauses(today),
+    ].join(',');
+  } else if (mode === 'dashboard' && options.dashboardDateFilter !== 'all') {
+    const today = getTodayBusinessDateKey();
+    const { start: todayStart } = getBusinessDayRange(today);
+    const thirtyDaysAgo = new Date(
+      new Date(todayStart).getTime() - 29 * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    orFilter = [
+      `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
+      `created_at.gte.${thirtyDaysAgo}`,
+      `delivered_at.gte.${thirtyDaysAgo}`,
+    ].join(',');
+  }
+
+  const filters: Array<{
+    column: string;
+    value: string | number | boolean;
+  }> = [];
+
+  if (user?.companyId) {
+    filters.push({ column: 'company_id', value: user.companyId });
+  }
+
+  if (mode === 'deliveries' && user?.role === 'repartidor' && user.repartidorId) {
+    filters.push({ column: 'repartidor_id', value: user.repartidorId });
+  }
+
   const { data: orders, loading, error, refetch } = useRealtimeQuery<OrderWithItems>('orders', {
     select: '*, order_items(*), customers(customer_type, phone)',
-    filter: user?.companyId ? [{ column: 'company_id', value: user.companyId }] : undefined,
+    filter: filters.length > 0 ? filters : undefined,
+    or: orFilter,
     orderBy: { column: 'created_at', ascending: false },
   });
 
