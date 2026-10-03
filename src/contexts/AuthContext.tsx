@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Route permissions by role
 const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/companies': ['superadmin'],
-  '/dashboard': ['admin'],
+  '/dashboard': ['admin', 'vendedor'],
   '/orders': ['admin', 'vendedor'],
   '/deliveries': ['admin', 'repartidor'],
   '/route': ['repartidor'],
@@ -321,7 +321,7 @@ export function getDefaultRoute(role: UserRole): string {
     case 'admin':
       return '/dashboard';
     case 'vendedor':
-      return '/orders';
+      return '/dashboard';
     case 'repartidor':
       return '/deliveries';
     default:
