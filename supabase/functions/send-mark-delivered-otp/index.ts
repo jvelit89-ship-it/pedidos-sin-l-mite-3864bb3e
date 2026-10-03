@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,9 +79,21 @@ serve(async (req) => {
       });
     }
 
-    await resend.emails.send({
-      from: "Sistema de Pedidos <onboarding@resend.dev>",
-      to: [user.email!],
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY is missing");
+      return new Response(JSON.stringify({ error: "RESEND_NOT_CONFIGURED" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const resend = new Resend(resendApiKey);
+    const otpRecipient = Deno.env.get("MARK_DELIVERED_OTP_EMAIL") || "jvelit89@gmail.com";
+    const resendFrom = Deno.env.get("RESEND_FROM_EMAIL") || "Sistema de Pedidos <notificaciones@gestx.app>";
+
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: resendFrom,
+      to: [otpRecipient],
       subject: "Código para marcar pedido(s) como entregado",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -96,7 +108,19 @@ serve(async (req) => {
       `,
     });
 
-    return new Response(JSON.stringify({ success: true }), {
+    if (emailError) {
+      console.error("Resend send error:", emailError);
+      return new Response(JSON.stringify({ error: "RESEND_SEND_FAILED", detail: emailError.message }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      emailId: emailData?.id ?? null,
+      sentTo: otpRecipient.replace(/(^.).*(@.*$)/, "$1***$2"),
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
