@@ -46,11 +46,14 @@ import { CustomerFollowUpPanel } from '@/components/dashboard/CustomerFollowUpPa
 
 
 export default function DashboardPage() {
-  const { orders, loading, refetch, updateOrderStatus } = useOrders();
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
   const [dateFilter, setDateFilter] = useState('today');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { orders, loading, refetch, updateOrderStatus } = useOrders({
+    mode: 'dashboard',
+    dashboardDateFilter: dateFilter,
+  });
 
   const {
     smartAlerts,
