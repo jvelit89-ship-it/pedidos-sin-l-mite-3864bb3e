@@ -84,13 +84,45 @@ serve(async (req) => {
 
       if (!customer) return json({ customer: null, prices: [] });
 
-      const { data: prices } = await supabase
-        .from("customer_product_prices")
-        .select("product_id, unit_price")
-        .eq("customer_id", customer.id)
-        .eq("is_active", true);
+      const [{ data: prices }, { data: loyalty }, { data: lastOrder }] = await Promise.all([
+        supabase
+          .from("customer_product_prices")
+          .select("product_id, unit_price")
+          .eq("customer_id", customer.id)
+          .eq("is_active", true),
+        supabase
+          .from("customer_loyalty_accounts")
+          .select("points_balance, lifetime_points_earned, lifetime_spend, delivered_online_orders")
+          .eq("customer_id", customer.id)
+          .maybeSingle(),
+        supabase
+          .from("orders")
+          .select("id, total, created_at, order_items(product_id, product_name, quantity)")
+          .eq("customer_id", customer.id)
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      return json({ customer, prices: prices ?? [] });
+      const points = Number(loyalty?.points_balance || 0);
+      const lifetimeSpend = Number(loyalty?.lifetime_spend || 0);
+      const level = lifetimeSpend >= 5000 ? "Oro" : lifetimeSpend >= 2000 ? "Plata" : "Bronce";
+      const nextRewardPoints = points < 50 ? 50 : points < 100 ? 100 : null;
+
+      return json({
+        customer,
+        prices: prices ?? [],
+        loyalty: {
+          points,
+          lifetimePoints: Number(loyalty?.lifetime_points_earned || 0),
+          lifetimeSpend,
+          deliveredOnlineOrders: Number(loyalty?.delivered_online_orders || 0),
+          level,
+          nextRewardPoints,
+        },
+        lastOrder: lastOrder ?? null,
+      });
     }
 
     // -------------------- SUBMIT --------------------
@@ -104,6 +136,7 @@ serve(async (req) => {
         address,
         vendedorId,
         isFactoryDirect,
+        redeemPoints,
         items,
       } = body as {
         companyId: string;
@@ -114,6 +147,7 @@ serve(async (req) => {
         address?: string;
         vendedorId?: string | null;
         isFactoryDirect: boolean;
+        redeemPoints?: number;
         items: Array<{
           product_id: string;
           quantity: number;
@@ -289,7 +323,53 @@ serve(async (req) => {
         .insert(itemsWithOrder);
       if (iErr) return json({ error: iErr.message }, 400);
 
-      return json({ success: true, orderId: order.id, trackingCode: order.tracking_code });
+      let loyaltyDiscount = 0;
+      const requestedRedeemPoints = Number(redeemPoints || 0);
+      if (requestedRedeemPoints > 0) {
+        const { data: discount, error: redeemError } = await supabase.rpc(
+          "apply_loyalty_redemption",
+          {
+            p_customer_id: customerId,
+            p_order_id: order.id,
+            p_points: requestedRedeemPoints,
+          },
+        );
+
+        if (redeemError) {
+          console.error("Loyalty redemption error:", redeemError);
+          await supabase.from("order_items").delete().eq("order_id", order.id);
+          await supabase.from("orders").delete().eq("id", order.id);
+          return json({
+            error: redeemError.message.includes("INSUFFICIENT_POINTS")
+              ? "No tienes puntos suficientes para esa recompensa."
+              : "No se pudo aplicar la recompensa. Intenta nuevamente.",
+          }, 400);
+        }
+        loyaltyDiscount = Number(discount || 0);
+      }
+
+      const [{ data: finalOrder }, { data: loyaltyAfter }] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("total, loyalty_points_redeemed, loyalty_discount_amount")
+          .eq("id", order.id)
+          .single(),
+        supabase
+          .from("customer_loyalty_accounts")
+          .select("points_balance")
+          .eq("customer_id", customerId)
+          .maybeSingle(),
+      ]);
+
+      return json({
+        success: true,
+        orderId: order.id,
+        trackingCode: order.tracking_code,
+        total: Number(finalOrder?.total ?? total),
+        loyaltyDiscount,
+        pointsRemaining: Number(loyaltyAfter?.points_balance || 0),
+        projectedPoints: Math.max(0, Math.floor(Number(finalOrder?.total ?? total))),
+      });
     }
 
     return json({ error: "Unknown action" }, 400);
