@@ -1,4 +1,4 @@
-project_id = "jzzpzewjowqjkewovwuj"
+project_id = "pedidos-self-hosted"
 
 [functions.create-team-user]
 verify_jwt = false

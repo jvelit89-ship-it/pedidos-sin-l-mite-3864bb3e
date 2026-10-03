@@ -1,12 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-// Create an untyped client for the new table
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const untypedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 interface PendingProduction {
   id: string;
@@ -50,13 +44,7 @@ export function usePendingProduction() {
         return;
       }
 
-      // Sync session to untyped client
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
-
-      const { data, error } = await untypedClient
+      const { data, error } = await supabase
         .from('pending_production')
         .select('*')
         .eq('company_id', companyId)
@@ -88,14 +76,8 @@ export function usePendingProduction() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // Sync session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      await untypedClient.auth.setSession(session);
-    }
-
     // Check in pending_production
-    const { data: pendingDuplicates } = await untypedClient
+    const { data: pendingDuplicates } = await supabase
       .from('pending_production')
       .select('id')
       .eq('product_id', productId)
@@ -153,13 +135,7 @@ export function usePendingProduction() {
         .eq('user_id', user.id)
         .single();
 
-      // Sync session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
-
-      const { error } = await untypedClient
+      const { error } = await supabase
         .from('pending_production')
         .insert({
           product_id: productId,
@@ -188,14 +164,9 @@ export function usePendingProduction() {
   // Approve production (admins only)
   const approveProduction = useCallback(async (pendingId: string): Promise<boolean> => {
     try {
-      // Sync session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
 
       // Get pending item details
-      const { data: pending, error: fetchError } = await untypedClient
+      const { data: pending, error: fetchError } = await supabase
         .from('pending_production')
         .select('*')
         .eq('id', pendingId)
@@ -254,7 +225,7 @@ export function usePendingProduction() {
       // on production_history already increments the product's stock.
 
       // Mark as approved
-      await untypedClient
+      await supabase
         .from('pending_production')
         .update({
           status: 'approved',
@@ -278,13 +249,7 @@ export function usePendingProduction() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Sync session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
-
-      const { error } = await untypedClient
+      const { error } = await supabase
         .from('pending_production')
         .update({
           status: 'rejected',
@@ -319,13 +284,7 @@ export function usePendingProduction() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Sync session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
-
-      const { error } = await untypedClient
+      const { error } = await supabase
         .from('pending_production')
         .update({
           status: 'correction_requested',
@@ -356,13 +315,8 @@ export function usePendingProduction() {
     updates: { quantity?: number; notes?: string }
   ): Promise<boolean> => {
     try {
-      // Sync session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
 
-      const { error } = await untypedClient
+      const { error } = await supabase
         .from('pending_production')
         .update({
           ...updates,
@@ -390,13 +344,8 @@ export function usePendingProduction() {
 
   // Delete pending production
   const deletePending = useCallback(async (pendingId: string): Promise<boolean> => {
-    // Sync session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      await untypedClient.auth.setSession(session);
-    }
 
-    const { error } = await untypedClient
+    const { error } = await supabase
       .from('pending_production')
       .delete()
       .eq('id', pendingId);

@@ -214,20 +214,10 @@ export function useAdvancedProduction() {
 
     // If not superadmin, use pending production flow (Admins and Operarios)
     if (!isSuperAdmin) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const { createClient } = await import('@supabase/supabase-js');
-      const untypedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      
-      if (session) {
-        await untypedClient.auth.setSession(session);
-      }
-
       // Add special notes for recipe-based production if needed
       const recipeNotes = notes ? `${notes} (Producción con Receta)` : '(Producción con Receta)';
 
-      const { error } = await untypedClient
+      const { error } = await supabase
         .from('pending_production')
         .insert({
           product_id: outputProductId,

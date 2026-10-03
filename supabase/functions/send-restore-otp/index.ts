@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     }).join('<br>');
 
     const { error: emailError } = await resend.emails.send({
-      from: 'SISPETI <noreply@sispeti.lovable.app>',
+      from: 'Santa María <onboarding@resend.dev>',
       to: [user.email!],
       subject: '🔐 Código de Verificación - Restauración de Backup',
       html: `
