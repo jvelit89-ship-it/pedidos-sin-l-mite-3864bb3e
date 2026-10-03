@@ -50,8 +50,8 @@ const ADMIN_ALERT_THRESHOLD_MINUTES = 30; // Alert admin after 30 minutes withou
 export default function DeliveriesPage() {
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
-  const { orders, loading, updateOrderStatus } = useOrders();
-  const { getRepartidorLoad, newOrdersCount } = useDashboardStats();
+  const { orders, loading, updateOrderStatus, refetch } = useOrders();
+  const { getRepartidorLoad, newOrdersCount } = useDashboardStats(orders);
   const [urgentAlerts, setUrgentAlerts] = useState<string[]>([]);
   const [adminAlertsSent, setAdminAlertsSent] = useState<Set<string>>(new Set());
   const previousOrdersRef = useRef<string[]>([]);
@@ -421,7 +421,7 @@ export default function DeliveriesPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <DailyClosing />
+          <DailyClosing orders={orders} refetchOrders={refetch} />
           <SyncIndicator />
         </div>
       </div>

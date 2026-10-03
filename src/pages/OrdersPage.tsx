@@ -451,7 +451,7 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <DailyClosing />
+          <DailyClosing orders={orders} refetchOrders={refetch} />
           <SyncIndicator />
           {isAdmin && (
             <Button 
