@@ -288,6 +288,10 @@ export default function DirectOrderPage() {
     return acc + getProductPrice(id, qty) * qty;
   }, 0);
 
+  const selectedRewardDiscount = redeemPoints === 100 ? 12 : redeemPoints === 50 ? 5 : 0;
+  const finalEstimatedTotal = Math.max(0, totalAmount - selectedRewardDiscount);
+  const projectedPoints = Math.floor(finalEstimatedTotal);
+
   const submitOrder = async () => {
     if (!customer || Object.keys(selectedProducts).length === 0) return;
     setLoading(true);
@@ -544,6 +548,69 @@ export default function DirectOrderPage() {
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
                   </div>
+                  <div className="grid gap-3 pt-2">
+                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 font-bold text-slate-800">
+                            <Award className="w-5 h-5 text-amber-500" />
+                            Club Santa María
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Premios exclusivos para distribuidores que compran por el portal.
+                          </p>
+                        </div>
+                        <Badge className="bg-amber-500 hover:bg-amber-500">
+                          {loyalty?.level || 'Bronce'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <div className="rounded-xl bg-white border p-3">
+                          <p className="text-xs text-slate-500">Tus puntos</p>
+                          <p className="text-2xl font-black text-primary">{loyalty?.points || 0}</p>
+                        </div>
+                        <div className="rounded-xl bg-white border p-3">
+                          <p className="text-xs text-slate-500">Siguiente premio</p>
+                          <p className="font-bold text-slate-800">
+                            {(loyalty?.points || 0) >= 100
+                              ? 'S/12 disponible'
+                              : (loyalty?.points || 0) >= 50
+                                ? 'S/5 disponible'
+                                : `${50 - (loyalty?.points || 0)} pts para S/5`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {!loyalty?.deliveredOnlineOrders && (
+                        <div className="mt-3 rounded-xl bg-primary/5 border border-primary/15 px-3 py-2 text-xs text-slate-700 flex gap-2">
+                          <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          Tu primer pedido online entregado recibe <strong>20 puntos de bienvenida</strong>.
+                        </div>
+                      )}
+                    </div>
+
+                    {lastOrder?.order_items?.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-auto py-3 justify-between rounded-xl border-primary/20"
+                        onClick={repeatLastOrder}
+                      >
+                        <span className="flex items-center gap-2 text-left">
+                          <Repeat2 className="w-5 h-5 text-primary" />
+                          <span>
+                            <span className="block font-bold">Repetir mi último pedido</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {lastOrder.order_items.length} producto(s) · S/ {Number(lastOrder.total || 0).toFixed(2)}
+                            </span>
+                          </span>
+                        </span>
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+
                   <div className="flex gap-3 pt-4">
                     <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(1)}><ChevronLeft className="w-4 h-4 mr-1" /> Atrás</Button>
                     <Button className="flex-[2] h-12" onClick={() => {
@@ -615,9 +682,16 @@ export default function DirectOrderPage() {
           {step === 4 && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               <div className="space-y-4">
-                <div className="flex items-center justify-between px-2">
-                  <h2 className="text-lg font-bold">Catálogo de Productos</h2>
-                  <Badge variant="outline" className="bg-white">{products.length} productos</Badge>
+                <div className="rounded-2xl bg-gradient-to-r from-primary/10 via-white to-amber-50 border border-primary/10 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-black text-slate-800">Abastece tu negocio</h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Precios por volumen, promociones online y puntos por cada pedido entregado.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="bg-white">{products.length} productos</Badge>
+                  </div>
                 </div>
                 {products.map((p, i) => {
                   const qty = selectedProducts[p.id] || 0;
@@ -636,7 +710,14 @@ export default function DirectOrderPage() {
                           <div className="flex items-stretch gap-0 h-full">
                             {/* Imagen del Producto o Icono Representativo */}
                             <div className="w-[110px] sm:w-1/3 bg-slate-100 flex items-center justify-center p-2 relative overflow-hidden min-h-[140px] shrink-0">
-                              {p.name.toLowerCase().includes('hielo') ? (
+                              {p.image_url ? (
+                                <img
+                                  src={p.image_url}
+                                  alt={p.name}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : p.name.toLowerCase().includes('hielo') ? (
                                 <div className="flex flex-col items-center gap-2 text-blue-400">
                                   <div className="p-4 bg-blue-50 rounded-2xl shadow-inner">
                                     <Package className="w-12 h-12" />
@@ -790,9 +871,82 @@ export default function DirectOrderPage() {
                     })}
                   </div>
 
-                  <div className="flex justify-between items-center pt-2 px-1">
-                    <span className="text-lg font-bold">Total a Pagar</span>
-                    <span className="text-2xl font-black text-primary">S/ {totalAmount.toFixed(2)}</span>
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 flex gap-3">
+                    <Clock3 className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-blue-900">Entrega programada</p>
+                      <p className="text-xs text-blue-800 mt-1">
+                        Nuestros pedidos para distribuidores se programan con una atención aproximada de hasta 24 horas, según ruta y disponibilidad.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-5 h-5 text-amber-600" />
+                        <div>
+                          <p className="font-bold text-slate-800">Usa tus recompensas</p>
+                          <p className="text-xs text-slate-500">
+                            Saldo: {loyalty?.points || 0} puntos
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-white">{loyalty?.level || 'Bronce'}</Badge>
+                    </div>
+
+                    <div className="grid sm:grid-cols-3 gap-2">
+                      <Button
+                        type="button"
+                        variant={redeemPoints === 0 ? 'default' : 'outline'}
+                        className="h-auto py-3"
+                        onClick={() => setRedeemPoints(0)}
+                      >
+                        Acumular puntos
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={redeemPoints === 50 ? 'default' : 'outline'}
+                        className="h-auto py-3"
+                        disabled={(loyalty?.points || 0) < 50}
+                        onClick={() => setRedeemPoints(50)}
+                      >
+                        50 pts = S/5
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={redeemPoints === 100 ? 'default' : 'outline'}
+                        className="h-auto py-3"
+                        disabled={(loyalty?.points || 0) < 100}
+                        onClick={() => setRedeemPoints(100)}
+                      >
+                        100 pts = S/12
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Los nuevos puntos se acreditan cuando el pedido sea entregado. Ganas 1 punto por cada S/1 pagado.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Subtotal</span>
+                      <span className="font-semibold">S/ {totalAmount.toFixed(2)}</span>
+                    </div>
+                    {selectedRewardDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-green-700">
+                        <span>Recompensa Club Santa María</span>
+                        <span className="font-bold">- S/ {selectedRewardDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <span className="text-lg font-bold">Total a Pagar</span>
+                      <span className="text-2xl font-black text-primary">S/ {finalEstimatedTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-primary">
+                      <Star className="w-4 h-4" />
+                      Este pedido puede sumar aprox. {projectedPoints} puntos al ser entregado.
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-4">
@@ -811,9 +965,44 @@ export default function DirectOrderPage() {
               <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-12 h-12" />
               </div>
-              <h2 className="text-2xl font-black text-slate-800 mb-2">¡Pedido Recibido!</h2>
-              <p className="text-slate-500 mb-8">Gracias por tu confianza. Estamos procesando tu pedido y te contactaremos pronto.</p>
-              <Button className="w-full h-12 rounded-xl" onClick={() => window.location.reload()}>Realizar otro pedido</Button>
+              <h2 className="text-2xl font-black text-slate-800 mb-2">¡Pedido recibido!</h2>
+              <p className="text-slate-500">
+                Tu pedido de distribuidor ha sido registrado correctamente.
+              </p>
+
+              <div className="grid gap-3 my-6 text-left">
+                <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4 flex gap-3">
+                  <Clock3 className="w-5 h-5 text-blue-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-blue-900">Entrega programada</p>
+                    <p className="text-xs text-blue-800">La atención se realiza aproximadamente dentro de 24 horas, según la ruta programada.</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 flex gap-3">
+                  <Award className="w-5 h-5 text-amber-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-slate-800">Club Santa María</p>
+                    <p className="text-xs text-slate-600">
+                      {orderResult?.loyaltyDiscount > 0
+                        ? `Aplicaste S/ ${Number(orderResult.loyaltyDiscount).toFixed(2)} de recompensa. `
+                        : ''}
+                      Al entregarse, este pedido sumará aproximadamente {orderResult?.projectedPoints ?? projectedPoints} puntos.
+                    </p>
+                  </div>
+                </div>
+
+                {orderResult?.trackingCode && (
+                  <div className="rounded-2xl bg-slate-50 border p-4">
+                    <p className="text-xs text-slate-500">Código de seguimiento</p>
+                    <p className="font-mono font-black text-lg text-slate-800">{orderResult.trackingCode}</p>
+                  </div>
+                )}
+              </div>
+
+              <Button className="w-full h-12 rounded-xl" onClick={() => window.location.reload()}>
+                Realizar otro pedido
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
