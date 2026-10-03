@@ -281,7 +281,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { path: '/companies', label: 'Empresas', labelEn: 'Companies', icon: 'Building2', roles: ['superadmin'] },
-  { path: '/dashboard', label: 'Dashboard', labelEn: 'Dashboard', icon: 'LayoutDashboard', roles: ['admin'] },
+  { path: '/dashboard', label: 'Dashboard', labelEn: 'Dashboard', icon: 'LayoutDashboard', roles: ['admin', 'vendedor'] },
   { path: '/orders', label: 'Pedidos', labelEn: 'Orders', icon: 'ShoppingCart', roles: ['admin', 'vendedor', 'operario', 'repartidor'] },
   { path: '/deliveries', label: 'Entregas', labelEn: 'Deliveries', icon: 'Truck', roles: ['admin', 'repartidor'] },
   { path: '/route', label: 'Ruta', labelEn: 'Route', icon: 'Route', roles: ['repartidor'] },
