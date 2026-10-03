@@ -543,7 +543,7 @@ export function DailyClosing({ orders, refetchOrders }: DailyClosingProps) {
 
             {isAdmin && (
               <TabsContent value="history" className="mt-4">
-                <DailyClosingHistory orders={orders} refetchOrders={refetchOrders} />
+                <DailyClosingHistory />
               </TabsContent>
             )}
           </Tabs>

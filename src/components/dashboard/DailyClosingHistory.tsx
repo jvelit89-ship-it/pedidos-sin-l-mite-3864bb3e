@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { OrderWithItems } from '@/hooks/useOrders';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Calendar, 
@@ -57,40 +59,79 @@ const isTodayBusinessDay = (date: Date): boolean => {
   return dateStr === todayStr;
 };
 
-interface DailyClosingHistoryProps {
-  orders: OrderWithItems[];
-  refetchOrders: () => Promise<void>;
-}
-
-export function DailyClosingHistory({ orders, refetchOrders }: DailyClosingHistoryProps) {
+export function DailyClosingHistory() {
   const { formatCurrency } = useSettings();
+  const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [monthOrders, setMonthOrders] = useState<OrderWithItems[]>([]);
   const [selectedDay, setSelectedDay] = useState<DayStats | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [distributorCredits, setDistributorCredits] = useState<DistributorCredit[]>([]);
   const [isRecalculating, setIsRecalculating] = useState(false);
 
-  // Fetch distributor credits (prepayments)
-  const fetchDistributorCredits = async () => {
-    const { data, error } = await supabase
+  const getSelectedMonthRange = useCallback(() => {
+    const start = startOfMonth(selectedMonth);
+    const nextMonth = addMonths(start, 1);
+    const startKey = format(start, 'yyyy-MM-dd');
+    const endKey = format(nextMonth, 'yyyy-MM-dd');
+    return {
+      start: new Date(`${startKey}T00:00:00-05:00`).toISOString(),
+      end: new Date(`${endKey}T00:00:00-05:00`).toISOString(),
+    };
+  }, [selectedMonth]);
+
+  const fetchMonthOrders = useCallback(async () => {
+    const { start, end } = getSelectedMonthRange();
+    let query = supabase
+      .from('orders')
+      .select('*, order_items(*), customers(customer_type, phone)')
+      .or(
+        `and(status.eq.delivered,delivered_at.gte.${start},delivered_at.lt.${end}),` +
+        `and(status.neq.delivered,created_at.gte.${start},created_at.lt.${end})`
+      )
+      .order('created_at', { ascending: false });
+
+    if (user?.companyId) {
+      query = query.eq('company_id', user.companyId);
+    }
+
+    const { data, error } = await query;
+    if (!error && data) {
+      setMonthOrders(data as unknown as OrderWithItems[]);
+    }
+  }, [getSelectedMonthRange, user?.companyId]);
+
+  // Fetch distributor credits (prepayments) for the selected month/company.
+  const fetchDistributorCredits = useCallback(async () => {
+    const { start, end } = getSelectedMonthRange();
+    let query = supabase
       .from('distributor_credits')
-      .select('amount_paid, purchase_date');
+      .select('amount_paid, purchase_date')
+      .gte('purchase_date', start)
+      .lt('purchase_date', end);
+
+    if (user?.companyId) {
+      query = query.eq('company_id', user.companyId);
+    }
+
+    const { data, error } = await query;
     
     if (!error && data) {
       setDistributorCredits(data);
     }
-  };
+  }, [getSelectedMonthRange, user?.companyId]);
 
   useEffect(() => {
+    fetchMonthOrders();
     fetchDistributorCredits();
-  }, [selectedMonth]);
+  }, [fetchMonthOrders, fetchDistributorCredits]);
 
   // Manual recalculate function
   const handleRecalculate = async () => {
     setIsRecalculating(true);
     try {
       await Promise.all([
-        refetchOrders(),
+        fetchMonthOrders(),
         fetchDistributorCredits()
       ]);
       toast.success('Historial recalculado');
@@ -111,7 +152,7 @@ export function DailyClosingHistory({ orders, refetchOrders }: DailyClosingHisto
     return days.map(day => {
       const dayStr = format(day, 'yyyy-MM-dd');
       // Delivered orders: group by delivered_at; others: by created_at
-      const dayOrders = orders.filter(o => {
+      const dayOrders = monthOrders.filter(o => {
         if (o.status === 'delivered' && o.delivered_at) {
           return getBusinessDateKey(o.delivered_at) === dayStr;
         }
@@ -191,7 +232,7 @@ export function DailyClosingHistory({ orders, refetchOrders }: DailyClosingHisto
         topRepartidor,
       };
     });
-  }, [orders, selectedMonth, distributorCredits]);
+  }, [monthOrders, selectedMonth, distributorCredits]);
 
   // Summary for the month
   const monthSummary = useMemo(() => {

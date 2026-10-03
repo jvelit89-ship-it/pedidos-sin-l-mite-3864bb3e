@@ -29,9 +29,17 @@ export type SupabaseTable =
   | 'production_waste'
   | 'customer_product_prices';
 
+type QueryOperator = 'eq' | 'neq' | 'in' | 'gte' | 'gt' | 'lte' | 'lt';
+
 interface QueryOptions {
   select?: string;
-  filter?: { column: string; value: string | number | boolean }[];
+  filter?: {
+    column: string;
+    value: string | number | boolean | Array<string | number | boolean>;
+    operator?: QueryOperator;
+  }[];
+  or?: string;
+  limit?: number;
   orderBy?: { column: string; ascending?: boolean };
   enabled?: boolean;
 }
@@ -58,14 +66,37 @@ export function useSupabaseQuery<T>(table: SupabaseTable, options?: QueryOptions
       
       if (options?.filter) {
         for (const f of options.filter) {
-          query = query.eq(f.column, f.value);
+          const operator = f.operator || 'eq';
+          if (operator === 'in') {
+            query = query.in(f.column, Array.isArray(f.value) ? f.value : [f.value]);
+          } else if (operator === 'neq') {
+            query = query.neq(f.column, f.value);
+          } else if (operator === 'gte') {
+            query = query.gte(f.column, f.value);
+          } else if (operator === 'gt') {
+            query = query.gt(f.column, f.value);
+          } else if (operator === 'lte') {
+            query = query.lte(f.column, f.value);
+          } else if (operator === 'lt') {
+            query = query.lt(f.column, f.value);
+          } else {
+            query = query.eq(f.column, f.value);
+          }
         }
+      }
+
+      if (options?.or) {
+        query = query.or(options.or);
       }
       
       if (options?.orderBy) {
         query = query.order(options.orderBy.column, { 
           ascending: options.orderBy.ascending ?? true 
         });
+      }
+
+      if (options?.limit) {
+        query = query.limit(options.limit);
       }
       
       const { data: result, error: fetchError } = await query;
@@ -86,7 +117,15 @@ export function useSupabaseQuery<T>(table: SupabaseTable, options?: QueryOptions
 
       setLoading(false);
     }
-  }, [table, options?.select, options?.enabled, JSON.stringify(options?.filter), JSON.stringify(options?.orderBy)]);
+  }, [
+    table,
+    options?.select,
+    options?.enabled,
+    options?.or,
+    options?.limit,
+    JSON.stringify(options?.filter),
+    JSON.stringify(options?.orderBy)
+  ]);
 
   useEffect(() => {
     fetchData();
