@@ -23,6 +23,31 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+
+    const message = error?.message || '';
+    const isChunkError =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Importing a module script failed') ||
+      message.includes('Loading chunk') ||
+      message.includes('ChunkLoadError');
+
+    if (isChunkError) {
+      const key = 'pedidos_error_boundary_chunk_reload';
+      if (sessionStorage.getItem(key) !== 'done') {
+        sessionStorage.setItem(key, 'done');
+
+        void (async () => {
+          try {
+            if ('caches' in window) {
+              const cacheNames = await caches.keys();
+              await Promise.all(cacheNames.map((name) => caches.delete(name)));
+            }
+          } finally {
+            window.location.reload();
+          }
+        })();
+      }
+    }
   }
 
   public render() {
@@ -52,7 +77,10 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
             <div className="flex gap-4 justify-center">
               <Button 
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  sessionStorage.removeItem('pedidos_error_boundary_chunk_reload');
+                  window.location.reload();
+                }}
                 variant="default"
               >
                 Recargar página
