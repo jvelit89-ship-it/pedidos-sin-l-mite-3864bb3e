@@ -26,7 +26,15 @@ import {
   Tag,
   Percent,
   Droplets,
-  GlassWater
+  GlassWater,
+  Gift,
+  Award,
+  Sparkles,
+  Repeat2,
+  Clock3,
+  Store,
+  ShieldCheck,
+  Star
 } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 
@@ -63,6 +71,10 @@ export default function DirectOrderPage() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [pricingRules, setPricingRules] = useState<any[]>([]);
   const [customerPrices, setCustomerPrices] = useState<any[]>([]);
+  const [loyalty, setLoyalty] = useState<any>(null);
+  const [lastOrder, setLastOrder] = useState<any>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [orderResult, setOrderResult] = useState<any>(null);
   
   const [orderSource, setOrderSource] = useState<'vendedor' | 'factory'>('factory');
   const [selectedVendedorId, setSelectedVendedorId] = useState('');
@@ -115,6 +127,9 @@ export default function DirectOrderPage() {
       if (lookupData?.customer) {
         setCustomer(lookupData.customer);
         setCustomerPrices(lookupData.prices || []);
+        setLoyalty(lookupData.loyalty || null);
+        setLastOrder(lookupData.lastOrder || null);
+        setRedeemPoints(0);
         toast.success('Cliente encontrado');
         setStep(2);
       } else {
@@ -134,6 +149,9 @@ export default function DirectOrderPage() {
             company_id: currentCompanyId,
             customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
           });
+          setLoyalty(null);
+          setLastOrder(null);
+          setRedeemPoints(0);
           toast.success('Datos recuperados automáticamente');
         } else {
           setCustomer({
@@ -144,6 +162,9 @@ export default function DirectOrderPage() {
             company_id: currentCompanyId,
             customer_type: documentType === 'ruc' ? 'mayorista' : 'minorista'
           });
+          setLoyalty(null);
+          setLastOrder(null);
+          setRedeemPoints(0);
         }
         setStep(2);
       }
@@ -239,6 +260,30 @@ export default function DirectOrderPage() {
     return product.price;
   };
 
+  const repeatLastOrder = () => {
+    const items = lastOrder?.order_items || [];
+    if (!items.length) {
+      toast.info('No hay un pedido anterior disponible para repetir');
+      return;
+    }
+
+    const next: Record<string, number> = {};
+    for (const item of items) {
+      if (products.some((product) => product.id === item.product_id)) {
+        next[item.product_id] = Number(item.quantity || 0);
+      }
+    }
+
+    if (Object.keys(next).length === 0) {
+      toast.info('Los productos de tu último pedido ya no están disponibles');
+      return;
+    }
+
+    setSelectedProducts(next);
+    setStep(4);
+    toast.success('Cargamos tu último pedido');
+  };
+
   const totalAmount = Object.entries(selectedProducts).reduce((acc, [id, qty]) => {
     return acc + getProductPrice(id, qty) * qty;
   }, 0);
@@ -268,6 +313,7 @@ export default function DirectOrderPage() {
           address: customer.address || '',
           vendedorId: orderSource === 'vendedor' ? selectedVendedorId : null,
           isFactoryDirect: orderSource === 'factory',
+          redeemPoints,
           items,
         }
       });
@@ -276,6 +322,10 @@ export default function DirectOrderPage() {
         throw new Error(data?.error || error?.message || 'Error registrando pedido');
       }
 
+      setOrderResult(data);
+      if (data?.pointsRemaining != null) {
+        setLoyalty((current: any) => current ? { ...current, points: data.pointsRemaining } : current);
+      }
       toast.success('Pedido registrado con éxito');
       setStep(6);
     } catch (e: any) {
@@ -327,7 +377,7 @@ export default function DirectOrderPage() {
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-black/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-32 bg-white/5 skew-y-6 pointer-events-none" />
         
-        <div className="max-w-md mx-auto flex flex-col items-center gap-6 relative z-10">
+        <div className="max-w-3xl mx-auto flex flex-col items-center gap-6 relative z-10">
           <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl shadow-2xl border border-white/20">
             <div className="bg-white p-3 rounded-2xl shadow-inner">
               <ShoppingCart className="w-10 h-10 text-primary" />
@@ -338,9 +388,26 @@ export default function DirectOrderPage() {
               Agua Santa María y Ecohielo
             </h1>
             <p className="text-blue-100 font-medium mt-2 text-lg opacity-90">
-              Bienvenido a tu Tienda Online
+              Portal de Pedidos para Distribuidores
             </p>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full text-xs">
+            <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 flex items-center justify-center gap-2">
+              <Clock3 className="w-4 h-4" />
+              Entrega programada aprox. 24 h
+            </div>
+            <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 flex items-center justify-center gap-2">
+              <Store className="w-4 h-4" />
+              Atención a distribuidores
+            </div>
+            <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 flex items-center justify-center gap-2">
+              <Gift className="w-4 h-4" />
+              Premios por fidelidad
+            </div>
+          </div>
+          <p className="text-blue-100/90 text-xs text-center max-w-sm">
+            Los consumidores finales son atendidos por nuestra red de distribuidores. Este portal está orientado a compras de reposición y abastecimiento.
+          </p>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="bg-white/20 border-white/30 text-white font-bold py-1.5 px-6 rounded-full backdrop-blur-sm uppercase tracking-widest text-[11px] shadow-lg">
               {company.name}
@@ -349,7 +416,7 @@ export default function DirectOrderPage() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-5 pb-24">
+      <div className="max-w-3xl mx-auto p-5 pb-24">
         {/* Progress Bar */}
         {step < 6 && (
           <div className="flex justify-between mb-8 overflow-x-auto py-2 px-1">
@@ -664,7 +731,7 @@ export default function DirectOrderPage() {
                 })}
                 
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-                  <div className="max-w-md mx-auto flex items-center justify-between gap-4">
+                  <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Total estimado</span>
                       <span className="text-xl font-black text-primary">S/ {totalAmount.toFixed(2)}</span>
