@@ -13,6 +13,7 @@ import { SyncIndicator } from '@/components/SyncIndicator';
 import { DeleteOrdersDialog } from '@/components/DeleteOrdersDialog';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { BusinessDaySelector } from '@/components/BusinessDaySelector';
+import { DeletedOrdersArchivePanel } from '@/components/DeletedOrdersArchivePanel';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -533,6 +534,10 @@ export default function OrdersPage() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {activeTab === 'history' && isAdmin && (
+          <DeletedOrdersArchivePanel />
         )}
 
         {/* Selection toolbar - shown when orders are selected */}
