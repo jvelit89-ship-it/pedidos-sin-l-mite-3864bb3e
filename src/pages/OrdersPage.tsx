@@ -227,8 +227,8 @@ export default function OrdersPage() {
     // A delivery must be confirmed by the repartidor at the delivery point.
     // Admin/bulk completion cannot prove the driver's real GPS position.
     if (newStatus === 'delivered') {
-      toast.error('La entrega requiere PIN + GPS', {
-        description: 'Marca el pedido como entregado desde Entregas o Ruta en el dispositivo del repartidor.',
+      toast.error('La entrega requiere GPS', {
+        description: 'Marca el pedido como entregado desde Entregas o Ruta. El repartidor debe estar a máximo 200 m del cliente.',
         duration: 7000,
       });
       return;
