@@ -70,6 +70,7 @@ export default function OrderDetailPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -113,44 +114,13 @@ export default function OrderDetailPage() {
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order || !user) return;
 
-    // Admin/Superadmin requieren OTP para marcar como entregado
-    if (newStatus === 'delivered' && (user.role === 'admin' || user.role === 'superadmin')) {
-      setIsMarkDeliveredOpen(true);
+    if (user.role !== 'superadmin') {
+      toast.error('Solo el Superadmin puede cambiar manualmente el estado de un pedido');
       return;
     }
 
-    
-    setIsUpdating(true);
-    try {
-      const updateData: Partial<OrderWithItems> = {
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (newStatus === 'delivered') {
-        updateData.delivered_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', order.id);
-
-      if (error) throw error;
-
-      setOrder(prev => prev ? { ...prev, ...updateData } : null);
-      
-      toast.success('Estado actualizado', {
-        description: `Pedido marcado como "${ORDER_STATUS_CONFIG[newStatus].label}"`,
-      });
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Error al actualizar', {
-        description: 'Intenta nuevamente',
-      });
-    } finally {
-      setIsUpdating(false);
-    }
+    setPendingStatus(newStatus);
+    setIsMarkDeliveredOpen(true);
   };
 
   const handleCancel = async () => {
@@ -216,8 +186,8 @@ export default function OrderDetailPage() {
     );
   }
 
-  const allowedStatuses = user ? STATUS_TRANSITION_PERMISSIONS[user.role][order.status] : [];
-  const canChangeStatus = allowedStatuses.length > 0;
+  const allowedStatuses = Object.keys(ORDER_STATUS_CONFIG) as OrderStatus[];
+  const canChangeStatus = user?.role === 'superadmin';
   
   // Hide tracking code for repartidores and operarios
   const canViewTrackingCode = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'vendedor';
@@ -538,7 +508,10 @@ export default function OrderDetailPage() {
         open={isMarkDeliveredOpen}
         onOpenChange={setIsMarkDeliveredOpen}
         orderIds={order ? [order.id] : []}
+        targetStatus={pendingStatus || order.status}
+        targetStatusLabel={ORDER_STATUS_CONFIG[pendingStatus || order.status].label}
         onSuccess={() => {
+          setPendingStatus(null);
           loadOrder();
         }}
       />
