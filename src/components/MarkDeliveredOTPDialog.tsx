@@ -21,6 +21,8 @@ interface MarkDeliveredOTPDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderIds: string[];
+  targetStatus: string;
+  targetStatusLabel?: string;
   onSuccess: () => void;
 }
 
@@ -28,6 +30,8 @@ export function MarkDeliveredOTPDialog({
   open,
   onOpenChange,
   orderIds,
+  targetStatus,
+  targetStatusLabel,
   onSuccess,
 }: MarkDeliveredOTPDialogProps) {
   const [step, setStep] = useState<'request' | 'otp'>('request');
@@ -45,7 +49,7 @@ export function MarkDeliveredOTPDialog({
     setIsLoading(true);
     try {
       const { error } = await supabase.functions.invoke('send-mark-delivered-otp', {
-        body: { orderIds },
+        body: { orderIds, targetStatus },
       });
       if (error) {
         toast.error('No se pudo enviar el código');
@@ -63,13 +67,13 @@ export function MarkDeliveredOTPDialog({
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-mark-delivered-otp', {
-        body: { otpCode, orderIds },
+        body: { otpCode, orderIds, targetStatus },
       });
       if (error || !data?.success) {
         toast.error('Código inválido o expirado');
         return;
       }
-      toast.success(`${orderIds.length} pedido(s) marcado(s) como entregado(s)`);
+      toast.success(`${orderIds.length} pedido(s) actualizado(s) a "${targetStatusLabel || targetStatus}"`);
       onSuccess();
       handleClose();
     } finally {
@@ -89,10 +93,10 @@ export function MarkDeliveredOTPDialog({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <PackageCheck className="w-5 h-5 text-green-600" />
-                Confirmar Entrega
+                Autorizar cambio de estado
               </DialogTitle>
               <DialogDescription>
-                Para marcar {orderIds.length} pedido(s) como entregado(s), enviaremos un código de verificación a tu correo.
+                Para cambiar {orderIds.length} pedido(s) a "{targetStatusLabel || targetStatus}", enviaremos un código OTP al correo del Superadmin.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-4">
@@ -132,7 +136,7 @@ export function MarkDeliveredOTPDialog({
               <Button variant="outline" onClick={() => setStep('request')}>Volver</Button>
               <Button onClick={handleVerify} disabled={otpCode.length !== 6 || isLoading} className="gap-2">
                 {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Confirmar Entrega
+                Confirmar cambio
               </Button>
             </DialogFooter>
           </>
