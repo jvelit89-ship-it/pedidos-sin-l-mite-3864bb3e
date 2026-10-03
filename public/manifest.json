@@ -1,23 +1,19 @@
 {
-  "name": "Sistema de Pedidos y Entregas en Tiempo Real",
-  "short_name": "Pedidos RT",
-  "description": "Sistema de gestión de pedidos, inventario y entregas en tiempo real",
+  "name": "Santa María - Sistema de Pedidos",
+  "short_name": "Santa María",
+  "description": "Industrias Nacionales Santa María - Gestión de pedidos, inventario y entregas",
   "theme_color": "#1e40af",
-  "background_color": "#f5f7fa",
+  "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
   "icons": [
     {
-      "src": "/favicon.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "/favicon.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/logo-empresa.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ]
 }
