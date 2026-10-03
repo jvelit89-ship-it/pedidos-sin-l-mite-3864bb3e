@@ -1,6 +1,6 @@
 import { lazy, ReactNode, Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, getDefaultRoute } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { OfflineBanner } from '@/components/SyncIndicator';
 import { AppFooter } from '@/components/AppFooter';
 import { Loader2 } from 'lucide-react';

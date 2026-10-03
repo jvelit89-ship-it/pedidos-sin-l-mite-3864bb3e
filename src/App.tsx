@@ -1,13 +1,8 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from '@/contexts/AuthContext';
-import { SyncProvider } from '@/contexts/SyncContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
-import { AppLayout } from '@/components/AppLayout';
-import { ProductionRecipeBootstrap } from '@/components/ProductionRecipeBootstrap';
 import { lazy, Suspense, useEffect } from 'react';
 import { handleError } from '@/lib/error-handler';
 
@@ -35,15 +30,19 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const PurchasesPage = lazy(() => import('./pages/PurchasesPage'));
 const NewPurchasePage = lazy(() => import('./pages/NewPurchasePage'));
 const SuppliersPage = lazy(() => import('./pages/SuppliersPage'));
+const ProtectedAppShell = lazy(() => import('./components/ProtectedAppShell'));
+const PurchasesQueryProvider = lazy(() => import('./components/PurchasesQueryProvider'));
+const ProductionRecipeBootstrap = lazy(() =>
+  import('./components/ProductionRecipeBootstrap').then((module) => ({
+    default: module.ProductionRecipeBootstrap,
+  }))
+);
 
 // Public pages (no auth required)
 const OrderTrackingPage = lazy(() => import('./pages/OrderTrackingPage'));
 const CustomerPortalPage = lazy(() => import('./pages/CustomerPortalPage'));
 const DirectOrderPage = lazy(() => import('./pages/DirectOrderPage'));
 const DistributorPortalPage = lazy(() => import('./pages/DistributorPortalPage'));
-
-const queryClient = new QueryClient();
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => <AppLayout>{children}</AppLayout>;
 
 const App = () => {
   useEffect(() => {
@@ -66,13 +65,10 @@ const App = () => {
 
   return (
 
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SyncProvider>
-          <SettingsProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner position="top-center" />
+    <AuthProvider>
+      <SettingsProvider>
+        <TooltipProvider>
+          <Sonner position="top-center" />
               <BrowserRouter>
                 <Suspense
                   fallback={
@@ -95,42 +91,52 @@ const App = () => {
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/" element={<Navigate to="/auth" replace />} />
                   
-                  {/* Protected routes */}
-                  <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-                  <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-                  <Route path="/orders/new" element={<ProtectedRoute><NewOrderPage /></ProtectedRoute>} />
-                  <Route path="/orders/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
-                  <Route path="/deliveries" element={<ProtectedRoute><DeliveriesPage /></ProtectedRoute>} />
-                  <Route path="/route" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
-                  <Route path="/inventory" element={
-                    <ProtectedRoute>
+                  {/* Protected routes share one persistent shell/provider tree */}
+                  <Route element={<ProtectedAppShell />}>
+                    <Route path="/companies" element={<CompaniesPage />} />
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/orders" element={<OrdersPage />} />
+                    <Route path="/orders/new" element={<NewOrderPage />} />
+                    <Route path="/orders/:id" element={<OrderDetailPage />} />
+                    <Route path="/deliveries" element={<DeliveriesPage />} />
+                    <Route path="/route" element={<RoutePage />} />
+                    <Route path="/inventory" element={
                       <ProductionRecipeBootstrap>
                         <InventoryPage />
                       </ProductionRecipeBootstrap>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
-                  <Route path="/purchases/new" element={<ProtectedRoute><NewPurchasePage /></ProtectedRoute>} />
-                  <Route path="/suppliers" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
-                  <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-                  <Route path="/customers-map" element={<ProtectedRoute><CustomersMapPage /></ProtectedRoute>} />
-                  <Route path="/vendedores" element={<ProtectedRoute><VendedoresPage /></ProtectedRoute>} />
-                  <Route path="/repartidores" element={<ProtectedRoute><RepartidoresPage /></ProtectedRoute>} />
-                  <Route path="/operarios" element={<ProtectedRoute><OperariosPage /></ProtectedRoute>} />
-                  <Route path="/commissions" element={<ProtectedRoute><CommissionsPage /></ProtectedRoute>} />
-                  <Route path="/manual" element={<ProtectedRoute><ManualPage /></ProtectedRoute>} />
-                  <Route path="/logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
-                  <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                    } />
+                    <Route path="/purchases" element={
+                      <PurchasesQueryProvider>
+                        <PurchasesPage />
+                      </PurchasesQueryProvider>
+                    } />
+                    <Route path="/purchases/new" element={
+                      <PurchasesQueryProvider>
+                        <NewPurchasePage />
+                      </PurchasesQueryProvider>
+                    } />
+                    <Route path="/suppliers" element={
+                      <PurchasesQueryProvider>
+                        <SuppliersPage />
+                      </PurchasesQueryProvider>
+                    } />
+                    <Route path="/customers" element={<CustomersPage />} />
+                    <Route path="/customers-map" element={<CustomersMapPage />} />
+                    <Route path="/vendedores" element={<VendedoresPage />} />
+                    <Route path="/repartidores" element={<RepartidoresPage />} />
+                    <Route path="/operarios" element={<OperariosPage />} />
+                    <Route path="/commissions" element={<CommissionsPage />} />
+                    <Route path="/manual" element={<ManualPage />} />
+                    <Route path="/logs" element={<AuditLogsPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
                   <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
               </BrowserRouter>
-            </TooltipProvider>
-          </SettingsProvider>
-        </SyncProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+        </TooltipProvider>
+      </SettingsProvider>
+    </AuthProvider>
   );
 };
 

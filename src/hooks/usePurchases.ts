@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Supplier } from '@/hooks/useSuppliers';
 import { handleError } from '@/lib/error-handler';
 
@@ -62,7 +62,6 @@ export interface NewPurchaseData {
 
 export function usePurchases() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch all purchases with supplier info
@@ -167,8 +166,7 @@ export function usePurchases() {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-stats'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: 'Compra registrada',
+      toast.success('Compra registrada', {
         description: 'La compra se ha registrado y el stock se ha actualizado.',
       });
     },
@@ -196,8 +194,7 @@ export function usePurchases() {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-stats'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: 'Compra anulada',
+      toast.success('Compra anulada', {
         description: 'La compra se ha anulado y el stock se ha revertido.',
       });
     },

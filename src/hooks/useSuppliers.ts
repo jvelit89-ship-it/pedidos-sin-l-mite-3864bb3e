@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export interface Supplier {
   id: string;
@@ -43,7 +43,6 @@ export interface SupplierFormData {
 
 export function useSuppliers() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch active suppliers only
@@ -109,16 +108,13 @@ export function useSuppliers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      toast({
-        title: 'Proveedor creado',
+      toast.success('Proveedor creado', {
         description: 'El proveedor se ha registrado correctamente.',
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: error.message,
-        variant: 'destructive',
       });
     },
   });
@@ -150,16 +146,13 @@ export function useSuppliers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      toast({
-        title: 'Proveedor actualizado',
+      toast.success('Proveedor actualizado', {
         description: 'Los cambios se han guardado correctamente.',
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: error.message,
-        variant: 'destructive',
       });
     },
   });
@@ -176,18 +169,15 @@ export function useSuppliers() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      toast({
-        title: variables.is_active ? 'Proveedor activado' : 'Proveedor desactivado',
+      toast.success(variables.is_active ? 'Proveedor activado' : 'Proveedor desactivado', {
         description: variables.is_active 
           ? 'El proveedor ahora está disponible para compras.'
           : 'El proveedor ya no aparecerá en nuevas compras.',
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: error.message,
-        variant: 'destructive',
       });
     },
   });
