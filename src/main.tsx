@@ -7,6 +7,34 @@ const OFFICIAL_HOST = "pedidos.innsanma.com";
 const LEGACY_VERCEL_HOST = "crmpedidosonline.vercel.app";
 const LEGACY_CACHE_RESET_KEY = "pedidos_legacy_sw_reset_v1";
 
+const CHUNK_RELOAD_KEY = "pedidos_chunk_reload_once";
+
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+
+  if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === "done") {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+    return;
+  }
+
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, "done");
+
+  void (async () => {
+    try {
+      if ("caches" in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+    } finally {
+      window.location.reload();
+    }
+  })();
+});
+
+window.addEventListener("pageshow", () => {
+  sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+});
+
 if (window.location.hostname === LEGACY_VERCEL_HOST) {
   const target =
     `https://${OFFICIAL_HOST}${window.location.pathname}${window.location.search}${window.location.hash}`;
