@@ -200,21 +200,23 @@ export function useOrders(options: UseOrdersOptions = {}) {
     console.log('Order items created - stock deduction handled by database trigger');
 
     
-    // Generate the delivery PIN only on the server and send it directly to
-    // the customer's WhatsApp. The PIN is never returned to the browser.
+    // Generate the delivery PIN only on the server and deliver it directly
+    // to the customer. SMS/httpSMS is preferred; WhatsApp is fallback.
+    // The PIN is never returned to the browser.
     const { data: pinDeliveryResult, error: pinDeliveryError } = await supabase.functions.invoke(
       'issue-delivery-pin',
       { body: { orderId: orderData.id } },
     );
 
     if (pinDeliveryError || !pinDeliveryResult?.success) {
-      console.error('Delivery PIN WhatsApp issue failed:', pinDeliveryError || pinDeliveryResult?.error);
-      toast.warning('Pedido creado, pero el PIN no pudo enviarse por WhatsApp', {
-        description: pinDeliveryResult?.error || pinDeliveryError?.message || 'Revisa la configuración de WhatsApp.',
+      console.error('Delivery PIN issue failed:', pinDeliveryError || pinDeliveryResult?.error);
+      toast.warning('Pedido creado, pero el PIN no pudo enviarse al cliente', {
+        description: pinDeliveryResult?.message || pinDeliveryResult?.error || pinDeliveryError?.message || 'Revisa la configuración de SMS/WhatsApp.',
         duration: 7000,
       });
     } else {
-      toast.success('Pedido creado y PIN enviado al cliente por WhatsApp');
+      const via = pinDeliveryResult.channel === 'sms' ? 'SMS' : 'WhatsApp';
+      toast.success(`Pedido creado y PIN enviado al cliente por ${via}`);
     }
 
     return orderData;
