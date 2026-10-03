@@ -252,9 +252,9 @@ export function useOrders(options: UseOrdersOptions = {}) {
     };
 
     if (status === 'delivered') {
-      // If this order has just passed the PIN + geofence validation, persist the
-      // validated GPS proof in the SAME update that marks it delivered. This
-      // prevents an order from becoming delivered while a later GPS write fails.
+      // Delivery completion must always carry a real GPS proof. A recent
+      // geofence validation can supply it, or callers can pass the validated
+      // coordinates explicitly. Never allow a delivered row without GPS.
       const validatedLocation = getRecentValidatedDeliveryLocation(id);
       if (
         validatedLocation &&
@@ -264,6 +264,23 @@ export function useOrders(options: UseOrdersOptions = {}) {
         updates.delivery_longitude = validatedLocation.driver.lng;
         updates.delivery_distance_m = validatedLocation.distance;
         updates.delivery_pin_verified_at = new Date(validatedLocation.validatedAt).toISOString();
+      }
+
+      const hasValidGps =
+        Number.isFinite(updates.delivery_latitude as number) &&
+        Number.isFinite(updates.delivery_longitude as number) &&
+        Math.abs(Number(updates.delivery_latitude)) <= 90 &&
+        Math.abs(Number(updates.delivery_longitude)) <= 180 &&
+        !(Number(updates.delivery_latitude) === 0 && Number(updates.delivery_longitude) === 0);
+
+      if (!hasValidGps) {
+        const gpsError = new Error(
+          'GPS requerido: confirma la entrega desde Entregas o Ruta usando PIN y ubicación.'
+        );
+        toast.error('No se puede marcar como entregado sin GPS', {
+          description: 'Abre Entregas o Ruta, valida el PIN del cliente y permite la ubicación.',
+        });
+        throw gpsError;
       }
 
       updates.delivered_at = new Date().toISOString();

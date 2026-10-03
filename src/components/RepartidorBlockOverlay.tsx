@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,6 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { 
   AlertTriangle, 
-  CheckCircle2, 
   Clock, 
   Lock,
   ShieldAlert,
@@ -30,6 +30,8 @@ interface OverdueOrder {
 
 export function RepartidorBlockOverlay() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { orders, updateOrderStatus } = useOrders({ mode: 'deliveries' });
   const { formatCurrency } = useSettings();
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -131,11 +133,11 @@ export function RepartidorBlockOverlay() {
     return () => clearInterval(intervalId);
   }, [isRepartidor, overdueOrders.length, isBlocked, blockedOrders.length, playAlarm]);
 
-  const handleMarkStatus = async (orderId: string, status: 'delivered' | 'cancelled') => {
+  const handleCancelOrder = async (orderId: string) => {
     setMarkingId(orderId);
     try {
-      await updateOrderStatus(orderId, status);
-      toast.success(status === 'delivered' ? '✅ Entrega marcada como completada' : '❌ Pedido anulado');
+      await updateOrderStatus(orderId, 'cancelled');
+      toast.success('❌ Pedido anulado');
     } catch {
       toast.error('Error al actualizar');
     } finally {
@@ -177,8 +179,20 @@ export function RepartidorBlockOverlay() {
     );
   }
 
-  // Full block overlay (4+ hours)
+  // Full block overlay (4+ hours). Keep Entregas/Ruta usable so the repartidor
+  // can resolve the block through the mandatory PIN + GPS flow.
   if (!isBlocked) return null;
+
+  if (location.pathname === '/deliveries' || location.pathname === '/route') {
+    return (
+      <div className="bg-destructive text-destructive-foreground px-4 py-3">
+        <p className="font-bold text-sm">🚫 Tienes entregas vencidas</p>
+        <p className="text-xs opacity-90">
+          Confírmalas aquí con PIN y GPS para desbloquear el sistema.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence>
@@ -255,21 +269,17 @@ export function RepartidorBlockOverlay() {
                     className="flex-1 gap-2 font-bold"
                     size="lg"
                     disabled={!!markingId}
-                    onClick={() => handleMarkStatus(order.id, 'delivered')}
+                    onClick={() => navigate('/deliveries')}
                   >
-                    {markingId === order.id ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-5 h-5" />
-                    )}
-                    ENTREGADO
+                    <Truck className="w-5 h-5" />
+                    CONFIRMAR CON PIN + GPS
                   </Button>
                   <Button
                     variant="destructive"
                     className="gap-2 font-bold"
                     size="lg"
                     disabled={!!markingId}
-                    onClick={() => handleMarkStatus(order.id, 'cancelled')}
+                    onClick={() => handleCancelOrder(order.id)}
                   >
                     <AlertTriangle className="w-5 h-5" />
                     ANULAR

@@ -50,7 +50,6 @@ import {
   Share2
 } from 'lucide-react';
 import { RevealPinDialog } from '@/components/RevealPinDialog';
-import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 
@@ -124,10 +123,6 @@ export default function OrdersPage() {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [revealPinOrderId, setRevealPinOrderId] = useState<string | null>(null);
   const [isRevealPinDialogOpen, setIsRevealPinDialogOpen] = useState(false);
-  const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
-  const [pendingDeliveredIds, setPendingDeliveredIds] = useState<string[]>([]);
-
-
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
@@ -235,16 +230,16 @@ export default function OrdersPage() {
   const handleBulkStatusChange = async (newStatus: OrderStatus) => {
     if (selectedOrders.length === 0) return;
 
-    // Admin debe verificar con OTP para marcar como entregado
-    if (newStatus === 'delivered' && isAdmin) {
-      setPendingDeliveredIds([...selectedOrders]);
-      setIsMarkDeliveredOpen(true);
+    // A delivery must be confirmed by the repartidor at the delivery point.
+    // Admin/bulk completion cannot prove the driver's real GPS position.
+    if (newStatus === 'delivered') {
+      toast.error('La entrega requiere PIN + GPS', {
+        description: 'Marca el pedido como entregado desde Entregas o Ruta en el dispositivo del repartidor.',
+        duration: 7000,
+      });
       return;
     }
 
-
-
-    
     setIsBulkUpdating(true);
     try {
       const updateData: { status: OrderStatus; updated_at: string; delivered_at?: string } = {
@@ -882,16 +877,6 @@ export default function OrdersPage() {
           />
         )}
 
-        <MarkDeliveredOTPDialog
-          open={isMarkDeliveredOpen}
-          onOpenChange={setIsMarkDeliveredOpen}
-          orderIds={pendingDeliveredIds}
-          onSuccess={() => {
-            setSelectedOrders([]);
-            setPendingDeliveredIds([]);
-            refetch();
-          }}
-        />
       </div>
     );
   }
