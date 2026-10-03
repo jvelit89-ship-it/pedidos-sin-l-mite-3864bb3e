@@ -441,6 +441,7 @@ export default function DirectOrderPage() {
           featuredPromotions={featuredPromotions}
           getProductPrice={getProductPrice}
           onAdd={(productId) => handleProductQty(productId, 1)}
+          onRemove={(productId) => handleProductQty(productId, -1)}
           onStartOrder={() => scrollToPortalSection('identificacion')}
           onViewCatalog={() => scrollToPortalSection('catalogo')}
           onRepeatOrder={repeatLastOrder}
@@ -775,7 +776,7 @@ export default function DirectOrderPage() {
                                 <img
                                   src={p.image_url}
                                   alt={p.name}
-                                  className="absolute inset-0 w-full h-full object-cover"
+                                  className="absolute inset-0 w-full h-full object-contain p-2 sm:p-3"
                                   loading="lazy"
                                 />
                               ) : p.name.toLowerCase().includes('hielo') ? (
@@ -872,18 +873,26 @@ export default function DirectOrderPage() {
                   );
                 })}
                 
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-                  <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Total estimado</span>
-                      <span className="text-xl font-black text-primary">S/ {totalAmount.toFixed(2)}</span>
+                <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-white/90 backdrop-blur-md border-t z-50">
+                  <div className="max-w-3xl mx-auto flex items-center gap-2 sm:gap-4">
+                    <Button
+                      variant="outline"
+                      className="h-12 rounded-full px-4 sm:px-5 shrink-0"
+                      onClick={() => setStep(3)}
+                    >
+                      <ChevronLeft className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Atrás</span>
+                    </Button>
+                    <div className="flex flex-col min-w-0 mr-auto">
+                      <span className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wider">Total estimado</span>
+                      <span className="text-lg sm:text-xl font-black text-primary">S/ {totalAmount.toFixed(2)}</span>
                     </div>
                     <Button 
-                      className="h-12 px-8 rounded-full text-lg shadow-lg" 
+                      className="h-12 px-5 sm:px-8 rounded-full text-base sm:text-lg shadow-lg" 
                       onClick={() => setStep(5)} 
                       disabled={Object.keys(selectedProducts).length === 0}
                     >
-                      Continuar <ArrowRight className="w-5 h-5 ml-2" />
+                      Continuar <ArrowRight className="w-5 h-5 ml-1 sm:ml-2" />
                     </Button>
                   </div>
                 </div>
