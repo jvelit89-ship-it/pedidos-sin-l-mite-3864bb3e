@@ -70,7 +70,7 @@ export function MarkDeliveredOTPDialog({
         body: { otpCode, orderIds, targetStatus },
       });
       if (error || !data?.success) {
-        toast.error('Código inválido o expirado');
+        toast.error(data?.error || error?.message || 'Código inválido o expirado');
         return;
       }
       toast.success(`${orderIds.length} pedido(s) actualizado(s) a "${targetStatusLabel || targetStatus}"`);
