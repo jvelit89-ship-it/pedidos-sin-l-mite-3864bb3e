@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
-import { useOrders } from './useOrders';
+import type { OrderWithItems } from './useOrders';
 import { useRepartidores } from './useTeam';
 import { getLimaDateKey } from '@/lib/limaTime';
 
@@ -46,8 +46,7 @@ interface RepartidorLoad {
   items: RepartidorLoadItem[];
 }
 
-export function useDashboardStats() {
-  const { orders } = useOrders();
+export function useDashboardStats(orders: OrderWithItems[]) {
   const { repartidores } = useRepartidores();
   const [newOrderSound, setNewOrderSound] = useState<HTMLAudioElement | null>(null);
   const previousOrderCountRef = useRef<number>(0);
