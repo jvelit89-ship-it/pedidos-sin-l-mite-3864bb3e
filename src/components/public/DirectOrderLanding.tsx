@@ -8,6 +8,7 @@ import {
   Percent,
   Repeat2,
   ShoppingCart,
+  Sparkles,
   Minus,
   Plus,
   Store,
