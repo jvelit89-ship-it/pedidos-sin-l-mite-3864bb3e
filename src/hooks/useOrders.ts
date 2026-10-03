@@ -172,25 +172,6 @@ export function useOrders(options: UseOrdersOptions = {}) {
       return null;
     }
 
-
-    // Generate 4-digit PIN and insert into separate table
-    const deliveryPin = Math.floor(1000 + Math.random() * 9000).toString();
-    const { error: pinError } = await supabase
-      .from('order_delivery_pins')
-      .insert({
-        order_id: orderData.id,
-        pin: deliveryPin
-      });
-
-    if (pinError) {
-      handleError(pinError, { context: 'Save Delivery PIN', silent: true });
-    }
-
-
-    // Attach pin to the returned data for immediate use (like WhatsApp sharing)
-    const orderWithPin = { ...orderData, delivery_pin: deliveryPin };
-
-    
     if (orderError || !orderData) {
       toast.error('Error al crear pedido');
       console.error('Error creating order:', orderError);
@@ -219,8 +200,24 @@ export function useOrders(options: UseOrdersOptions = {}) {
     console.log('Order items created - stock deduction handled by database trigger');
 
     
-    toast.success('Pedido creado');
-    return orderWithPin;
+    // Generate the delivery PIN only on the server and send it directly to
+    // the customer's WhatsApp. The PIN is never returned to the browser.
+    const { data: pinDeliveryResult, error: pinDeliveryError } = await supabase.functions.invoke(
+      'issue-delivery-pin',
+      { body: { orderId: orderData.id } },
+    );
+
+    if (pinDeliveryError || !pinDeliveryResult?.success) {
+      console.error('Delivery PIN WhatsApp issue failed:', pinDeliveryError || pinDeliveryResult?.error);
+      toast.warning('Pedido creado, pero el PIN no pudo enviarse por WhatsApp', {
+        description: pinDeliveryResult?.error || pinDeliveryError?.message || 'Revisa la configuración de WhatsApp.',
+        duration: 7000,
+      });
+    } else {
+      toast.success('Pedido creado y PIN enviado al cliente por WhatsApp');
+    }
+
+    return orderData;
   }, []);
 
   const updateOrder = useCallback(async (id: string, updates: Partial<Order>) => {
