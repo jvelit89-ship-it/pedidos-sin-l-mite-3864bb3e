@@ -44,15 +44,16 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    if (!roleData || (roleData.role !== "admin" && roleData.role !== "superadmin")) {
+    if (!roleData || roleData.role !== "superadmin") {
       return new Response(
-        JSON.stringify({ error: "Solo Admin o Superadmin pueden marcar como entregado" }),
+        JSON.stringify({ error: "Solo el Superadmin puede cambiar el estado de un pedido" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const { orderIds } = await req.json();
-    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+    const { orderIds, targetStatus } = await req.json();
+    const allowedStatuses = ["pending", "preparation", "ready", "delivery", "delivered", "cancelled", "backorder"];
+    if (!Array.isArray(orderIds) || orderIds.length === 0 || !allowedStatuses.includes(targetStatus)) {
       return new Response(JSON.stringify({ error: "orderIds requerido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -94,11 +95,11 @@ serve(async (req) => {
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: resendFrom,
       to: [otpRecipient],
-      subject: "Código para marcar pedido(s) como entregado",
+      subject: `Código OTP para cambiar pedido(s) a ${targetStatus}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #16a34a;">📦 Confirmar Entrega</h1>
-          <p>Has solicitado marcar <strong>${orderIds.length}</strong> pedido(s) como entregado(s).</p>
+          <h1 style="color: #2563eb;">🔐 Autorizar cambio de estado</h1>
+          <p>Has solicitado cambiar <strong>${orderIds.length}</strong> pedido(s) al estado <strong>${targetStatus}</strong>.</p>
           <p>Tu código de verificación es:</p>
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">${otp}</span>
