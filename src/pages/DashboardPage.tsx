@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useAuth } from '@/contexts/AuthContext';
 import { ORDER_STATUS_CONFIG, DashboardStats } from '@/types';
 import { useSettings } from '@/contexts/SettingsContext';
-import { useState } from 'react';
 import { 
   ShoppingCart, 
   Clock, 
@@ -28,21 +27,30 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getBusinessDateKey, getTodayBusinessDateKey } from '@/lib/limaTime';
 // Dashboard components
-import { SmartAlerts } from '@/components/dashboard/SmartAlerts';
-import { HealthIndicators } from '@/components/dashboard/HealthIndicators';
-import { OperationalInsights } from '@/components/dashboard/OperationalInsights';
-import { AllRepartidoresLoad } from '@/components/dashboard/RepartidorLoadSummary';
 import { NewOrderBadge } from '@/components/dashboard/NewOrderBadge';
-import { DailyClosing } from '@/components/dashboard/DailyClosing';
-import { InvoiceRequestsPanel } from '@/components/dashboard/InvoiceRequestsPanel';
-import { PendingProductionPanel } from '@/components/PendingProductionPanel';
-import { EmptyContainersPanel } from '@/components/dashboard/EmptyContainersPanel';
-import { StuckDeliveriesPanel } from '@/components/dashboard/StuckDeliveriesPanel';
-import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
-import { DeliveryGeostatistics } from '@/components/dashboard/DeliveryGeostatistics';
-import { SuspiciousDeliveriesPanel } from '@/components/dashboard/SuspiciousDeliveriesPanel';
-import { WeeklySalesChart } from '@/components/dashboard/WeeklySalesChart';
-import { CustomerFollowUpPanel } from '@/components/dashboard/CustomerFollowUpPanel';
+
+const DailyClosing = lazy(() => import('@/components/dashboard/DailyClosing').then((m) => ({ default: m.DailyClosing })));
+const SmartAlerts = lazy(() => import('@/components/dashboard/SmartAlerts').then((m) => ({ default: m.SmartAlerts })));
+const HealthIndicators = lazy(() => import('@/components/dashboard/HealthIndicators').then((m) => ({ default: m.HealthIndicators })));
+const OperationalInsights = lazy(() => import('@/components/dashboard/OperationalInsights').then((m) => ({ default: m.OperationalInsights })));
+const AllRepartidoresLoad = lazy(() => import('@/components/dashboard/RepartidorLoadSummary').then((m) => ({ default: m.AllRepartidoresLoad })));
+const InvoiceRequestsPanel = lazy(() => import('@/components/dashboard/InvoiceRequestsPanel').then((m) => ({ default: m.InvoiceRequestsPanel })));
+const PendingProductionPanel = lazy(() => import('@/components/PendingProductionPanel').then((m) => ({ default: m.PendingProductionPanel })));
+const EmptyContainersPanel = lazy(() => import('@/components/dashboard/EmptyContainersPanel').then((m) => ({ default: m.EmptyContainersPanel })));
+const StuckDeliveriesPanel = lazy(() => import('@/components/dashboard/StuckDeliveriesPanel').then((m) => ({ default: m.StuckDeliveriesPanel })));
+const LowStockAlert = lazy(() => import('@/components/dashboard/LowStockAlert').then((m) => ({ default: m.LowStockAlert })));
+const DeliveryGeostatistics = lazy(() => import('@/components/dashboard/DeliveryGeostatistics').then((m) => ({ default: m.DeliveryGeostatistics })));
+const SuspiciousDeliveriesPanel = lazy(() => import('@/components/dashboard/SuspiciousDeliveriesPanel').then((m) => ({ default: m.SuspiciousDeliveriesPanel })));
+const WeeklySalesChart = lazy(() => import('@/components/dashboard/WeeklySalesChart').then((m) => ({ default: m.WeeklySalesChart })));
+const CustomerFollowUpPanel = lazy(() => import('@/components/dashboard/CustomerFollowUpPanel').then((m) => ({ default: m.CustomerFollowUpPanel })));
+
+const DashboardModuleFallback = () => (
+  <Card>
+    <CardContent className="p-4">
+      <div className="h-20 animate-pulse rounded-lg bg-muted/60" />
+    </CardContent>
+  </Card>
+);
 
 
 export default function DashboardPage() {
@@ -50,6 +58,22 @@ export default function DashboardPage() {
   const { formatCurrency } = useSettings();
   const [dateFilter, setDateFilter] = useState('today');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [loadSecondaryModules, setLoadSecondaryModules] = useState(false);
+
+  useEffect(() => {
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      const id = idleWindow.requestIdleCallback(() => setLoadSecondaryModules(true), { timeout: 1200 });
+      return () => idleWindow.cancelIdleCallback?.(id);
+    }
+
+    const timeoutId = window.setTimeout(() => setLoadSecondaryModules(true), 350);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
   const { orders, loading, refetch, updateOrderStatus } = useOrders({
     mode: 'dashboard',
     dashboardDateFilter: dateFilter,
@@ -170,7 +194,9 @@ export default function DashboardPage() {
           <NewOrderBadge count={newOrdersCount} />
         </div>
         <div className="flex items-center gap-2">
-          <DailyClosing orders={orders} refetchOrders={refetch} />
+          <Suspense fallback={<div className="h-9 w-24 rounded-md bg-muted/60 animate-pulse" />}>
+            <DailyClosing orders={orders} refetchOrders={refetch} />
+          </Suspense>
           <SyncIndicator />
         </div>
       </div>
@@ -230,46 +256,39 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Smart Alerts & Health Indicators */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <LowStockAlert />
-            <SmartAlerts alerts={smartAlerts} thresholdMinutes={ALERT_THRESHOLD_MINUTES} />
-            <HealthIndicators {...healthIndicators} />
-          </div>
+          {loadSecondaryModules ? (
+            <Suspense fallback={<DashboardModuleFallback />}>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <LowStockAlert />
+                  <SmartAlerts alerts={smartAlerts} thresholdMinutes={ALERT_THRESHOLD_MINUTES} />
+                  <HealthIndicators {...healthIndicators} />
+                </div>
 
-          {/* Operational Insights & Load Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <OperationalInsights insights={operationalInsights} />
-            <AllRepartidoresLoad loads={allRepartidoresLoad} />
-          </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <OperationalInsights insights={operationalInsights} />
+                  <AllRepartidoresLoad loads={allRepartidoresLoad} />
+                </div>
 
-          {/* Weekly Sales Chart */}
-          <WeeklySalesChart />
-
-          {/* Customer purchase follow-up */}
-          <CustomerFollowUpPanel />
-
-          {/* Delivery Statistics & Map */}
-          <DeliveryGeostatistics />
-
-          {/* Suspicious Deliveries (blocked by geofence) */}
-          <SuspiciousDeliveriesPanel />
-
-          {/* Stuck Deliveries Panel */}
-          <StuckDeliveriesPanel orders={orders} updateOrderStatus={updateOrderStatus} />
-
-
-
-          {/* Invoice Requests Panel */}
-          <InvoiceRequestsPanel />
-
-          {/* Empty Containers Panel */}
-          <EmptyContainersPanel />
+                <WeeklySalesChart />
+                <CustomerFollowUpPanel />
+                <DeliveryGeostatistics />
+                <SuspiciousDeliveriesPanel />
+                <StuckDeliveriesPanel orders={orders} updateOrderStatus={updateOrderStatus} />
+                <InvoiceRequestsPanel />
+                <EmptyContainersPanel />
+              </div>
+            </Suspense>
+          ) : (
+            <DashboardModuleFallback />
+          )}
         </>
       )}
 
       {/* Production Control Panel - Visible to Admins (all pending) and Operarios (their own pending/corrections) */}
-      <PendingProductionPanel />
+      <Suspense fallback={<DashboardModuleFallback />}>
+        <PendingProductionPanel />
+      </Suspense>
 
       {/* Filters */}
       <Card>

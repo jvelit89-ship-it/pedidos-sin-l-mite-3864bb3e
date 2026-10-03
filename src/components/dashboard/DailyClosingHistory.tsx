@@ -62,11 +62,44 @@ export function DailyClosingHistory() {
   const { formatCurrency } = useSettings();
   const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [firstHistoryMonth, setFirstHistoryMonth] = useState<Date | null>(null);
   const [monthOrders, setMonthOrders] = useState<OrderWithItems[]>([]);
   const [selectedDay, setSelectedDay] = useState<DayStats | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [distributorCredits, setDistributorCredits] = useState<DistributorCredit[]>([]);
   const [isRecalculating, setIsRecalculating] = useState(false);
+
+  const fetchFirstHistoryMonth = useCallback(async () => {
+    let query = supabase
+      .from('orders')
+      .select('created_at')
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (user?.companyId) {
+      query = query.eq('company_id', user.companyId);
+    }
+
+    const { data, error } = await query;
+    if (!error && data?.[0]?.created_at) {
+      const firstBusinessDate = getBusinessDateKey(data[0].created_at);
+      setFirstHistoryMonth(startOfMonth(new Date(`${firstBusinessDate}T12:00:00-05:00`)));
+    }
+  }, [user?.companyId]);
+
+  const availableMonths = useMemo(() => {
+    const currentMonth = startOfMonth(new Date());
+    const firstMonth = firstHistoryMonth ?? currentMonth;
+    const months: Date[] = [];
+
+    let cursor = currentMonth;
+    while (cursor >= firstMonth && months.length < 240) {
+      months.push(cursor);
+      cursor = subMonths(cursor, 1);
+    }
+
+    return months;
+  }, [firstHistoryMonth]);
 
   const getSelectedMonthRange = useCallback(() => {
     const firstDayKey = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
@@ -117,6 +150,10 @@ export function DailyClosingHistory() {
       setDistributorCredits(data);
     }
   }, [getSelectedMonthRange, user?.companyId]);
+
+  useEffect(() => {
+    fetchFirstHistoryMonth();
+  }, [fetchFirstHistoryMonth]);
 
   useEffect(() => {
     fetchMonthOrders();
@@ -328,12 +365,29 @@ export function DailyClosingHistory() {
             <RefreshCw className={`w-4 h-4 ${isRecalculating ? 'animate-spin' : ''}`} />
             {isRecalculating ? 'Recalculando...' : 'Recalcular'}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateMonth('prev')}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateMonth('prev')}
+            disabled={firstHistoryMonth ? isSameMonth(selectedMonth, firstHistoryMonth) : false}
+          >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="min-w-[140px] text-center font-medium capitalize">
-            {format(selectedMonth, 'MMMM yyyy', { locale: es })}
-          </span>
+          <Select
+            value={format(selectedMonth, 'yyyy-MM')}
+            onValueChange={(value) => setSelectedMonth(new Date(`${value}-01T12:00:00-05:00`))}
+          >
+            <SelectTrigger className="w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMonths.map((month) => (
+                <SelectItem key={format(month, 'yyyy-MM')} value={format(month, 'yyyy-MM')}>
+                  <span className="capitalize">{format(month, 'MMMM yyyy', { locale: es })}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button 
             variant="outline" 
             size="icon" 
@@ -344,6 +398,11 @@ export function DailyClosingHistory() {
           </Button>
         </div>
       </div>
+      {firstHistoryMonth && (
+        <p className="text-xs text-muted-foreground">
+          Historial disponible desde <span className="font-medium capitalize">{format(firstHistoryMonth, 'MMMM yyyy', { locale: es })}</span>.
+        </p>
+      )}
 
       {/* Month Summary */}
       <Card>
