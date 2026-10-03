@@ -89,6 +89,7 @@ export default function DashboardPage() {
   } = useDashboardStats(orders);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isVendedor = user?.role === 'vendedor';
 
   const stats = useMemo<DashboardStats>(() => {
     const today = getTodayBusinessDateKey();
@@ -283,6 +284,12 @@ export default function DashboardPage() {
             <DashboardModuleFallback />
           )}
         </>
+      )}
+
+      {isVendedor && (
+        <Suspense fallback={<DashboardModuleFallback />}>
+          <CustomerFollowUpPanel />
+        </Suspense>
       )}
 
       {/* Production Control Panel - Visible to Admins (all pending) and Operarios (their own pending/corrections) */}
