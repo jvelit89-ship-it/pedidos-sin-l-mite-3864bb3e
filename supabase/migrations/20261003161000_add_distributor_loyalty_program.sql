@@ -124,7 +124,7 @@ RETURNS numeric
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $func$
 DECLARE
   account_row public.customer_loyalty_accounts%ROWTYPE;
   discount_amount numeric(12,2);
@@ -184,7 +184,7 @@ BEGIN
 
   RETURN discount_amount;
 END;
-$;
+$func$;
 
 REVOKE ALL ON FUNCTION public.apply_loyalty_redemption(uuid, uuid, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.apply_loyalty_redemption(uuid, uuid, integer) TO service_role;
