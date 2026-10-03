@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useOrders } from '@/hooks/useOrders';
+import type { OrderWithItems } from '@/hooks/useOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { getBusinessDateKey, getTodayBusinessDateKey, getBusinessDayCutoff } from '@/lib/limaTime';
@@ -50,8 +50,12 @@ interface DailyStats {
   topRepartidor?: { name: string; deliveries: number };
 }
 
-export function DailyClosing() {
-  const { orders, refetch } = useOrders();
+interface DailyClosingProps {
+  orders: OrderWithItems[];
+  refetchOrders: () => Promise<void>;
+}
+
+export function DailyClosing({ orders, refetchOrders }: DailyClosingProps) {
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
@@ -99,7 +103,7 @@ export function DailyClosing() {
     setIsRecalculating(true);
     try {
       await Promise.all([
-        refetch(),
+        refetchOrders(),
         fetchDistributorPrepayments()
       ]);
       toast.success('Cierre del día recalculado');
@@ -539,7 +543,7 @@ export function DailyClosing() {
 
             {isAdmin && (
               <TabsContent value="history" className="mt-4">
-                <DailyClosingHistory />
+                <DailyClosingHistory orders={orders} refetchOrders={refetchOrders} />
               </TabsContent>
             )}
           </Tabs>

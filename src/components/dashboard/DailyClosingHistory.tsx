@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useOrders } from '@/hooks/useOrders';
+import type { OrderWithItems } from '@/hooks/useOrders';
 import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -57,8 +57,12 @@ const isTodayBusinessDay = (date: Date): boolean => {
   return dateStr === todayStr;
 };
 
-export function DailyClosingHistory() {
-  const { orders, refetch } = useOrders();
+interface DailyClosingHistoryProps {
+  orders: OrderWithItems[];
+  refetchOrders: () => Promise<void>;
+}
+
+export function DailyClosingHistory({ orders, refetchOrders }: DailyClosingHistoryProps) {
   const { formatCurrency } = useSettings();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<DayStats | null>(null);
@@ -86,7 +90,7 @@ export function DailyClosingHistory() {
     setIsRecalculating(true);
     try {
       await Promise.all([
-        refetch(),
+        refetchOrders(),
         fetchDistributorCredits()
       ]);
       toast.success('Historial recalculado');
