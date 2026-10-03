@@ -35,6 +35,7 @@ type OrderItemRow = {
 
 type OrderRow = {
   customer_id: string | null;
+  vendedor_id?: string | null;
   total: number | null;
   created_at: string;
   status: string;
@@ -79,17 +80,25 @@ export function useCustomerFollowUp() {
       setError(null);
 
       try {
+        const customerQuery = supabase
+          .from('customers')
+          .select('id, name, phone')
+          .eq('company_id', user.companyId);
+
+        let ordersQuery = supabase
+          .from('orders')
+          .select('customer_id, total, created_at, status, vendedor_id, order_items(product_name, quantity)')
+          .eq('company_id', user.companyId)
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: true });
+
+        if (user.role === 'vendedor' && user.vendedorId) {
+          ordersQuery = ordersQuery.eq('vendedor_id', user.vendedorId);
+        }
+
         const [customersResult, ordersResult] = await Promise.all([
-          supabase
-            .from('customers')
-            .select('id, name, phone')
-            .eq('company_id', user.companyId),
-          supabase
-            .from('orders')
-            .select('customer_id, total, created_at, status, order_items(product_name, quantity)')
-            .eq('company_id', user.companyId)
-            .neq('status', 'cancelled')
-            .order('created_at', { ascending: true }),
+          customerQuery,
+          ordersQuery,
         ]);
 
         if (cancelled) return;
@@ -231,7 +240,7 @@ export function useCustomerFollowUp() {
     return () => {
       cancelled = true;
     };
-  }, [user?.companyId]);
+  }, [user?.companyId, user?.role, user?.vendedorId]);
 
   return { items, loading, error };
 }
