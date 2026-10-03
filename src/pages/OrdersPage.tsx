@@ -477,10 +477,6 @@ export default function OrdersPage() {
           </Card>
         )}
 
-        {activeTab === 'history' && isAdmin && (
-          <DeletedOrdersArchivePanel />
-        )}
-
         {/* Selection toolbar - shown when orders are selected */}
         {isAdmin && selectedOrders.length > 0 && (
           <Card className="border-primary bg-primary/5 mt-4">
@@ -772,6 +768,11 @@ export default function OrdersPage() {
               </motion.div>
             ))}
           </div>
+        )}
+
+        {/* Historical audit stays out of the operational flow. It appears only after delivered/cancelled orders. */}
+        {activeTab === 'history' && isAdmin && (
+          <DeletedOrdersArchivePanel />
         )}
       </Tabs>
 
