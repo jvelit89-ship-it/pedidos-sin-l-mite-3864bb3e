@@ -97,15 +97,19 @@ export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { settings, formatCurrency, t } = useSettings();
-  const { orders, loading, refetch } = useOrders();
-  const { vendedores } = useVendedores();
-  const { repartidores } = useRepartidores();
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState<'active' | 'history' | 'backorders'>('active');
-  
+
   // History date filter (business day)
   const [historyDate, setHistoryDate] = useState(getTodayBusinessDateKey());
+
+  const { orders, loading, refetch } = useOrders({
+    mode: 'orders-page',
+    historyDate,
+  });
+  const { vendedores } = useVendedores();
+  const { repartidores } = useRepartidores();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
