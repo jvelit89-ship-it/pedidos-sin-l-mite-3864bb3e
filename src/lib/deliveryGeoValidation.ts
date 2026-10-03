@@ -37,20 +37,82 @@ export function haversineMeters(
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-export async function getCurrentPositionStrict(): Promise<{ lat: number; lng: number }> {
-  if (!('geolocation' in navigator)) {
-    throw new Error('Este dispositivo no soporta GPS. No se puede marcar la entrega.');
+function geolocationErrorMessage(err: GeolocationPositionError): string {
+  if (err.code === err.PERMISSION_DENIED) {
+    return 'El navegador tiene bloqueado el permiso de ubicación. Actívalo para este sitio y vuelve a intentar.';
   }
-  return await new Promise((resolve, reject) => {
+  if (err.code === err.POSITION_UNAVAILABLE) {
+    return 'No se pudo determinar tu ubicación. Verifica que la ubicación del dispositivo esté activada e inténtalo nuevamente.';
+  }
+  if (err.code === err.TIMEOUT) {
+    return 'La ubicación está demorando demasiado. Verifica que el GPS/ubicación esté activado y vuelve a intentar.';
+  }
+  return 'No se pudo obtener tu ubicación actual.';
+}
+
+function requestBrowserPosition(
+  options: PositionOptions,
+): Promise<{ lat: number; lng: number }> {
+  return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => {
-        console.error('Geolocation error:', err);
-        reject(new Error('Debes activar el GPS para marcar como entregado.'));
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      reject,
+      options,
     );
   });
+}
+
+export async function getCurrentPositionStrict(): Promise<{ lat: number; lng: number }> {
+  if (!('geolocation' in navigator)) {
+    throw new Error('Este dispositivo no soporta ubicación. No se puede marcar la entrega.');
+  }
+
+  if (window.isSecureContext === false) {
+    throw new Error('La ubicación solo funciona en una conexión segura HTTPS.');
+  }
+
+  try {
+    if ('permissions' in navigator && navigator.permissions?.query) {
+      const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+      if (permission.state === 'denied') {
+        throw new Error('El navegador tiene bloqueado el permiso de ubicación. Actívalo para este sitio y vuelve a intentar.');
+      }
+    }
+  } catch (permissionError) {
+    // Some browsers do not fully support Permissions API for geolocation.
+    if (permissionError instanceof Error && permissionError.message.includes('bloqueado')) {
+      throw permissionError;
+    }
+  }
+
+  try {
+    return await requestBrowserPosition({
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 15000,
+    });
+  } catch (firstError) {
+    const geoError = firstError as GeolocationPositionError;
+    console.error('High accuracy geolocation error:', geoError);
+
+    // Desktop browsers and some phones can fail high-accuracy acquisition even
+    // when location is enabled. Retry once with normal accuracy, preserving
+    // the same mandatory proximity validation afterwards.
+    if (geoError?.code !== geoError?.PERMISSION_DENIED) {
+      try {
+        return await requestBrowserPosition({
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 30000,
+        });
+      } catch (fallbackError) {
+        console.error('Fallback geolocation error:', fallbackError);
+        throw new Error(geolocationErrorMessage(fallbackError as GeolocationPositionError));
+      }
+    }
+
+    throw new Error(geolocationErrorMessage(geoError));
+  }
 }
 
 interface ValidateArgs {
