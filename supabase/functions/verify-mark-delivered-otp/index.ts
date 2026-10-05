@@ -43,16 +43,17 @@ serve(async (req) => {
 
     const designatedSuperadminEmail = (Deno.env.get("MARK_DELIVERED_OTP_EMAIL") || "jvelit89@gmail.com").toLowerCase();
     const isSuperadmin = roleData?.role === "superadmin" || user.email?.toLowerCase() === designatedSuperadminEmail;
-    if (!isSuperadmin) {
+    const isProduction = roleData?.role === "operario";
+    if (!isSuperadmin && !isProduction) {
       return new Response(
-        JSON.stringify({ error: "Solo el Superadmin puede cambiar el estado de un pedido" }),
+        JSON.stringify({ error: "Solo Producción o Superadmin pueden confirmar este cambio" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const { otpCode, orderIds, targetStatus } = await req.json();
-    const allowedStatuses = ["pending", "preparation", "ready", "delivery", "delivered", "cancelled", "backorder"];
-    if (!otpCode || !Array.isArray(orderIds) || orderIds.length === 0 || !allowedStatuses.includes(targetStatus)) {
+    const otpStatuses = ["delivery", "delivered", "cancelled", "backorder"];
+    if (!otpCode || !Array.isArray(orderIds) || orderIds.length === 0 || !otpStatuses.includes(targetStatus)) {
       return new Response(JSON.stringify({ error: "Datos inválidos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
