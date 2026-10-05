@@ -70,6 +70,9 @@ interface Order {
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
+  delivery_confirmation_source?: string | null;
+  delivery_confirmed_by_email?: string | null;
+  delivery_confirmation_note?: string | null;
   order_source?: string | null;
   is_factory_direct?: boolean | null;
   customers?: {
@@ -771,6 +774,11 @@ export default function OrdersPage() {
                             <span className={`px-2.5 py-1 text-xs rounded-full font-medium inline-flex items-center gap-1 ${ORDER_STATUS_CONFIG[order.status].className}`}>
                               {ORDER_STATUS_CONFIG[order.status].icon} {settings.language === 'es' ? ORDER_STATUS_CONFIG[order.status].label : ORDER_STATUS_CONFIG[order.status].labelEn}
                             </span>
+                            {order.status === 'delivered' && order.delivery_confirmation_source === 'superadmin_otp' && (
+                              <Badge variant="secondary" className="bg-violet-100 text-violet-800 hover:bg-violet-100 border border-violet-200 font-semibold">
+                                🛡️ Entregado por Superadmin · OTP
+                              </Badge>
+                            )}
                             {order.order_source === 'online' && (
                               <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
                                 <ShoppingCart className="w-3 h-3 mr-1" /> Online
