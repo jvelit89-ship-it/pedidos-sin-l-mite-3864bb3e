@@ -625,9 +625,16 @@ export default function DeliveriesPage() {
                               Entregado {delivery.delivered_at && format(new Date(delivery.delivered_at), 'HH:mm')}
                             </p>
                           </div>
-                          <span className="status-delivered px-2 py-0.5 rounded-full text-xs">
-                            ✅ Entregado
-                          </span>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="status-delivered px-2 py-0.5 rounded-full text-xs">
+                              ✅ Entregado
+                            </span>
+                            {delivery.delivery_confirmation_source === 'superadmin_otp' && (
+                              <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200 text-[10px]">
+                                🛡️ Superadmin · OTP
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
