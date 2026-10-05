@@ -32,6 +32,10 @@ export interface Order {
   delivery_longitude?: number | null;
   delivery_distance_m?: number | null;
   delivery_pin_verified_at?: string | null;
+  delivery_confirmation_source?: string | null;
+  delivery_confirmed_by_user_id?: string | null;
+  delivery_confirmed_by_email?: string | null;
+  delivery_confirmation_note?: string | null;
   
   customers?: {
     customer_type: string | null;
