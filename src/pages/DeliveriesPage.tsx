@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { RepartidorLoadSummary } from '@/components/dashboard/RepartidorLoadSummary';
 import { TruckExtraLoadPanel } from '@/components/TruckExtraLoadPanel';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
+import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentPositionStrict } from '@/lib/deliveryGeoValidation';
 import { 
@@ -63,8 +64,12 @@ export default function DeliveriesPage() {
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [orderToOtpConfirm, setOrderToOtpConfirm] = useState<any>(null);
 
   const isRepartidor = user?.role === 'repartidor';
+  const isSuperadmin =
+    user?.role === 'superadmin' ||
+    user?.email?.toLowerCase() === 'jvelit89@gmail.com';
   const repartidorId = user?.repartidorId;
 
   // Play bell sound
@@ -315,6 +320,18 @@ export default function DeliveriesPage() {
   };
 
   const requestDeliveryConfirmation = (order: any) => {
+    // The Superadmin is an administrative override: do NOT validate the
+    // Superadmin's physical location against the customer. Require OTP instead.
+    if (isSuperadmin) {
+      setOrderToConfirm(null);
+      setDeliveryLocation(null);
+      setLocationError(null);
+      setOrderToOtpConfirm(order);
+      return;
+    }
+
+    // Normal physical delivery flow remains unchanged for the repartidor:
+    // GPS is required and must be within 200 m of the current customer location.
     setOrderToConfirm(order);
     setLocationError(null);
     setDeliveryLocation(null);
@@ -586,7 +603,7 @@ export default function DeliveriesPage() {
                                     className="w-full gap-2 bg-[hsl(var(--status-delivered))] hover:bg-[hsl(var(--status-delivered))]/90 font-bold text-lg h-14"
                                   >
                                     <CheckCircle2 className="w-6 h-6" />
-                                    MARCAR ENTREGADO
+                                    {isSuperadmin ? 'ENTREGADO CON OTP' : 'MARCAR ENTREGADO'}
                                   </Button>
                                 </motion.div>
                               )}
@@ -660,7 +677,7 @@ export default function DeliveriesPage() {
                   <Navigation className="w-4 h-4" />
                   VERIFICACIÓN POR GPS
                 </p>
-                Debes estar a un máximo de <strong>200 metros</strong> de la ubicación registrada del cliente para completar la entrega.
+                Validación física del repartidor. Debes estar a un máximo de <strong>200 metros</strong> de la ubicación registrada del cliente para completar la entrega.
               </div>
 
               <div className="space-y-3 pt-2">
@@ -711,6 +728,26 @@ export default function DeliveriesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MarkDeliveredOTPDialog
+        open={!!orderToOtpConfirm}
+        onOpenChange={(open) => {
+          if (!open) setOrderToOtpConfirm(null);
+        }}
+        orderIds={orderToOtpConfirm ? [orderToOtpConfirm.id] : []}
+        targetStatus="delivered"
+        targetStatusLabel="Entregado"
+        onSuccess={async () => {
+          const customerName = orderToOtpConfirm?.customer_name;
+          setOrderToOtpConfirm(null);
+          await refetch();
+          toast.success('Entrega autorizada por Superadmin', {
+            description: customerName
+              ? `${customerName} quedó Entregado mediante OTP y registrado en auditoría.`
+              : 'El pedido quedó Entregado mediante OTP y registrado en auditoría.',
+          });
+        }}
+      />
     </div>
   );
 }
