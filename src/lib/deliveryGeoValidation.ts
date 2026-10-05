@@ -141,29 +141,48 @@ export interface ValidationResult {
 export async function validateDeliveryLocation(args: ValidateArgs): Promise<ValidationResult> {
   const driver = await getCurrentPositionStrict();
 
-  let customerLat = args.customerLat ?? null;
-  let customerLng = args.customerLng ?? null;
+  const isValidLatLng = (lat: unknown, lng: unknown) =>
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng)) &&
+    Math.abs(Number(lat)) <= 90 &&
+    Math.abs(Number(lng)) <= 180 &&
+    !(Number(lat) === 0 && Number(lng) === 0);
 
-  // Fallback: fetch from customer via order
-  if (customerLat == null || customerLng == null) {
-    const { data: ord } = await supabase
-      .from('orders')
-      .select('customer_id, customer_latitude, customer_longitude')
-      .eq('id', args.orderId)
+  // IMPORTANT: customer coordinates can be corrected after an order was created.
+  // The order keeps a historical snapshot, so using it first can incorrectly block
+  // a real delivery even when the repartidor is standing at the customer's current
+  // saved location. Always prefer the CURRENT customer coordinates; only fall back
+  // to the order snapshot when the customer record has no valid location.
+  const { data: ord } = await supabase
+    .from('orders')
+    .select('customer_id, customer_latitude, customer_longitude')
+    .eq('id', args.orderId)
+    .maybeSingle();
+
+  let customerLat: number | null = null;
+  let customerLng: number | null = null;
+
+  if (ord?.customer_id) {
+    const { data: cust } = await supabase
+      .from('customers')
+      .select('latitude, longitude')
+      .eq('id', ord.customer_id)
       .maybeSingle();
-    if (ord) {
-      customerLat = ord.customer_latitude ?? customerLat;
-      customerLng = ord.customer_longitude ?? customerLng;
-      if ((customerLat == null || customerLng == null) && ord.customer_id) {
-        const { data: cust } = await supabase
-          .from('customers')
-          .select('latitude, longitude')
-          .eq('id', ord.customer_id)
-          .maybeSingle();
-        customerLat = cust?.latitude ?? customerLat;
-        customerLng = cust?.longitude ?? customerLng;
-      }
+
+    if (isValidLatLng(cust?.latitude, cust?.longitude)) {
+      customerLat = Number(cust!.latitude);
+      customerLng = Number(cust!.longitude);
     }
+  }
+
+  if (!isValidLatLng(customerLat, customerLng) && isValidLatLng(args.customerLat, args.customerLng)) {
+    customerLat = Number(args.customerLat);
+    customerLng = Number(args.customerLng);
+  }
+
+  if (!isValidLatLng(customerLat, customerLng) && isValidLatLng(ord?.customer_latitude, ord?.customer_longitude)) {
+    customerLat = Number(ord!.customer_latitude);
+    customerLng = Number(ord!.customer_longitude);
   }
 
   if (customerLat == null || customerLng == null) {
