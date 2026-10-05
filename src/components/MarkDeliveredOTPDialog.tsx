@@ -97,6 +97,11 @@ export function MarkDeliveredOTPDialog({
               </DialogTitle>
               <DialogDescription>
                 Para cambiar {orderIds.length} pedido(s) a "{targetStatusLabel || targetStatus}", enviaremos un código OTP al correo del Superadmin.
+                {targetStatus === 'delivered' && (
+                  <span className="block mt-2 font-medium text-violet-700">
+                    Al confirmar, quedará registrado que el Superadmin marcó la entrega mediante OTP para apoyar al repartidor.
+                  </span>
+                )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-4">
