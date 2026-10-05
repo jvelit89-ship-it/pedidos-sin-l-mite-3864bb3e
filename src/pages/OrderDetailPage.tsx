@@ -115,8 +115,34 @@ export default function OrderDetailPage() {
     if (!order || !user) return;
 
     const isSuperadmin = user.role === 'superadmin' || user.email?.toLowerCase() === 'jvelit89@gmail.com';
-    if (!isSuperadmin) {
-      toast.error('Solo el Superadmin puede cambiar manualmente el estado de un pedido');
+    const isProduction = user.role === 'operario';
+
+    if (!isSuperadmin && !isProduction) {
+      toast.error('Solo Producción o Superadmin pueden cambiar manualmente el estado');
+      return;
+    }
+
+    const noOtpStatuses: OrderStatus[] = ['pending', 'preparation', 'ready'];
+
+    if (noOtpStatuses.includes(newStatus)) {
+      setIsUpdating(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('change-order-status', {
+          body: { orderIds: [order.id], targetStatus: newStatus },
+        });
+
+        if (error || !data?.success) {
+          throw new Error(data?.error || error?.message || 'No se pudo actualizar el estado');
+        }
+
+        toast.success(`Estado cambiado a "${ORDER_STATUS_CONFIG[newStatus].label}" sin OTP`);
+        await loadOrder();
+      } catch (error) {
+        console.error('Direct status update error:', error);
+        toast.error(error instanceof Error ? error.message : 'Error al cambiar el estado');
+      } finally {
+        setIsUpdating(false);
+      }
       return;
     }
 
@@ -188,7 +214,10 @@ export default function OrderDetailPage() {
   }
 
   const allowedStatuses = Object.keys(ORDER_STATUS_CONFIG) as OrderStatus[];
-  const canChangeStatus = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
+  const canChangeStatus =
+    user?.role === 'operario' ||
+    user?.role === 'superadmin' ||
+    user?.email?.toLowerCase() === 'jvelit89@gmail.com';
   
   // Hide tracking code for repartidores and operarios
   const canViewTrackingCode = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'vendedor';
@@ -454,7 +483,7 @@ export default function OrderDetailPage() {
       </motion.div>
 
       {/* Actions */}
-      {user?.role === 'admin' && order.status !== 'cancelled' && order.status !== 'delivered' && (
+      {canChangeStatus && order.status !== 'cancelled' && order.status !== 'delivered' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
