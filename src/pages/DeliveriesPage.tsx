@@ -65,6 +65,7 @@ export default function DeliveriesPage() {
   const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [orderToOtpConfirm, setOrderToOtpConfirm] = useState<any>(null);
+  const [otpTargetStatus, setOtpTargetStatus] = useState<OrderStatus>('delivered');
 
   const isRepartidor = user?.role === 'repartidor';
   const isSuperadmin =
@@ -326,6 +327,7 @@ export default function DeliveriesPage() {
       setOrderToConfirm(null);
       setDeliveryLocation(null);
       setLocationError(null);
+      setOtpTargetStatus('delivered');
       setOrderToOtpConfirm(order);
       return;
     }
@@ -581,11 +583,18 @@ export default function DeliveriesPage() {
                               {delivery.status === 'ready' && (
                                 <Button
                                   size="lg"
-                                  onClick={() => handleStatusUpdate(delivery.id, 'delivery')}
+                                  onClick={() => {
+                                    if (isSuperadmin) {
+                                      setOtpTargetStatus('delivery');
+                                      setOrderToOtpConfirm(delivery);
+                                      return;
+                                    }
+                                    void handleStatusUpdate(delivery.id, 'delivery');
+                                  }}
                                   className="flex-1 sm:flex-none gap-2"
                                 >
                                   <Truck className="w-5 h-5" />
-                                  Iniciar Entrega
+                                  {isSuperadmin ? 'Iniciar con OTP' : 'Iniciar Entrega'}
                                 </Button>
                               )}
                               
@@ -735,17 +744,25 @@ export default function DeliveriesPage() {
           if (!open) setOrderToOtpConfirm(null);
         }}
         orderIds={orderToOtpConfirm ? [orderToOtpConfirm.id] : []}
-        targetStatus="delivered"
-        targetStatusLabel="Entregado"
+        targetStatus={otpTargetStatus}
+        targetStatusLabel={ORDER_STATUS_CONFIG[otpTargetStatus].label}
         onSuccess={async () => {
           const customerName = orderToOtpConfirm?.customer_name;
+          const completed = otpTargetStatus === 'delivered';
           setOrderToOtpConfirm(null);
           await refetch();
-          toast.success('Entrega autorizada por Superadmin', {
-            description: customerName
-              ? `${customerName} quedó Entregado mediante OTP y registrado en auditoría.`
-              : 'El pedido quedó Entregado mediante OTP y registrado en auditoría.',
-          });
+          toast.success(
+            completed ? 'Entrega autorizada por Superadmin' : 'Cambio autorizado por Superadmin',
+            {
+              description: customerName
+                ? completed
+                  ? `${customerName} quedó Entregado mediante OTP y registrado en auditoría.`
+                  : `${customerName} pasó a "${ORDER_STATUS_CONFIG[otpTargetStatus].label}" mediante OTP.`
+                : completed
+                  ? 'El pedido quedó Entregado mediante OTP y registrado en auditoría.'
+                  : `El pedido cambió a "${ORDER_STATUS_CONFIG[otpTargetStatus].label}" mediante OTP.`,
+            },
+          );
         }}
       />
     </div>
