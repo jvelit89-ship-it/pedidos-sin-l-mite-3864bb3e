@@ -101,12 +101,57 @@ serve(async (req) => {
       });
     }
 
+    if (targetStatus === "delivered") {
+      await supabase
+        .from("orders")
+        .update({
+          delivery_confirmation_source: "superadmin_otp",
+          delivery_confirmed_by_user_id: user.id,
+          delivery_confirmed_by_email: user.email || designatedSuperadminEmail,
+          delivery_confirmation_note:
+            "Entregado manualmente por Superadmin mediante OTP para apoyar al repartidor.",
+        })
+        .in("id", orderIds);
+
+      const { data: orderRows } = await supabase
+        .from("orders")
+        .select("id, company_id, customer_name, repartidor_name")
+        .in("id", orderIds);
+
+      if (orderRows?.length) {
+        await supabase.from("logs").insert(
+          orderRows.map((order: any) => ({
+            action: "delivery_marked_by_superadmin_otp",
+            entity: "orders",
+            entity_id: order.id,
+            company_id: order.company_id,
+            user_id: user.id,
+            details: {
+              customer_name: order.customer_name,
+              repartidor_name: order.repartidor_name,
+              superadmin_email: user.email || designatedSuperadminEmail,
+              authorization: "otp",
+              reason: "Apoyo operativo al repartidor",
+            },
+          })),
+        );
+      }
+    }
+
     await supabase
       .from("mark_delivered_otp_codes")
       .update({ used: true })
       .eq("id", otpData.id);
 
-    return new Response(JSON.stringify({ success: true, updated: updatedCount ?? orderIds.length, status: targetStatus }), {
+    return new Response(JSON.stringify({
+      success: true,
+      updated: updatedCount ?? orderIds.length,
+      status: targetStatus,
+      deliverySource: targetStatus === "delivered" ? "superadmin_otp" : null,
+      deliveryNote: targetStatus === "delivered"
+        ? "Entregado por Superadmin mediante OTP"
+        : null,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
