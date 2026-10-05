@@ -117,7 +117,7 @@ export function MarkDeliveredOTPDialog({
                 Ingresar Código
               </DialogTitle>
               <DialogDescription>
-                Ingresa el código de 6 dígitos enviado a tu correo para confirmar la entrega.
+                Ingresa el código de 6 dígitos enviado al correo del Superadmin para autorizar este cambio de estado.
               </DialogDescription>
             </DialogHeader>
             <div className="flex justify-center py-6">
