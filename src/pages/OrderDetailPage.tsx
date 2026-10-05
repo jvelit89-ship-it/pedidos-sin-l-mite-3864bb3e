@@ -127,22 +127,32 @@ export default function OrderDetailPage() {
     if (noOtpStatuses.includes(newStatus)) {
       setIsUpdating(true);
       try {
-        const { data, error } = await supabase.functions.invoke('change-order-status', {
-          body: { orderIds: [order.id], targetStatus: newStatus },
-        });
+        const updateData = {
+          status: newStatus,
+          delivered_at: null,
+          updated_at: new Date().toISOString(),
+        };
 
-        if (error || !data?.success) {
-          throw new Error(data?.error || error?.message || 'No se pudo actualizar el estado');
-        }
+        const { error } = await supabase
+          .from('orders')
+          .update(updateData)
+          .eq('id', order.id);
 
+        if (error) throw error;
+
+        setOrder(prev => prev ? { ...prev, ...updateData } : null);
         toast.success(`Estado cambiado a "${ORDER_STATUS_CONFIG[newStatus].label}" sin OTP`);
-        await loadOrder();
       } catch (error) {
         console.error('Direct status update error:', error);
-        toast.error(error instanceof Error ? error.message : 'Error al cambiar el estado');
+        toast.error('Error al cambiar el estado');
       } finally {
         setIsUpdating(false);
       }
+      return;
+    }
+
+    if (!isSuperadmin) {
+      toast.error('Este estado requiere autorización del Superadmin mediante OTP');
       return;
     }
 
@@ -213,11 +223,16 @@ export default function OrderDetailPage() {
     );
   }
 
-  const allowedStatuses = Object.keys(ORDER_STATUS_CONFIG) as OrderStatus[];
-  const canChangeStatus =
-    user?.role === 'operario' ||
+  const noOtpStatuses: OrderStatus[] = ['pending', 'preparation', 'ready'];
+  const isSuperadminUser =
     user?.role === 'superadmin' ||
     user?.email?.toLowerCase() === 'jvelit89@gmail.com';
+  const allowedStatuses: OrderStatus[] = isSuperadminUser
+    ? (Object.keys(ORDER_STATUS_CONFIG) as OrderStatus[])
+    : user?.role === 'operario'
+      ? noOtpStatuses
+      : [];
+  const canChangeStatus = allowedStatuses.length > 0;
   
   // Hide tracking code for repartidores and operarios
   const canViewTrackingCode = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'vendedor';
@@ -283,6 +298,7 @@ export default function OrderDetailPage() {
                       .map(([key, config]) => (
                         <SelectItem key={key} value={key}>
                           {config.icon} {config.label}
+                          {isSuperadminUser && !noOtpStatuses.includes(key as OrderStatus) ? ' 🔐' : ''}
                         </SelectItem>
                       ))}
                   </SelectContent>
