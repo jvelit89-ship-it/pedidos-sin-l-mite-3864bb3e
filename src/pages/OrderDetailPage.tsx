@@ -55,6 +55,9 @@ interface OrderWithItems {
   created_at: string;
   updated_at: string;
   delivered_at: string | null;
+  delivery_confirmation_source?: string | null;
+  delivery_confirmed_by_email?: string | null;
+  delivery_confirmation_note?: string | null;
   tracking_code: string | null;
   items: OrderItem[];
 }
@@ -305,6 +308,19 @@ export default function OrderDetailPage() {
                 </Select>
               )}
             </div>
+            {order.status === 'delivered' && order.delivery_confirmation_source === 'superadmin_otp' && (
+              <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm">
+                <p className="font-semibold text-violet-800">🛡️ Entregado por Superadmin mediante OTP</p>
+                <p className="mt-1 text-violet-700">
+                  Este pedido fue marcado como entregado administrativamente para apoyar al repartidor.
+                </p>
+                {order.delivery_confirmed_by_email && (
+                  <p className="mt-1 text-xs text-violet-600">
+                    Autorizado por: {order.delivery_confirmed_by_email}
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
