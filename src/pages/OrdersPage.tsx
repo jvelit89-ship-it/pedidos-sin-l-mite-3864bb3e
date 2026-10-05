@@ -123,6 +123,9 @@ export default function OrdersPage() {
   const locale = settings.language === 'es' ? es : enUS;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isSuperadmin = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
+  const isProduction = user?.role === 'operario';
+  const canManualStatusChange = isSuperadmin || isProduction;
+  const canSelectOrders = isAdmin || isProduction;
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
   const isRepartidor = user?.role === 'repartidor';
 
@@ -228,8 +231,35 @@ export default function OrdersPage() {
   const handleBulkStatusChange = async (newStatus: OrderStatus) => {
     if (selectedOrders.length === 0) return;
 
-    if (!isSuperadmin) {
-      toast.error('Solo el Superadmin puede cambiar el estado de los pedidos');
+    if (!canManualStatusChange) {
+      toast.error('Solo Producción o Superadmin pueden cambiar manualmente el estado');
+      return;
+    }
+
+    const noOtpStatuses: OrderStatus[] = ['pending', 'preparation', 'ready'];
+
+    if (noOtpStatuses.includes(newStatus)) {
+      setIsBulkUpdating(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('change-order-status', {
+          body: { orderIds: selectedOrders, targetStatus: newStatus },
+        });
+
+        if (error || !data?.success) {
+          throw new Error(data?.error || error?.message || 'No se pudo actualizar el estado');
+        }
+
+        toast.success(
+          `${selectedOrders.length} pedido(s) actualizado(s) a "${ORDER_STATUS_CONFIG[newStatus].label}" sin OTP`
+        );
+        setSelectedOrders([]);
+        await refetch();
+      } catch (error) {
+        console.error('Direct status update error:', error);
+        toast.error(error instanceof Error ? error.message : 'Error al cambiar el estado');
+      } finally {
+        setIsBulkUpdating(false);
+      }
       return;
     }
 
@@ -478,7 +508,7 @@ export default function OrdersPage() {
         )}
 
         {/* Selection toolbar - shown when orders are selected */}
-        {isAdmin && selectedOrders.length > 0 && (
+        {canSelectOrders && selectedOrders.length > 0 && (
           <Card className="border-primary bg-primary/5 mt-4">
             <CardContent className="p-3 space-y-3">
               {/* Header row */}
@@ -492,18 +522,20 @@ export default function OrdersPage() {
                   </span>
                   {isBulkUpdating && <RefreshCw className="w-4 h-4 animate-spin" />}
                 </div>
-                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2" disabled={isBulkUpdating}>
-                  <Trash2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">
-                    {settings.language === 'es' ? 'Eliminar' : 'Delete'}
-                  </span>
-                </Button>
+                {isAdmin && (
+                  <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2" disabled={isBulkUpdating}>
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">
+                      {settings.language === 'es' ? 'Eliminar' : 'Delete'}
+                    </span>
+                  </Button>
+                )}
               </div>
               
               {/* Bulk actions row */}
               <div className="flex flex-wrap gap-2">
-                {/* Bulk Status Change: only Superadmin and always with OTP */}
-                {isSuperadmin && (
+                {/* Production + Superadmin: pending/preparation/ready without OTP; sensitive statuses require OTP */}
+                {canManualStatusChange && (
                 <Select onValueChange={(value) => handleBulkStatusChange(value as OrderStatus)} disabled={isBulkUpdating}>
                   <SelectTrigger className="w-auto min-w-[160px]">
                     <Filter className="w-4 h-4 mr-2" />
@@ -519,6 +551,8 @@ export default function OrdersPage() {
                 </Select>
                 )}
 
+                {isAdmin && (
+                  <>
                 {/* Bulk Vendedor Change */}
                 <Select onValueChange={handleBulkVendedorChange} disabled={isBulkUpdating}>
                   <SelectTrigger className="w-auto min-w-[160px]">
@@ -548,6 +582,8 @@ export default function OrdersPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -557,7 +593,7 @@ export default function OrdersPage() {
         <Card className="mt-4">
           <CardContent className="p-4 space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
-              {isAdmin && filteredOrders.length > 0 && (
+              {canSelectOrders && filteredOrders.length > 0 && (
                 <div className="flex items-center">
                   <Checkbox
                     checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
@@ -702,7 +738,7 @@ export default function OrdersPage() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      {isAdmin && (
+                      {canSelectOrders && (
                         <Checkbox
                           checked={selectedOrders.includes(order.id)}
                           onCheckedChange={(checked) => handleSelectOrder(order.id, checked as boolean)}
