@@ -128,6 +128,10 @@ export default function OrdersPage() {
   const canSelectOrders = isAdmin || isProduction;
   const canCreateOrders = isAdmin || user?.role === 'vendedor';
   const isRepartidor = user?.role === 'repartidor';
+  const noOtpStatusOptions: OrderStatus[] = ['pending', 'preparation', 'ready'];
+  const manualStatusOptions: OrderStatus[] = isSuperadmin
+    ? (Object.keys(ORDER_STATUS_CONFIG) as OrderStatus[])
+    : noOtpStatusOptions;
 
   // Filter orders based on role
   const roleFilteredOrders = orders.filter((order: Order) => {
@@ -241,13 +245,16 @@ export default function OrdersPage() {
     if (noOtpStatuses.includes(newStatus)) {
       setIsBulkUpdating(true);
       try {
-        const { data, error } = await supabase.functions.invoke('change-order-status', {
-          body: { orderIds: selectedOrders, targetStatus: newStatus },
-        });
+        const { error } = await supabase
+          .from('orders')
+          .update({
+            status: newStatus,
+            delivered_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .in('id', selectedOrders);
 
-        if (error || !data?.success) {
-          throw new Error(data?.error || error?.message || 'No se pudo actualizar el estado');
-        }
+        if (error) throw error;
 
         toast.success(
           `${selectedOrders.length} pedido(s) actualizado(s) a "${ORDER_STATUS_CONFIG[newStatus].label}" sin OTP`
@@ -256,10 +263,15 @@ export default function OrdersPage() {
         await refetch();
       } catch (error) {
         console.error('Direct status update error:', error);
-        toast.error(error instanceof Error ? error.message : 'Error al cambiar el estado');
+        toast.error('Error al cambiar el estado');
       } finally {
         setIsBulkUpdating(false);
       }
+      return;
+    }
+
+    if (!isSuperadmin) {
+      toast.error('Este estado requiere autorización del Superadmin mediante OTP');
       return;
     }
 
@@ -542,11 +554,15 @@ export default function OrdersPage() {
                     <span className="text-sm">Cambiar estado</span>
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.icon} {config.label}
-                      </SelectItem>
-                    ))}
+                    {manualStatusOptions.map((status) => {
+                      const config = ORDER_STATUS_CONFIG[status];
+                      return (
+                        <SelectItem key={status} value={status}>
+                          {config.icon} {config.label}
+                          {isSuperadmin && !noOtpStatusOptions.includes(status) ? ' 🔐' : ''}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 )}
