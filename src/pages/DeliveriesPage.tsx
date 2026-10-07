@@ -15,7 +15,7 @@ import { TruckExtraLoadPanel } from '@/components/TruckExtraLoadPanel';
 import { DailyClosing } from '@/components/dashboard/DailyClosing';
 import { MarkDeliveredOTPDialog } from '@/components/MarkDeliveredOTPDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentPositionStrict } from '@/lib/deliveryGeoValidation';
+import { getCurrentPositionStrict, type DeliveryGeoPoint } from '@/lib/deliveryGeoValidation';
 import { 
   Truck, 
   MapPin,
@@ -62,7 +62,7 @@ export default function DeliveriesPage() {
   // Delivery verification state
   const [orderToConfirm, setOrderToConfirm] = useState<any>(null);
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
-  const [deliveryLocation, setDeliveryLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [deliveryLocation, setDeliveryLocation] = useState<DeliveryGeoPoint | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [orderToOtpConfirm, setOrderToOtpConfirm] = useState<any>(null);
   const [otpTargetStatus, setOtpTargetStatus] = useState<OrderStatus>('delivered');
@@ -346,6 +346,17 @@ export default function DeliveriesPage() {
     setIsVerifyingLocation(true);
     try {
       const { validateDeliveryLocation } = await import('@/lib/deliveryGeoValidation');
+
+      // Reuse the precise GPS sample already obtained when opening the dialog.
+      // Only reacquire if it is missing or older than 45 seconds. Previously a
+      // second independent lookup could return a coarse network position and
+      // falsely report the repartidor kilometers away.
+      let preciseLocation = deliveryLocation;
+      if (!preciseLocation || Date.now() - preciseLocation.timestamp > 45_000) {
+        preciseLocation = await getCurrentPositionStrict();
+        setDeliveryLocation(preciseLocation);
+      }
+
       const validation = await validateDeliveryLocation({
         orderId: orderToConfirm.id,
         companyId: orderToConfirm.company_id,
@@ -354,6 +365,7 @@ export default function DeliveriesPage() {
         customerName: orderToConfirm.customer_name,
         customerLat: orderToConfirm.customer_latitude,
         customerLng: orderToConfirm.customer_longitude,
+        driverPosition: preciseLocation,
       });
 
       if (!validation.ok) {
@@ -697,13 +709,15 @@ export default function DeliveriesPage() {
                   <div className="flex-1">
                     <p className={`font-medium ${deliveryLocation ? 'text-green-700' : locationError ? 'text-destructive' : 'text-foreground'}`}>
                       {deliveryLocation
-                        ? 'Ubicación GPS obtenida'
+                        ? `Ubicación GPS obtenida · precisión ±${Math.round(deliveryLocation.accuracy)} m`
                         : locationError
                           ? 'No se pudo obtener la ubicación'
                           : 'Obteniendo ubicación GPS...'}
                     </p>
                     <p className={`text-xs ${locationError ? 'text-destructive' : 'text-muted-foreground'}`}>
-                      {locationError || 'El sistema comparará tu ubicación con la del cliente antes de marcar la entrega.'}
+                      {locationError || (deliveryLocation
+                        ? 'Se usará esta misma ubicación precisa para validar la entrega.'
+                        : 'El sistema comparará tu ubicación con la del cliente antes de marcar la entrega.')}
                     </p>
                     {locationError && (
                       <Button
