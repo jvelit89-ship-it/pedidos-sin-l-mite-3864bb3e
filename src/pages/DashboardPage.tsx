@@ -43,6 +43,7 @@ const DeliveryGeostatistics = lazy(() => import('@/components/dashboard/Delivery
 const SuspiciousDeliveriesPanel = lazy(() => import('@/components/dashboard/SuspiciousDeliveriesPanel').then((m) => ({ default: m.SuspiciousDeliveriesPanel })));
 const WeeklySalesChart = lazy(() => import('@/components/dashboard/WeeklySalesChart').then((m) => ({ default: m.WeeklySalesChart })));
 const CustomerFollowUpPanel = lazy(() => import('@/components/dashboard/CustomerFollowUpPanel').then((m) => ({ default: m.CustomerFollowUpPanel })));
+const SellerDeliveryReviewPanel = lazy(() => import('@/components/dashboard/SellerDeliveryReviewPanel').then((m) => ({ default: m.SellerDeliveryReviewPanel })));
 const SuperadminVehicleTracker = lazy(() => import('@/components/dashboard/SuperadminVehicleTracker').then((m) => ({ default: m.SuperadminVehicleTracker })));
 
 const DashboardModuleFallback = () => (
@@ -295,9 +296,14 @@ export default function DashboardPage() {
       )}
 
       {isVendedor && (
-        <Suspense fallback={<DashboardModuleFallback />}>
-          <CustomerFollowUpPanel />
-        </Suspense>
+        <div className="space-y-6">
+          <Suspense fallback={<DashboardModuleFallback />}>
+            <SellerDeliveryReviewPanel orders={orders} onReviewed={refetch} />
+          </Suspense>
+          <Suspense fallback={<DashboardModuleFallback />}>
+            <CustomerFollowUpPanel />
+          </Suspense>
+        </div>
       )}
 
       {/* Production Control Panel - Visible to Admins (all pending) and Operarios (their own pending/corrections) */}
