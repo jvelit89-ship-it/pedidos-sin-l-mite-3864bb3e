@@ -17,6 +17,9 @@ const ImpersonationBanner = lazy(() =>
 const RepartidorBlockOverlay = lazy(() =>
   import('@/components/RepartidorBlockOverlay').then((module) => ({ default: module.RepartidorBlockOverlay }))
 );
+const SellerDeliveryNotificationWatcher = lazy(() =>
+  import('@/components/SellerDeliveryNotificationWatcher').then((module) => ({ default: module.SellerDeliveryNotificationWatcher }))
+);
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -56,6 +59,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       {user.role === 'repartidor' && (
         <Suspense fallback={null}>
           <RepartidorBlockOverlay />
+        </Suspense>
+      )}
+      {user.role === 'vendedor' && (
+        <Suspense fallback={null}>
+          <SellerDeliveryNotificationWatcher />
         </Suspense>
       )}
       <Suspense fallback={null}>
