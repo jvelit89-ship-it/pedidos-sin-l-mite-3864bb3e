@@ -96,15 +96,9 @@ export default function CustomersPage() {
     google_maps_link: '' as string,
   });
 
-  // Check if we're on mobile
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-  // Auto-detect location on dialog open for new customers on mobile
-  useEffect(() => {
-    if (isDialogOpen && !selectedCustomer && isMobile && !formData.latitude) {
-      handleGetCurrentLocation();
-    }
-  }, [isDialogOpen, selectedCustomer, isMobile]);
+  // Customer location is NEVER captured automatically.
+  // It must come from an explicit map selection, Google Maps link, or the
+  // "use my current location" button while the user is physically at the client.
 
   const handleGetCurrentLocation = async () => {
     if (!navigator.geolocation) {
@@ -116,7 +110,14 @@ export default function CustomersPage() {
     
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
+        if (Number.isFinite(accuracy) && accuracy > 150) {
+          toast.error(
+            `Ubicación imprecisa (±${Math.round(accuracy)} m). Activa "Ubicación precisa" e inténtalo nuevamente.`,
+          );
+          setIsGettingLocation(false);
+          return;
+        }
         setFormData(prev => ({ ...prev, latitude, longitude }));
         
         // Try to get address from coordinates
@@ -125,7 +126,9 @@ export default function CustomersPage() {
           setFormData(prev => ({ ...prev, address }));
         }
         
-        toast.success('Ubicación detectada');
+        toast.success(
+          `Ubicación guardada${Number.isFinite(position.coords.accuracy) ? ` · precisión ±${Math.round(position.coords.accuracy)} m` : ''}`,
+        );
         setIsGettingLocation(false);
       },
       (error) => {
@@ -858,7 +861,7 @@ export default function CustomersPage() {
                       size="icon"
                       onClick={handleGetCurrentLocation}
                       disabled={isGettingLocation}
-                      title="Usar mi ubicación actual"
+                      title="Usar mi ubicación actual SOLO si estoy físicamente con el cliente"
                     >
                       {isGettingLocation ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -867,6 +870,9 @@ export default function CustomersPage() {
                       )}
                     </Button>
                   </div>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                    📍 La ubicación no se guarda automáticamente. Usa el botón de ubicación solo si estás físicamente con el cliente, o selecciona el punto correcto en el mapa / Google Maps.
+                  </p>
                   
                   {/* Address confirmation prompt */}
                   {showAddressConfirmation && !formData.latitude && (
