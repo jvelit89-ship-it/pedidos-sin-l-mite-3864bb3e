@@ -2,9 +2,16 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const MAX_DELIVERY_RADIUS_M = 200;
 
+export interface DeliveryGeoPoint {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  timestamp: number;
+}
+
 interface ValidatedDeliveryCache {
   orderId: string;
-  driver: { lat: number; lng: number };
+  driver: DeliveryGeoPoint;
   distance: number;
   validatedAt: number;
 }
@@ -52,17 +59,32 @@ function geolocationErrorMessage(err: GeolocationPositionError): string {
 
 function requestBrowserPosition(
   options: PositionOptions,
-): Promise<{ lat: number; lng: number }> {
+): Promise<DeliveryGeoPoint> {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : 9999,
+        timestamp: pos.timestamp || Date.now(),
+      }),
       reject,
       options,
     );
   });
 }
 
-export async function getCurrentPositionStrict(): Promise<{ lat: number; lng: number }> {
+const MAX_ACCEPTABLE_GPS_ACCURACY_M = 150;
+
+/**
+ * Acquire a fresh HIGH-ACCURACY position.
+ *
+ * Important: never fall back to low-accuracy/network positioning for delivery
+ * confirmation. That fallback can place a phone kilometers away even while the
+ * repartidor is physically at the customer's address. We retry high accuracy
+ * once and keep the most precise sample.
+ */
+export async function getCurrentPositionStrict(): Promise<DeliveryGeoPoint> {
   if (!('geolocation' in navigator)) {
     throw new Error('Este dispositivo no soporta ubicación. No se puede marcar la entrega.');
   }
@@ -79,39 +101,61 @@ export async function getCurrentPositionStrict(): Promise<{ lat: number; lng: nu
       }
     }
   } catch (permissionError) {
-    // Some browsers do not fully support Permissions API for geolocation.
     if (permissionError instanceof Error && permissionError.message.includes('bloqueado')) {
       throw permissionError;
     }
   }
 
+  let first: DeliveryGeoPoint | null = null;
+
   try {
-    return await requestBrowserPosition({
+    first = await requestBrowserPosition({
       enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 15000,
+      timeout: 15000,
+      maximumAge: 0,
     });
+
+    if (first.accuracy <= 60) return first;
   } catch (firstError) {
     const geoError = firstError as GeolocationPositionError;
     console.error('High accuracy geolocation error:', geoError);
 
-    // Desktop browsers and some phones can fail high-accuracy acquisition even
-    // when location is enabled. Retry once with normal accuracy, preserving
-    // the same mandatory proximity validation afterwards.
-    if (geoError?.code !== geoError?.PERMISSION_DENIED) {
-      try {
-        return await requestBrowserPosition({
-          enableHighAccuracy: false,
-          timeout: 8000,
-          maximumAge: 30000,
-        });
-      } catch (fallbackError) {
-        console.error('Fallback geolocation error:', fallbackError);
-        throw new Error(geolocationErrorMessage(fallbackError as GeolocationPositionError));
-      }
+    if (geoError?.code === geoError?.PERMISSION_DENIED) {
+      throw new Error(geolocationErrorMessage(geoError));
+    }
+  }
+
+  try {
+    const second = await requestBrowserPosition({
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0,
+    });
+
+    const best = !first || second.accuracy < first.accuracy ? second : first;
+
+    if (best.accuracy > MAX_ACCEPTABLE_GPS_ACCURACY_M) {
+      throw new Error(
+        `GPS impreciso (±${Math.round(best.accuracy)} m). Activa "Ubicación precisa" en el teléfono, enciende el GPS y vuelve a intentar, preferiblemente en un lugar abierto.`,
+      );
     }
 
-    throw new Error(geolocationErrorMessage(geoError));
+    return best;
+  } catch (secondError) {
+    if (secondError instanceof Error && secondError.message.startsWith('GPS impreciso')) {
+      throw secondError;
+    }
+
+    if (first && first.accuracy <= MAX_ACCEPTABLE_GPS_ACCURACY_M) {
+      return first;
+    }
+
+    console.error('Second high accuracy geolocation error:', secondError);
+    throw new Error(
+      secondError instanceof Error && secondError.message
+        ? secondError.message
+        : geolocationErrorMessage(secondError as GeolocationPositionError),
+    );
   }
 }
 
@@ -123,12 +167,14 @@ interface ValidateArgs {
   customerName?: string | null;
   customerLat?: number | null;
   customerLng?: number | null;
+  driverPosition?: DeliveryGeoPoint | null;
 }
 
 export interface ValidationResult {
   ok: boolean;
   distance: number | null;
-  driver: { lat: number; lng: number };
+  driver: DeliveryGeoPoint;
+  accuracy: number;
   reason?: string;
 }
 
@@ -139,7 +185,13 @@ export interface ValidationResult {
  * persist status + coordinates atomically in the same database operation.
  */
 export async function validateDeliveryLocation(args: ValidateArgs): Promise<ValidationResult> {
-  const driver = await getCurrentPositionStrict();
+  const driver = args.driverPosition ?? await getCurrentPositionStrict();
+
+  if (driver.accuracy > MAX_ACCEPTABLE_GPS_ACCURACY_M) {
+    const reason =
+      `GPS impreciso (±${Math.round(driver.accuracy)} m). Activa "Ubicación precisa" y vuelve a intentar.`;
+    return { ok: false, distance: null, driver, accuracy: driver.accuracy, reason };
+  }
 
   const isValidLatLng = (lat: unknown, lng: unknown) =>
     Number.isFinite(Number(lat)) &&
@@ -198,13 +250,13 @@ export async function validateDeliveryLocation(args: ValidateArgs): Promise<Vali
       blocked: true,
       reason,
     });
-    return { ok: false, distance: null, driver, reason };
+    return { ok: false, distance: null, driver, accuracy: driver.accuracy, reason };
   }
 
   const distance = haversineMeters(driver.lat, driver.lng, customerLat, customerLng);
 
   if (distance > MAX_DELIVERY_RADIUS_M) {
-    const reason = `Estás a ${Math.round(distance)} m del cliente. Debes estar a menos de ${MAX_DELIVERY_RADIUS_M} m para marcar entregado.`;
+    const reason = `Estás a ${Math.round(distance)} m del cliente (GPS ±${Math.round(driver.accuracy)} m). Debes estar a menos de ${MAX_DELIVERY_RADIUS_M} m para marcar entregado.`;
     await supabase.from('delivery_location_attempts').insert({
       order_id: args.orderId,
       company_id: args.companyId ?? null,
@@ -219,7 +271,7 @@ export async function validateDeliveryLocation(args: ValidateArgs): Promise<Vali
       blocked: true,
       reason,
     });
-    return { ok: false, distance, driver, reason };
+    return { ok: false, distance, driver, accuracy: driver.accuracy, reason };
   }
 
   lastValidatedDelivery = {
@@ -229,5 +281,5 @@ export async function validateDeliveryLocation(args: ValidateArgs): Promise<Vali
     validatedAt: Date.now(),
   };
 
-  return { ok: true, distance, driver };
+  return { ok: true, distance, driver, accuracy: driver.accuracy };
 }
