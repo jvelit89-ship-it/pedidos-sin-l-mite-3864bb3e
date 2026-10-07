@@ -17,9 +17,10 @@ export function SellerDeliveryNotificationWatcher() {
     const remindPendingReviews = async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, customer_name, delivered_at, seller_delivery_reviewed_at')
+        .select('id, customer_name, delivered_at, seller_delivery_review_requested_at, seller_delivery_reviewed_at')
         .eq('vendedor_id', user.vendedorId)
         .eq('status', 'delivered')
+        .not('seller_delivery_review_requested_at', 'is', null)
         .is('seller_delivery_reviewed_at', null)
         .order('delivered_at', { ascending: false })
         .limit(20);
