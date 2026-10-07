@@ -7,6 +7,17 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371000;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -115,7 +126,7 @@ serve(async (req) => {
 
       const { data: orderRows } = await supabase
         .from("orders")
-        .select("id, company_id, customer_name, repartidor_name")
+        .select("id, company_id, customer_id, customer_name, repartidor_name")
         .in("id", orderIds);
 
       if (orderRows?.length) {
@@ -135,6 +146,84 @@ serve(async (req) => {
             },
           })),
         );
+
+        // Self-heal clearly wrong customer coordinates when the Superadmin
+        // confirms a physical delivery after the repartidor was blocked.
+        // We only use a very recent blocked GPS attempt and only replace the
+        // customer point when the saved point is missing or farther than 200 m.
+        for (const order of orderRows as any[]) {
+          if (!order.customer_id) continue;
+
+          const recentCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+          const { data: attempt } = await supabase
+            .from("delivery_location_attempts")
+            .select("created_at, driver_lat, driver_lng")
+            .eq("order_id", order.id)
+            .eq("blocked", true)
+            .not("driver_lat", "is", null)
+            .not("driver_lng", "is", null)
+            .gte("created_at", recentCutoff)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!attempt?.driver_lat || !attempt?.driver_lng) continue;
+
+          const { data: customer } = await supabase
+            .from("customers")
+            .select("latitude, longitude")
+            .eq("id", order.customer_id)
+            .maybeSingle();
+
+          const oldLat = Number(customer?.latitude);
+          const oldLng = Number(customer?.longitude);
+          const hasValidSavedPoint =
+            Number.isFinite(oldLat) &&
+            Number.isFinite(oldLng) &&
+            !(oldLat === 0 && oldLng === 0);
+
+          const savedDistance = hasValidSavedPoint
+            ? haversineMeters(
+                Number(attempt.driver_lat),
+                Number(attempt.driver_lng),
+                oldLat,
+                oldLng,
+              )
+            : null;
+
+          if (savedDistance == null || savedDistance > 200) {
+            const { error: repairError } = await supabase
+              .from("customers")
+              .update({
+                latitude: Number(attempt.driver_lat),
+                longitude: Number(attempt.driver_lng),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", order.customer_id);
+
+            if (!repairError) {
+              await supabase.from("logs").insert({
+                action: "customer_location_repaired_from_superadmin_otp_delivery",
+                entity: "customers",
+                entity_id: order.customer_id,
+                company_id: order.company_id,
+                user_id: user.id,
+                details: {
+                  customer_name: order.customer_name,
+                  order_id: order.id,
+                  previous_distance_m: savedDistance,
+                  new_latitude: Number(attempt.driver_lat),
+                  new_longitude: Number(attempt.driver_lng),
+                  source: "recent_blocked_repartidor_gps",
+                  reason:
+                    "Superadmin confirmed the physical delivery by OTP after a geofence block.",
+                },
+              });
+            } else {
+              console.warn("Could not self-heal customer location:", repairError);
+            }
+          }
+        }
       }
     }
 
