@@ -231,7 +231,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {isSuperadmin && (
+      {(isSuperadmin || isVendedor) && (
         <Suspense fallback={<DashboardModuleFallback />}>
           <SuperadminVehicleTracker />
         </Suspense>
