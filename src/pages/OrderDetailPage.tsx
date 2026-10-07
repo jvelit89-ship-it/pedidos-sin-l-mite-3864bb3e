@@ -58,6 +58,11 @@ interface OrderWithItems {
   delivery_confirmation_source?: string | null;
   delivery_confirmed_by_email?: string | null;
   delivery_confirmation_note?: string | null;
+  seller_delivery_review_requested_at?: string | null;
+  seller_delivery_review_status?: 'conforme' | 'observado' | null;
+  seller_delivery_observation?: string | null;
+  seller_delivery_reviewed_at?: string | null;
+  seller_delivery_reviewed_by_name?: string | null;
   tracking_code: string | null;
   items: OrderItem[];
 }
@@ -426,6 +431,53 @@ export default function OrderDetailPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {order.status === 'delivered' && order.seller_delivery_reviewed_at && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className={
+            order.seller_delivery_review_status === 'observado'
+              ? 'border-amber-300 bg-amber-50/40'
+              : 'border-emerald-200 bg-emerald-50/30'
+          }>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Validación del vendedor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={
+                  order.seller_delivery_review_status === 'observado'
+                    ? 'font-semibold text-amber-800'
+                    : 'font-semibold text-emerald-800'
+                }>
+                  {order.seller_delivery_review_status === 'observado'
+                    ? '⚠️ Entrega con observación'
+                    : '✅ Entrega conforme'}
+                </span>
+                {order.seller_delivery_reviewed_by_name && (
+                  <span className="text-muted-foreground">
+                    · {order.seller_delivery_reviewed_by_name}
+                  </span>
+                )}
+              </div>
+              {order.seller_delivery_observation && (
+                <p className="rounded-lg border bg-white/70 p-3 whitespace-pre-wrap">
+                  {order.seller_delivery_observation}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Revisado {format(new Date(order.seller_delivery_reviewed_at), "d MMM yyyy, HH:mm", { locale: es })}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Notes */}
       {order.notes && (
