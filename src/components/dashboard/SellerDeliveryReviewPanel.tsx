@@ -44,7 +44,8 @@ export function SellerDeliveryReviewPanel({
       .filter(
         (order) =>
           order.vendedor_id === user.vendedorId &&
-          order.status === 'delivered',
+          order.status === 'delivered' &&
+          !!order.seller_delivery_review_requested_at,
       )
       .sort((a, b) => {
         const aDate = new Date(a.delivered_at || a.updated_at).getTime();
