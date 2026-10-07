@@ -36,6 +36,7 @@ export interface Order {
   delivery_confirmed_by_user_id?: string | null;
   delivery_confirmed_by_email?: string | null;
   delivery_confirmation_note?: string | null;
+  seller_delivery_review_requested_at?: string | null;
   seller_delivery_review_status?: 'conforme' | 'observado' | null;
   seller_delivery_observation?: string | null;
   seller_delivery_reviewed_at?: string | null;
