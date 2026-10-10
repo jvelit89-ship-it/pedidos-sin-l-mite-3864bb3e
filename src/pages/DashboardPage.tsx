@@ -68,16 +68,28 @@ export default function DashboardPage() {
       cancelIdleCallback?: (id: number) => void;
     };
 
-    if (idleWindow.requestIdleCallback) {
-      const id = idleWindow.requestIdleCallback(() => setLoadSecondaryModules(true), { timeout: 1200 });
-      return () => idleWindow.cancelIdleCallback?.(id);
-    }
+    let idleId: number | undefined;
+    const delayId = window.setTimeout(() => {
+      if (idleWindow.requestIdleCallback) {
+        idleId = idleWindow.requestIdleCallback(
+          () => setLoadSecondaryModules(true),
+          { timeout: 900 },
+        );
+      } else {
+        setLoadSecondaryModules(true);
+      }
+    }, 900);
 
-    const timeoutId = window.setTimeout(() => setLoadSecondaryModules(true), 350);
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(delayId);
+      if (idleId !== undefined) {
+        idleWindow.cancelIdleCallback?.(idleId);
+      }
+    };
   }, []);
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const isVendedor = user?.role === 'vendedor';
+  const isOperario = user?.role === 'operario';
   const isSuperadmin = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
 
   const { orders, loading, refetch, updateOrderStatus } = useOrders({
@@ -305,10 +317,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Production Control Panel - Visible to Admins (all pending) and Operarios (their own pending/corrections) */}
-      <Suspense fallback={<DashboardModuleFallback />}>
-        <PendingProductionPanel />
-      </Suspense>
+      {/* Production Control Panel: never load its production/products queries for sellers/repartidores */}
+      {(isAdmin || isOperario) && loadSecondaryModules && (
+        <Suspense fallback={<DashboardModuleFallback />}>
+          <PendingProductionPanel />
+        </Suspense>
+      )}
 
       {/* Filters */}
       <Card>
