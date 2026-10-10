@@ -46,8 +46,12 @@ interface RepartidorLoad {
   items: RepartidorLoadItem[];
 }
 
-export function useDashboardStats(orders: OrderWithItems[]) {
-  const { repartidores } = useRepartidores();
+export function useDashboardStats(
+  orders: OrderWithItems[],
+  options: { enableAdvanced?: boolean } = {},
+) {
+  const enableAdvanced = options.enableAdvanced ?? true;
+  const { repartidores } = useRepartidores({ enabled: enableAdvanced });
   const [newOrderSound, setNewOrderSound] = useState<HTMLAudioElement | null>(null);
   const previousOrderCountRef = useRef<number>(0);
   const initialLoadRef = useRef(true);
@@ -239,6 +243,8 @@ export function useDashboardStats(orders: OrderWithItems[]) {
 
   // Operational Insights
   const operationalInsights = useMemo<OperationalInsight[]>(() => {
+    if (!enableAdvanced) return [];
+
     const insights: OperationalInsight[] = [];
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -398,7 +404,7 @@ export function useDashboardStats(orders: OrderWithItems[]) {
     }
 
     return insights.slice(0, 4); // Limit to 4 insights
-  }, [orders, healthIndicators.avgDeliveryTimeMinutes, getDeliveryTimeMinutes]);
+  }, [orders, healthIndicators.avgDeliveryTimeMinutes, getDeliveryTimeMinutes, enableAdvanced]);
 
   // Repartidor Load Summary
   const getRepartidorLoad = useCallback((repartidorId: string): RepartidorLoad | null => {
@@ -433,6 +439,8 @@ export function useDashboardStats(orders: OrderWithItems[]) {
 
   // All Repartidores Load Summary
   const allRepartidoresLoad = useMemo<RepartidorLoad[]>(() => {
+    if (!enableAdvanced) return [];
+
     const loads: RepartidorLoad[] = [];
     repartidores.filter(r => r.active).forEach(driver => {
       const load = getRepartidorLoad(driver.id);
@@ -441,7 +449,7 @@ export function useDashboardStats(orders: OrderWithItems[]) {
       }
     });
     return loads.sort((a, b) => b.totalOrders - a.totalOrders);
-  }, [repartidores, getRepartidorLoad]);
+  }, [repartidores, getRepartidorLoad, enableAdvanced]);
 
   // Count new orders (for badge)
   const newOrdersCount = useMemo(() => {
