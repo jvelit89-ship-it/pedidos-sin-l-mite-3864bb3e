@@ -5,6 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getBusinessDateKey } from '@/lib/limaTime';
 
 export type CustomerFollowUpStatus = 'upcoming' | 'overdue' | 'risk';
+export type CustomerFollowUpActionType =
+  | 'managed'
+  | 'no_response'
+  | 'snoozed'
+  | 'whatsapp'
+  | 'called'
+  | 'order_started';
 
 export interface CustomerFollowUpItem {
   customerId: string;
@@ -20,6 +27,10 @@ export interface CustomerFollowUpItem {
   lastPurchaseUnits: number;
   favoriteProducts: string[];
   purchaseCount: number;
+  lastActionType: CustomerFollowUpActionType | null;
+  lastActionAt: string | null;
+  lastActionNote: string | null;
+  snoozedUntil: string | null;
 }
 
 type CustomerRow = {
@@ -64,6 +75,7 @@ export function useCustomerFollowUp() {
   const [items, setItems] = useState<CustomerFollowUpItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!user?.companyId) {
@@ -96,17 +108,33 @@ export function useCustomerFollowUp() {
           ordersQuery = ordersQuery.eq('vendedor_id', user.vendedorId);
         }
 
-        const [customersResult, ordersResult] = await Promise.all([
+        const actionsPromise = user.role === 'vendedor'
+          ? (supabase as any).rpc('get_customer_followup_actions')
+          : Promise.resolve({ data: [], error: null });
+
+        const [customersResult, ordersResult, actionsResult] = await Promise.all([
           customerQuery,
           ordersQuery,
+          actionsPromise,
         ]);
 
         if (cancelled) return;
 
         if (customersResult.error) throw customersResult.error;
         if (ordersResult.error) throw ordersResult.error;
+        if (actionsResult?.error) throw actionsResult.error;
 
         const customers = (customersResult.data || []) as CustomerRow[];
+        const latestActions = new Map<string, {
+          action_type: CustomerFollowUpActionType;
+          note: string | null;
+          snoozed_until: string | null;
+          created_at: string;
+        }>();
+
+        for (const action of actionsResult?.data || []) {
+          latestActions.set(action.customer_id, action);
+        }
         const orders = (ordersResult.data || []) as unknown as OrderRow[];
         const ordersByCustomer = new Map<string, OrderRow[]>();
 
@@ -204,6 +232,8 @@ export function useCustomerFollowUp() {
             .slice(0, 3)
             .map(([name]) => name);
 
+          const latestAction = latestActions.get(customer.id);
+
           calculated.push({
             customerId: customer.id,
             customerName: customer.name,
@@ -218,6 +248,10 @@ export function useCustomerFollowUp() {
             lastPurchaseUnits: lastPurchase.units,
             favoriteProducts,
             purchaseCount: purchaseDays.length,
+            lastActionType: latestAction?.action_type ?? null,
+            lastActionAt: latestAction?.created_at ?? null,
+            lastActionNote: latestAction?.note ?? null,
+            snoozedUntil: latestAction?.snoozed_until ?? null,
           });
         }
 
@@ -240,7 +274,9 @@ export function useCustomerFollowUp() {
     return () => {
       cancelled = true;
     };
-  }, [user?.companyId, user?.role, user?.vendedorId]);
+  }, [user?.companyId, user?.role, user?.vendedorId, refreshKey]);
 
-  return { items, loading, error };
+  const refetch = () => setRefreshKey((value) => value + 1);
+
+  return { items, loading, error, refetch };
 }
