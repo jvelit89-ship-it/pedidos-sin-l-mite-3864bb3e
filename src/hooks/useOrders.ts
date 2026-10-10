@@ -69,6 +69,7 @@ export interface UseOrdersOptions {
   mode?: OrdersQueryMode;
   historyDate?: string;
   dashboardDateFilter?: 'today' | 'week' | 'all' | string;
+  dashboardIncludeItems?: boolean;
   enabled?: boolean;
 }
 
@@ -111,16 +112,27 @@ export function useOrders(options: UseOrdersOptions = {}) {
     ].join(',');
   } else if (mode === 'dashboard' && options.dashboardDateFilter !== 'all') {
     const today = getTodayBusinessDateKey();
-    const { start: todayStart } = getBusinessDayUtcRange(today);
-    const thirtyDaysAgo = new Date(
-      new Date(todayStart).getTime() - 29 * 24 * 60 * 60 * 1000
-    ).toISOString();
 
-    orFilter = [
-      `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
-      `created_at.gte.${thirtyDaysAgo}`,
-      `delivered_at.gte.${thirtyDaysAgo}`,
-    ].join(',');
+    if (options.dashboardDateFilter === 'week') {
+      const { start: todayStart } = getBusinessDayUtcRange(today);
+      const sevenDaysAgo = new Date(
+        new Date(todayStart).getTime() - 6 * 24 * 60 * 60 * 1000
+      ).toISOString();
+
+      orFilter = [
+        `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
+        `created_at.gte.${sevenDaysAgo}`,
+        `delivered_at.gte.${sevenDaysAgo}`,
+      ].join(',');
+    } else {
+      // Fast default: only operational orders plus today's completed/cancelled
+      // orders. The previous implementation fetched 30 days on every dashboard
+      // visit, delaying first paint even when the UI was showing "Hoy".
+      orFilter = [
+        `status.in.(${OPERATIONAL_STATUSES.join(',')})`,
+        ...getCompletedDayClauses(today),
+      ].join(',');
+    }
   }
 
   const filters: Array<{
@@ -141,11 +153,51 @@ export function useOrders(options: UseOrdersOptions = {}) {
   }
 
 
+  const dashboardSelect = options.dashboardIncludeItems
+    ? '*, order_items(*), customers(customer_type, phone)'
+    : [
+        'id',
+        'customer_id',
+        'customer_name',
+        'delivery_address',
+        'customer_latitude',
+        'customer_longitude',
+        'total',
+        'status',
+        'vendedor_id',
+        'vendedor_name',
+        'repartidor_id',
+        'repartidor_name',
+        'delivery_date',
+        'notes',
+        'company_id',
+        'created_at',
+        'updated_at',
+        'delivered_at',
+        'tracking_code',
+        'delivery_latitude',
+        'delivery_longitude',
+        'delivery_distance_m',
+        'delivery_accuracy_m',
+        'delivery_confirmation_source',
+        'delivery_confirmed_by_email',
+        'delivery_confirmation_note',
+        'seller_delivery_review_requested_at',
+        'seller_delivery_review_status',
+        'seller_delivery_observation',
+        'seller_delivery_reviewed_at',
+        'seller_delivery_reviewed_by_user_id',
+        'seller_delivery_reviewed_by_name',
+      ].join(',');
+
   const { data: orders, loading, error, refetch } = useRealtimeQuery<OrderWithItems>('orders', {
-    select: '*, order_items(*), customers(customer_type, phone)',
+    select: mode === 'dashboard'
+      ? dashboardSelect
+      : '*, order_items(*), customers(customer_type, phone)',
     filter: filters.length > 0 ? filters : undefined,
     or: orFilter,
     orderBy: { column: 'created_at', ascending: false },
+    limit: mode === 'dashboard' && options.dashboardDateFilter !== 'all' ? 250 : undefined,
     enabled: options.enabled,
   });
 
