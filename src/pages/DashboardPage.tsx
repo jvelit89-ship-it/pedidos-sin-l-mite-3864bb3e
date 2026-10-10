@@ -107,7 +107,9 @@ export default function DashboardPage() {
     allRepartidoresLoad,
     newOrdersCount,
     ALERT_THRESHOLD_MINUTES,
-  } = useDashboardStats(orders);
+  } = useDashboardStats(orders, {
+    enableAdvanced: isAdmin && loadSecondaryModules,
+  });
 
   const stats = useMemo<DashboardStats>(() => {
     const today = getTodayBusinessDateKey();
