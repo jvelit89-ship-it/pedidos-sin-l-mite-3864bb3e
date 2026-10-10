@@ -35,6 +35,7 @@ export function SuperadminVehicleTracker() {
   const [selectedPlate, setSelectedPlate] = useState(FLEET_VEHICLES[0].plate);
   const [frameKey, setFrameKey] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [showEmbeddedMap, setShowEmbeddedMap] = useState(false);
 
   const selectedVehicle = useMemo(
     () => FLEET_VEHICLES.find((vehicle) => vehicle.plate === selectedPlate) ?? FLEET_VEHICLES[0],
@@ -50,10 +51,17 @@ export function SuperadminVehicleTracker() {
     if (plate === selectedPlate) return;
     setLoaded(false);
     setSelectedPlate(plate);
-    setFrameKey((current) => current + 1);
+    if (showEmbeddedMap) {
+      setFrameKey((current) => current + 1);
+    }
   };
 
   const refreshTracker = () => {
+    if (!showEmbeddedMap) {
+      setShowEmbeddedMap(true);
+      setLoaded(false);
+      return;
+    }
     setLoaded(false);
     setFrameKey((current) => current + 1);
   };
@@ -89,7 +97,7 @@ export function SuperadminVehicleTracker() {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" className="gap-2" onClick={refreshTracker}>
               <RefreshCw className="w-4 h-4" />
-              Actualizar GPS
+              {showEmbeddedMap ? 'Actualizar GPS' : 'Ver GPS en vivo'}
             </Button>
             <Button variant="outline" size="sm" className="gap-2" onClick={() => openLiveMap()}>
               <ExternalLink className="w-4 h-4" />
@@ -190,32 +198,53 @@ export function SuperadminVehicleTracker() {
           </Badge>
         </div>
 
-        <div className="relative bg-muted/30 min-h-[560px]">
-          {!loaded && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-[1px]">
-              <div className="text-center space-y-3">
-                <RefreshCw className="w-7 h-7 animate-spin mx-auto text-primary" />
-                <div>
-                  <p className="font-medium">Conectando con SEGURIPER GPS…</p>
-                  <p className="text-xs text-muted-foreground">
-                    Cargando ubicación en vivo de {selectedVehicle.plate}
-                  </p>
+        {showEmbeddedMap ? (
+          <div className="relative bg-muted/30 min-h-[560px]">
+            {!loaded && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-[1px]">
+                <div className="text-center space-y-3">
+                  <RefreshCw className="w-7 h-7 animate-spin mx-auto text-primary" />
+                  <div>
+                    <p className="font-medium">Conectando con SEGURIPER GPS…</p>
+                    <p className="text-xs text-muted-foreground">
+                      Cargando ubicación en vivo de {selectedVehicle.plate}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <iframe
-            key={`${selectedVehicle.plate}-${frameKey}`}
-            src={iframeSrc}
-            title={`GPS en vivo ${selectedVehicle.plate}`}
-            className="w-full h-[560px] lg:h-[640px] border-0"
-            loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
-            allow="geolocation; fullscreen"
-            onLoad={() => setLoaded(true)}
-          />
-        </div>
+            <iframe
+              key={`${selectedVehicle.plate}-${frameKey}`}
+              src={iframeSrc}
+              title={`GPS en vivo ${selectedVehicle.plate}`}
+              className="w-full h-[560px] lg:h-[640px] border-0"
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allow="geolocation; fullscreen"
+              onLoad={() => setLoaded(true)}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-[180px] items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50/60 px-4 py-8">
+            <div className="max-w-md text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                <MapPinned className="h-6 w-6" />
+              </div>
+              <p className="mt-3 font-semibold">Mapa GPS listo cuando lo necesites</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Para mantener el Dashboard rápido, el mapa en vivo no se carga hasta que lo abras.
+              </p>
+              <Button className="mt-4 gap-2" onClick={() => {
+                setLoaded(false);
+                setShowEmbeddedMap(true);
+              }}>
+                <Satellite className="h-4 w-4" />
+                Ver {selectedVehicle.plate} en vivo
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="px-4 py-3 border-t bg-muted/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
           <span>
