@@ -157,11 +157,12 @@ export function useVendedores() {
   };
 }
 
-export function useRepartidores() {
+export function useRepartidores(options: { enabled?: boolean } = {}) {
   const { user } = useAuth();
   const { data: repartidores, loading, error, refetch } = useRealtimeQuery<Repartidor>('repartidores', {
     filter: user?.companyId ? [{ column: 'company_id', value: user.companyId }] : undefined,
     orderBy: { column: 'name', ascending: true },
+    enabled: options.enabled,
   });
 
   const addRepartidor = useCallback(async (repartidor: Omit<Repartidor, 'id' | 'created_at' | 'company_id'>) => {
