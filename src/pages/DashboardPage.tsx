@@ -231,7 +231,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {(isSuperadmin || isVendedor) && (
+      {(isSuperadmin || isVendedor) && loadSecondaryModules && (
         <Suspense fallback={<DashboardModuleFallback />}>
           <SuperadminVehicleTracker />
         </Suspense>
@@ -295,7 +295,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {isVendedor && (
+      {isVendedor && loadSecondaryModules && (
         <div className="space-y-6">
           <Suspense fallback={<DashboardModuleFallback />}>
             <SellerDeliveryReviewPanel orders={orders} onReviewed={refetch} />
