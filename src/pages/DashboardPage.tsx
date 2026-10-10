@@ -76,9 +76,16 @@ export default function DashboardPage() {
     const timeoutId = window.setTimeout(() => setLoadSecondaryModules(true), 350);
     return () => window.clearTimeout(timeoutId);
   }, []);
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isVendedor = user?.role === 'vendedor';
+  const isSuperadmin = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
+
   const { orders, loading, refetch, updateOrderStatus } = useOrders({
     mode: 'dashboard',
     dashboardDateFilter: dateFilter,
+    // Nested order_items are only useful for secondary admin analytics.
+    // Never make the first dashboard paint wait for them.
+    dashboardIncludeItems: isAdmin && loadSecondaryModules,
   });
 
   const {
@@ -89,10 +96,6 @@ export default function DashboardPage() {
     newOrdersCount,
     ALERT_THRESHOLD_MINUTES,
   } = useDashboardStats(orders);
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-  const isVendedor = user?.role === 'vendedor';
-  const isSuperadmin = user?.role === 'superadmin' || user?.email?.toLowerCase() === 'jvelit89@gmail.com';
 
   const stats = useMemo<DashboardStats>(() => {
     const today = getTodayBusinessDateKey();
@@ -176,14 +179,6 @@ export default function DashboardPage() {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="p-4 md:p-6 flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 md:p-6 space-y-6 pb-safe">
       {/* Header */}
@@ -219,7 +214,11 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">{kpi.title}</p>
-                    <p className="text-3xl font-bold mt-1">{kpi.value}</p>
+                    {loading ? (
+                      <div className="mt-2 h-9 w-14 animate-pulse rounded-md bg-muted" />
+                    ) : (
+                      <p className="text-3xl font-bold mt-1">{kpi.value}</p>
+                    )}
                   </div>
                   <div className={`p-2.5 rounded-xl ${kpi.bgColor}`}>
                     <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
@@ -351,7 +350,13 @@ export default function DashboardPage() {
             <TrendingUp className="w-5 h-5 text-muted-foreground" />
           </div>
           
-          {filteredOrders.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3 py-2">
+              {[1, 2, 3].map((row) => (
+                <div key={row} className="h-16 animate-pulse rounded-lg bg-muted/60" />
+              ))}
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>No hay pedidos para mostrar</p>
