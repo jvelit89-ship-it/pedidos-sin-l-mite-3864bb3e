@@ -266,7 +266,7 @@ function OpportunityCard({
             <CalendarDays className="h-4 w-4 text-blue-600" />
             <div>
               <p className="text-sm font-black">{since} días</p>
-              <p className="text-[11px] leading-tight text-muted-foreground">desde última compra</p>
+              <p className="text-[11px] leading-tight text-muted-foreground">desde último pedido</p>
             </div>
           </div>
         </div>
@@ -286,7 +286,7 @@ function OpportunityCard({
             <ShoppingCart className="h-4 w-4 text-blue-600" />
             <div>
               <p className="text-sm font-black">cada {item.averageDaysBetweenPurchases} días</p>
-              <p className="text-[11px] leading-tight text-muted-foreground">frecuencia habitual</p>
+              <p className="text-[11px] leading-tight text-muted-foreground">frecuencia real de pedidos</p>
             </div>
           </div>
         </div>
@@ -582,13 +582,13 @@ export function CustomerFollowUpPanel() {
                 Oportunidades de Venta
               </CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Clientes que conviene contactar hoy para recuperar ventas y generar nuevos pedidos.
+                Clientes priorizados con el historial real de pedidos. Se actualiza automáticamente cuando entra o cambia un pedido.
               </p>
             </div>
 
             <Badge variant="secondary" className="self-start gap-1 px-3 py-1.5">
               <Users className="h-3.5 w-3.5" />
-              {activeItems.length} por atender
+              {activeItems.length} por atender · sincronizado
             </Badge>
           </div>
 
