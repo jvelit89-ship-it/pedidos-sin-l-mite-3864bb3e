@@ -244,6 +244,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {isVendedor && loadSecondaryModules && (
+        <Suspense fallback={<DashboardModuleFallback />}>
+          <SellerDeliveryReviewPanel onReviewed={refetch} />
+        </Suspense>
+      )}
+
       {(isSuperadmin || isVendedor) && loadSecondaryModules && (
         <Suspense fallback={<DashboardModuleFallback />}>
           <SuperadminVehicleTracker />
@@ -309,14 +315,9 @@ export default function DashboardPage() {
       )}
 
       {isVendedor && loadSecondaryModules && (
-        <div className="space-y-6">
-          <Suspense fallback={<DashboardModuleFallback />}>
-            <SellerDeliveryReviewPanel orders={orders} onReviewed={refetch} />
-          </Suspense>
-          <Suspense fallback={<DashboardModuleFallback />}>
-            <CustomerFollowUpPanel />
-          </Suspense>
-        </div>
+        <Suspense fallback={<DashboardModuleFallback />}>
+          <CustomerFollowUpPanel />
+        </Suspense>
       )}
 
       {/* Production Control Panel: never load its production/products queries for sellers/repartidores */}
