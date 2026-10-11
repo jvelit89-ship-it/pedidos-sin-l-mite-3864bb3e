@@ -311,7 +311,7 @@ export default function CommissionsPage() {
             <th>${type === 'vendedores' ? 'Cliente' : 'Producción'}</th>
             <th>Producto</th>
             <th class="text-right">Cant.</th>
-            <th class="text-right">Comisión s/</th>
+            <th class="text-right">Uds. con comisión</th>
             <th class="text-right">Com/U</th>
             <th class="text-right">Total</th>
           </tr></thead>
@@ -378,7 +378,7 @@ export default function CommissionsPage() {
       summaryHtml = `
         <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
         <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>`;
-      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Comisión s/</th><th class="text-right">Com/U</th><th class="text-right">Total</th>`;
+      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Uds. con comisión</th><th class="text-right">Com/U</th><th class="text-right">Total</th>`;
       tableRows = details.map((d: any) => `<tr>
         <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
         <td>${d.customer_name || 'Producción'}</td>
@@ -394,7 +394,7 @@ export default function CommissionsPage() {
         <div class="summary-item"><div class="value">${totalUnits}</div><div class="label">Total Unidades</div></div>
         <div class="summary-item"><div class="value">${formatCurrency(totalSales)}</div><div class="label">Total ${isVendedor ? 'Ventas' : 'Producción'}</div></div>
         <div class="summary-item"><div class="value">${formatCurrency(totalComm)}</div><div class="label">Total Comisión</div></div>`;
-      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Comisión s/</th><th class="text-right">P. Unit</th><th class="text-right">Venta</th><th class="text-right">Com/U</th><th class="text-right">Comisión</th>`;
+      tableHeaders = `<th>Fecha</th><th>${isVendedor ? 'Cliente' : 'Producción'}</th><th>Producto</th><th class="text-right">Cant.</th><th class="text-right">Uds. con comisión</th><th class="text-right">P. Unit</th><th class="text-right">Venta</th><th class="text-right">Com/U</th><th class="text-right">Comisión</th>`;
       tableRows = details.map((d: any) => `<tr>
         <td>${format(new Date(d.order_date || d.produced_at), 'dd/MM/yyyy', { locale: es })}</td>
         <td>${d.customer_name || 'Producción'}</td>
@@ -674,7 +674,7 @@ export default function CommissionsPage() {
                               <TableHead>Cliente</TableHead>
                               <TableHead>Producto</TableHead>
                               <TableHead className="text-right">Cant.</TableHead>
-                              <TableHead className="text-right">Comisión s/</TableHead>
+                              <TableHead className="text-right">Uds. con comisión</TableHead>
                               <TableHead className="text-right">Comisión</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -714,7 +714,7 @@ export default function CommissionsPage() {
                               <TableHead>Cliente</TableHead>
                               <TableHead>Producto</TableHead>
                               <TableHead className="text-right">Cant.</TableHead>
-                              <TableHead className="text-right">Comisión s/</TableHead>
+                              <TableHead className="text-right">Uds. con comisión</TableHead>
                               <TableHead className="text-right">Proyectada</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -757,7 +757,7 @@ export default function CommissionsPage() {
                           <TableHead>{isOperario ? 'Producción' : 'Cliente'}</TableHead>
                           <TableHead>Producto</TableHead>
                           <TableHead className="text-right">Cant.</TableHead>
-                          <TableHead className="text-right">Comisión s/</TableHead>
+                          <TableHead className="text-right">Uds. con comisión</TableHead>
                           <TableHead className="text-right">Comisión</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1249,7 +1249,7 @@ export default function CommissionsPage() {
                   <TableHead>{adminTab === 'operarios' ? 'Producción' : 'Cliente'}</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead className="text-right">Cant.</TableHead>
-                  <TableHead className="text-right">Comisión s/</TableHead>
+                  <TableHead className="text-right">Uds. con comisión</TableHead>
                   <TableHead className="text-right">Com/U</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Acción</TableHead>
