@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bell, CheckCircle2, MessageSquareWarning, ShieldCheck, Truck } from 'lucide-react';
@@ -20,14 +20,12 @@ import {
 } from '@/components/ui/dialog';
 
 interface SellerDeliveryReviewPanelProps {
-  orders: OrderWithItems[];
   onReviewed?: () => void | Promise<void>;
 }
 
 type ReviewStatus = 'conforme' | 'observado';
 
 export function SellerDeliveryReviewPanel({
-  orders,
   onReviewed,
 }: SellerDeliveryReviewPanelProps) {
   const { user } = useAuth();
@@ -36,37 +34,96 @@ export function SellerDeliveryReviewPanel({
   const [reviewStatus, setReviewStatus] = useState<ReviewStatus>('conforme');
   const [observation, setObservation] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [pendingReviews, setPendingReviews] = useState<OrderWithItems[]>([]);
+  const [reviewedToday, setReviewedToday] = useState(0);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
-  const sellerOrders = useMemo(() => {
-    if (!user?.vendedorId) return [];
+  const loadReviews = useCallback(async () => {
+    if (!user?.vendedorId) {
+      setPendingReviews([]);
+      setReviewedToday(0);
+      return;
+    }
 
-    return orders
-      .filter(
-        (order) =>
-          order.vendedor_id === user.vendedorId &&
-          order.status === 'delivered' &&
-          !!order.seller_delivery_review_requested_at,
+    setLoadingReviews(true);
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const [pendingResult, reviewedResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select([
+            'id',
+            'customer_id',
+            'customer_name',
+            'total',
+            'status',
+            'vendedor_id',
+            'vendedor_name',
+            'repartidor_id',
+            'repartidor_name',
+            'company_id',
+            'created_at',
+            'updated_at',
+            'delivered_at',
+            'delivery_confirmation_source',
+            'seller_delivery_review_requested_at',
+            'seller_delivery_review_status',
+            'seller_delivery_observation',
+            'seller_delivery_reviewed_at',
+            'seller_delivery_reviewed_by_name',
+          ].join(','))
+          .eq('vendedor_id', user.vendedorId)
+          .eq('status', 'delivered')
+          .not('seller_delivery_review_requested_at', 'is', null)
+          .is('seller_delivery_reviewed_at', null)
+          .order('delivered_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('vendedor_id', user.vendedorId)
+          .eq('status', 'delivered')
+          .not('seller_delivery_reviewed_at', 'is', null)
+          .gte('seller_delivery_reviewed_at', todayStart.toISOString()),
+      ]);
+
+      if (pendingResult.error) throw pendingResult.error;
+      if (reviewedResult.error) throw reviewedResult.error;
+
+      setPendingReviews((pendingResult.data || []) as unknown as OrderWithItems[]);
+      setReviewedToday(reviewedResult.count || 0);
+    } catch (error) {
+      console.error('Error loading seller delivery reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, [user?.vendedorId]);
+
+  useEffect(() => {
+    void loadReviews();
+
+    if (!user?.vendedorId) return;
+
+    const channel = supabase
+      .channel(`seller-review-panel-${user.vendedorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `vendedor_id=eq.${user.vendedorId}`,
+        },
+        () => void loadReviews(),
       )
-      .sort((a, b) => {
-        const aDate = new Date(a.delivered_at || a.updated_at).getTime();
-        const bDate = new Date(b.delivered_at || b.updated_at).getTime();
-        return bDate - aDate;
-      });
-  }, [orders, user?.vendedorId]);
+      .subscribe();
 
-  const pendingReviews = useMemo(
-    () => sellerOrders.filter((order) => !order.seller_delivery_reviewed_at),
-    [sellerOrders],
-  );
-
-  const reviewedToday = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    return sellerOrders.filter(
-      (order) =>
-        order.seller_delivery_reviewed_at &&
-        format(new Date(order.seller_delivery_reviewed_at), 'yyyy-MM-dd') === today,
-    ).length;
-  }, [sellerOrders]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadReviews, user?.vendedorId]);
 
   const openReview = (order: OrderWithItems) => {
     setSelectedOrder(order);
@@ -115,6 +172,7 @@ export function SellerDeliveryReviewPanel({
       setSelectedOrder(null);
       setObservation('');
       setReviewStatus('conforme');
+      await loadReviews();
       await onReviewed?.();
     } catch (error: any) {
       console.error('Seller delivery review error:', error);
@@ -137,7 +195,7 @@ export function SellerDeliveryReviewPanel({
   if (!user?.vendedorId) return null;
 
   return (
-    <>
+    <div id="seller-delivery-reviews" className="scroll-mt-24">
       <Card className={pendingReviews.length > 0 ? 'border-amber-300 bg-amber-50/40' : 'border-emerald-200 bg-emerald-50/30'}>
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-4">
@@ -168,7 +226,13 @@ export function SellerDeliveryReviewPanel({
               )}
             </div>
 
-            {pendingReviews.length === 0 ? (
+            {loadingReviews ? (
+              <div className="space-y-2">
+                {[1, 2].map((row) => (
+                  <div key={row} className="h-16 animate-pulse rounded-xl bg-muted/60" />
+                ))}
+              </div>
+            ) : pendingReviews.length === 0 ? (
               <div className="rounded-xl border border-emerald-200 bg-white/80 p-4 flex items-center gap-3 text-sm">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
                 <div>
@@ -316,6 +380,6 @@ export function SellerDeliveryReviewPanel({
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
