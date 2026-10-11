@@ -28,38 +28,33 @@ interface CommissionDetail {
  * and 100+15, 200+40, 400+100 for water 20L).
  */
 function calculateCommissionableQuantity(quantity: number, total: number, unitPrice: number, basePrice: number, productName: string = ''): number {
+  if (quantity <= 0) return 0;
   if (basePrice <= 0) return quantity;
-  
+
   const name = productName.toLowerCase();
-  
-  // Rule 1: Water products without "extra" promotions always commission full quantity
-  // User explicitly mentioned 8L, 625ml, and 1L water products have no extra promotions.
-  if (name.includes('agua') && (name.includes('8l') || name.includes('625ml') || name.includes('1l'))) {
+  const isIce = name.includes('hielo');
+  const isWater20LRefill = name.includes('20l') && name.includes('recarga');
+  const supportsFreeExtras = isIce || isWater20LRefill;
+
+  // IMPORTANT:
+  // A discounted selling price is NOT the same as a free promotional unit.
+  // Products without explicit "X + Y gratis" mechanics commission every sold unit.
+  // This includes Bidón Nuevo 20L, PET 8L empties, Agua 8L, 1L and 625 ml.
+  if (!supportsFreeExtras) {
     return quantity;
   }
 
-  // Rule 2: Special base price for Agua 20L Recarga (Distributors)
+  // Agua 20L Recarga has a legitimate distributor base price of S/5.
   let effectiveBasePrice = basePrice;
-  if (name.includes('20l') && name.includes('recarga')) {
-    // Standard price is 10, distributor price is 5.
-    // If selling near or below 7, it's likely a distributor sale or promotion.
-    if (unitPrice <= 7) {
-      effectiveBasePrice = 5;
-    }
+  if (isWater20LRefill && unitPrice <= 7) {
+    effectiveBasePrice = 5;
   }
 
-  // Rule 3: For products with "extras" (Hielo and Agua 20L), only commission what was effectively paid for.
-  // If price is normal or higher, all items are commissionable
   if (unitPrice >= effectiveBasePrice) return quantity;
-
-  // Calculate effectively paid units based on total and base price
-  const calculatedPaidUnits = Math.round(total / effectiveBasePrice);
-  
-  // If total is 0, no commission
   if (total <= 0) return 0;
-  
-  // Return the minimum of requested quantity and effectively paid units
-  // This correctly handles "X + Y gratis" where total = X * basePrice
+
+  // For products that really have free extras, infer only the paid units.
+  const calculatedPaidUnits = Math.round(total / effectiveBasePrice);
   return Math.min(quantity, calculatedPaidUnits);
 }
 
@@ -163,28 +158,45 @@ export function useVendorCommissions(year: number, month: number) {
       const period2Start = new Date(year, month - 1, 16);
       const period2End = new Date(year, month, 0, 23, 59, 59);
 
-      // Get orders with items for this month (both delivered and pending/in-route)
-      const { data: orders } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          vendedor_id,
-          customer_name,
-          status,
-          created_at,
-          delivered_at,
-          order_items (
-            product_id,
-            product_name,
-            quantity,
-            unit_price,
-            total
-          )
-        `)
-        .eq('company_id', companyId)
-        .neq('status', 'cancelled')
-        .gte('created_at', period1Start.toISOString())
-        .lte('created_at', period2End.toISOString());
+      // Closed commissions belong to the month in which the order was DELIVERED.
+      // Open/projected commissions belong to the month in which the order was CREATED.
+      // Keeping these windows separate avoids losing orders created at the end of the
+      // previous month but delivered on the 1st of the selected month.
+      const orderSelect = `
+        id,
+        vendedor_id,
+        customer_name,
+        status,
+        created_at,
+        delivered_at,
+        order_items (
+          product_id,
+          product_name,
+          quantity,
+          unit_price,
+          total
+        )
+      `;
+
+      const [{ data: deliveredOrders }, { data: openOrders }] = await Promise.all([
+        supabase
+          .from('orders')
+          .select(orderSelect)
+          .eq('company_id', companyId)
+          .eq('status', 'delivered')
+          .gte('delivered_at', period1Start.toISOString())
+          .lte('delivered_at', period2End.toISOString()),
+        supabase
+          .from('orders')
+          .select(orderSelect)
+          .eq('company_id', companyId)
+          .neq('status', 'cancelled')
+          .neq('status', 'delivered')
+          .gte('created_at', period1Start.toISOString())
+          .lte('created_at', period2End.toISOString()),
+      ]);
+
+      const orders = [...(deliveredOrders || []), ...(openOrders || [])];
 
       // Get all products with commission amounts and base prices
       const { data: products } = await supabase
@@ -384,27 +396,40 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
       const period2Start = new Date(year, month - 1, 16);
       const period2End = new Date(year, month, 0, 23, 59, 59);
 
-      // Get orders with items for this month (both delivered and pending/in-route)
-      const { data: orders } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          customer_name,
-          status,
-          created_at,
-          delivered_at,
-          order_items (
-            product_id,
-            product_name,
-            quantity,
-            unit_price,
-            total
-          )
-        `)
-        .eq('vendedor_id', vendedorId)
-        .neq('status', 'cancelled')
-        .gte('created_at', period1Start.toISOString())
-        .lte('created_at', period2End.toISOString());
+      const orderSelect = `
+        id,
+        customer_name,
+        status,
+        created_at,
+        delivered_at,
+        order_items (
+          product_id,
+          product_name,
+          quantity,
+          unit_price,
+          total
+        )
+      `;
+
+      const [{ data: deliveredOrders }, { data: openOrders }] = await Promise.all([
+        supabase
+          .from('orders')
+          .select(orderSelect)
+          .eq('vendedor_id', vendedorId)
+          .eq('status', 'delivered')
+          .gte('delivered_at', period1Start.toISOString())
+          .lte('delivered_at', period2End.toISOString()),
+        supabase
+          .from('orders')
+          .select(orderSelect)
+          .eq('vendedor_id', vendedorId)
+          .neq('status', 'cancelled')
+          .neq('status', 'delivered')
+          .gte('created_at', period1Start.toISOString())
+          .lte('created_at', period2End.toISOString()),
+      ]);
+
+      const orders = [...(deliveredOrders || []), ...(openOrders || [])];
 
       // Get all products with commission amounts and base prices
       const { data: products } = await supabase
@@ -618,6 +643,27 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         (products || []).map(p => [p.id, p.price || 0])
       );
 
+      // Daily view must apply the same prepaid exclusion as the monthly view,
+      // otherwise a prepaid package can appear commissioned twice.
+      const dailyPrepaidCoverage = new Map<string, number>();
+      const dailyOrderIds = (orders || []).map((order: any) => order.id);
+      if (dailyOrderIds.length > 0) {
+        const { data: prepaidUsages } = await (supabase as any)
+          .from('prepaid_package_usages')
+          .select('order_id, quantity_used, customer_prepaid_packages!inner(product_id)')
+          .in('order_id', dailyOrderIds);
+
+        (prepaidUsages || []).forEach((usage: any) => {
+          const productId = usage.customer_prepaid_packages?.product_id;
+          if (!productId) return;
+          const key = `${usage.order_id}::${productId}`;
+          dailyPrepaidCoverage.set(
+            key,
+            (dailyPrepaidCoverage.get(key) || 0) + Number(usage.quantity_used || 0),
+          );
+        });
+      }
+
       // Group by date
       const dailyMap = new Map<string, DailyCommission>();
 
@@ -633,9 +679,15 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
         (order.order_items || []).forEach((item: any) => {
           const commissionPerUnit = productCommissions.get(item.product_id) || 0;
           const basePrice = productPrices.get(item.product_id) || 0;
+          const prepaidQty = dailyPrepaidCoverage.get(`${order.id}::${item.product_id}`) || 0;
+          const effectiveQty = Math.max(0, Number(item.quantity || 0) - prepaidQty);
+          const effectiveTotal = Math.max(
+            0,
+            Number((item as any).total || 0) - prepaidQty * Number((item as any).unit_price || 0),
+          );
           const commissionedQuantity = calculateCommissionableQuantity(
-            item.quantity,
-            (item as any).total || 0,
+            effectiveQty,
+            effectiveTotal,
             (item as any).unit_price || 0,
             basePrice,
             item.product_name || ''
