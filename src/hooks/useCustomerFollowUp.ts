@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -57,6 +57,7 @@ export function useCustomerFollowUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user?.companyId || user.role !== 'vendedor' || !user.vendedorId) {
@@ -118,6 +119,67 @@ export function useCustomerFollowUp() {
       cancelled = true;
     };
   }, [user?.companyId, user?.role, user?.vendedorId, refreshKey]);
+
+  useEffect(() => {
+    if (!user?.companyId || user.role !== 'vendedor' || !user.vendedorId) return;
+
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+
+      refreshTimerRef.current = setTimeout(() => {
+        setRefreshKey((value) => value + 1);
+        refreshTimerRef.current = null;
+      }, 450);
+    };
+
+    const ordersChannel = supabase
+      .channel(`followup-orders-${user.vendedorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `company_id=eq.${user.companyId}`,
+        },
+        scheduleRefresh,
+      )
+      .subscribe();
+
+    const customersChannel = supabase
+      .channel(`followup-customers-${user.vendedorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers',
+          filter: `company_id=eq.${user.companyId}`,
+        },
+        scheduleRefresh,
+      )
+      .subscribe();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') scheduleRefresh();
+    };
+
+    window.addEventListener('focus', scheduleRefresh);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      window.removeEventListener('focus', scheduleRefresh);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(customersChannel);
+    };
+  }, [user?.companyId, user?.role, user?.vendedorId]);
 
   const refetch = () => setRefreshKey((value) => value + 1);
 
