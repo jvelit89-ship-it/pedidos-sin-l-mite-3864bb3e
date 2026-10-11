@@ -2,6 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeQuery } from './useSupabaseData';
 import { toast } from 'sonner';
+import { getBusinessDateKey } from '@/lib/limaTime';
 
 interface ProductCommission {
   product_id: string;
@@ -668,7 +669,7 @@ export function useMyCommissions(vendedorId: string | null, year: number, month:
       const dailyMap = new Map<string, DailyCommission>();
 
       (orders || []).forEach(order => {
-        const dateKey = new Date(order.delivered_at!).toISOString().split('T')[0];
+        const dateKey = getBusinessDateKey(order.delivered_at!);
 
         if (!dailyMap.has(dateKey)) {
           dailyMap.set(dateKey, { date: dateKey, units: 0, commission: 0, details: [] });
