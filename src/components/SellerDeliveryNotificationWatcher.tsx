@@ -9,6 +9,22 @@ export function SellerDeliveryNotificationWatcher() {
   const navigate = useNavigate();
   const seenOrdersRef = useRef<Set<string>>(new Set());
 
+  const openReviews = () => {
+    const scrollToReviews = () => {
+      document
+        .getElementById('seller-delivery-reviews')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    if (window.location.pathname === '/dashboard') {
+      window.setTimeout(scrollToReviews, 80);
+      return;
+    }
+
+    navigate('/dashboard');
+    window.setTimeout(scrollToReviews, 1200);
+  };
+
   useEffect(() => {
     if (user?.role !== 'vendedor' || !user.vendedorId) return;
 
@@ -38,7 +54,7 @@ export function SellerDeliveryNotificationWatcher() {
           duration: 9000,
           action: {
             label: 'Revisar',
-            onClick: () => navigate('/dashboard'),
+            onClick: openReviews,
           },
         },
       );
@@ -72,7 +88,7 @@ export function SellerDeliveryNotificationWatcher() {
               duration: 12000,
               action: {
                 label: 'Revisar',
-                onClick: () => navigate('/dashboard'),
+                onClick: openReviews,
               },
             });
           }
