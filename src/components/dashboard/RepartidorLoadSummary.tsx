@@ -115,7 +115,7 @@ export function AllRepartidoresLoad({ loads }: AllRepartidoresLoadProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
-            Sin pedidos asignados para entrega
+            Sin pedidos pendientes asignados para entrega
           </p>
         </CardContent>
       </Card>
@@ -124,45 +124,73 @@ export function AllRepartidoresLoad({ loads }: AllRepartidoresLoadProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Truck className="w-4 h-4" />
           Carga de Repartidores
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Mismo resumen que ve cada repartidor en Entregas · Listo para envío + En camino
+        </p>
       </CardHeader>
-      <CardContent className="space-y-3">
+
+      <CardContent className="space-y-4">
         {loads.map((load, index) => {
           const totalItems = load.items.reduce((sum, item) => sum + item.totalQuantity, 0);
+
           return (
             <motion.div
               key={load.repartidorId}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              transition={{ delay: index * 0.06 }}
+              className="rounded-xl border bg-background overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">{load.repartidorName}</span>
-                <Badge variant="outline">{load.totalOrders} pedidos</Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-muted-foreground" />
-                <span className="text-lg font-bold text-[hsl(var(--status-preparation))]">
-                  {totalItems}
-                </span>
-                <span className="text-sm text-muted-foreground">productos</span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {load.items.slice(0, 3).map(item => (
-                  <Badge key={item.productId} variant="secondary" className="text-xs">
-                    {item.productName.split(' ')[0]} x{item.totalQuantity}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">{load.repartidorName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Carga pendiente de entrega
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">
+                    {load.totalOrders} pedido{load.totalOrders === 1 ? '' : 's'} pendiente{load.totalOrders === 1 ? '' : 's'}
                   </Badge>
-                ))}
-                {load.items.length > 3 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{load.items.length - 3} más
+                  <Badge className="bg-primary/10 text-primary hover:bg-primary/10">
+                    {totalItems} unidades por cargar
                   </Badge>
-                )}
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="space-y-2">
+                  {load.items.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="flex items-center justify-between gap-3 rounded-lg border bg-muted/15 px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex items-center gap-2">
+                        <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="text-sm font-medium">
+                          {item.productName}
+                        </span>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 min-w-[3.25rem] justify-center font-mono"
+                      >
+                        x{item.totalQuantity}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           );
