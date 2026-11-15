@@ -24,9 +24,9 @@ interface CommissionDetail {
 }
 
 /**
- * Calculates the quantity that should receive commission, excluding free products.
- * Handles standard promotions (e.g., Buy 20 get 1 free, 40 get 5 free for ice,
- * and 100+15, 200+40, 400+100 for water 20L).
+ * Calculates the quantity that should receive commission.
+ * Ice no longer has free-bag promotions, so every sold ice unit is commissionable.
+ * Only Agua 20L Recarga keeps the legacy free-extra inference.
  */
 function calculateCommissionableQuantity(quantity: number, total: number, unitPrice: number, basePrice: number, productName: string = ''): number {
   if (quantity <= 0) return 0;
