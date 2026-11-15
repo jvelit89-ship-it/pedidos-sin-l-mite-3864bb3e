@@ -33,14 +33,14 @@ function calculateCommissionableQuantity(quantity: number, total: number, unitPr
   if (basePrice <= 0) return quantity;
 
   const name = productName.toLowerCase();
-  const isIce = name.includes('hielo');
   const isWater20LRefill = name.includes('20l') && name.includes('recarga');
-  const supportsFreeExtras = isIce || isWater20LRefill;
+  const supportsFreeExtras = isWater20LRefill;
 
   // IMPORTANT:
   // A discounted selling price is NOT the same as a free promotional unit.
-  // Products without explicit "X + Y gratis" mechanics commission every sold unit.
-  // This includes Bidón Nuevo 20L, PET 8L empties, Agua 8L, 1L and 625 ml.
+  // Free ice bags were discontinued: ALL ice units sold now earn commission,
+  // even when their unit price is S/3.50, S/3.00, S/2.50, etc.
+  // The only remaining free-extra inference is Agua 20L Recarga.
   if (!supportsFreeExtras) {
     return quantity;
   }
