@@ -48,9 +48,10 @@ interface RepartidorLoad {
 
 export function useDashboardStats(
   orders: OrderWithItems[],
-  options: { enableAdvanced?: boolean } = {},
+  options: { enableAdvanced?: boolean; loadOrders?: OrderWithItems[] } = {},
 ) {
   const enableAdvanced = options.enableAdvanced ?? true;
+  const loadOrders = options.loadOrders ?? orders;
   const { repartidores } = useRepartidores({ enabled: enableAdvanced });
   const [newOrderSound, setNewOrderSound] = useState<HTMLAudioElement | null>(null);
   const previousOrderCountRef = useRef<number>(0);
@@ -408,8 +409,8 @@ export function useDashboardStats(
 
   // Repartidor Load Summary
   const getRepartidorLoad = useCallback((repartidorId: string): RepartidorLoad | null => {
-    const driverOrders = orders.filter(
-      o => o.repartidor_id === repartidorId && 
+    const driverOrders = loadOrders.filter(
+      o => o.repartidor_id === repartidorId &&
            (o.status === 'ready' || o.status === 'delivery')
     );
 
@@ -435,7 +436,7 @@ export function useDashboardStats(
       totalOrders: driverOrders.length,
       items: Array.from(itemsMap.values()).sort((a, b) => b.totalQuantity - a.totalQuantity),
     };
-  }, [orders, repartidores]);
+  }, [loadOrders, repartidores]);
 
   // All Repartidores Load Summary
   const allRepartidoresLoad = useMemo<RepartidorLoad[]>(() => {
