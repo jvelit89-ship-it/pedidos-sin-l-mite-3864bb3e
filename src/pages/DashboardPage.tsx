@@ -100,6 +100,14 @@ export default function DashboardPage() {
     dashboardIncludeItems: isAdmin && loadSecondaryModules,
   });
 
+  // Single source of truth for "Carga de Repartidores":
+  // exactly the same delivery-mode query used in Entregas (ready + delivery).
+  // This prevents Dashboard totals from drifting from the repartidor's own summary.
+  const { orders: deliveryLoadOrders } = useOrders({
+    mode: 'deliveries',
+    enabled: isAdmin && loadSecondaryModules,
+  });
+
   const {
     smartAlerts,
     healthIndicators,
@@ -109,6 +117,7 @@ export default function DashboardPage() {
     ALERT_THRESHOLD_MINUTES,
   } = useDashboardStats(orders, {
     enableAdvanced: isAdmin && loadSecondaryModules,
+    loadOrders: deliveryLoadOrders,
   });
 
   const stats = useMemo<DashboardStats>(() => {
